@@ -15,7 +15,9 @@ st.set_page_config(
 # Initialisation de l'exchange
 @st.cache_resource
 def get_exchange():
-    return ccxt.binance()
+    return ccxt.kucoin({
+        'adjustForTimeDifference': True,
+    })
 
 exchange = get_exchange()
 
@@ -24,6 +26,11 @@ page = st.sidebar.selectbox(
     "Navigation",
     ["Analyse en Direct", "Top Performances", "Opportunités Court Terme", "Analyse Historique"]
 )
+
+# Le reste du code reste identique, mais remplacez '/USDT' par '/USDT:USDT' pour KuCoin
+# Par exemple:
+# ticker = exchange.fetch_ticker(f"{symbol}/USDT:USDT")
+# ohlcv = exchange.fetch_ohlcv(f"{symbol}/USDT:USDT", '1h', limit=100)
 
 # Function pour calculer le RSI
 def calculate_rsi(df, periods=14):
@@ -42,9 +49,9 @@ if page == "Analyse en Direct":
     
     if symbol:
         try:
-            # Récupération des données
-            ticker = exchange.fetch_ticker(f"{symbol}/USDT")
-            ohlcv = exchange.fetch_ohlcv(f"{symbol}/USDT", '1h', limit=100)
+            # Récupération des données avec le nouveau format de paire
+            ticker = exchange.fetch_ticker(f"{symbol}/USDT:USDT")
+            ohlcv = exchange.fetch_ohlcv(f"{symbol}/USDT:USDT", '1h', limit=100)
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             
@@ -85,7 +92,7 @@ elif page == "Top Performances":
             performances = []
             for coin in major_coins:
                 try:
-                    ticker = exchange.fetch_ticker(f"{coin}/USDT")
+                    ticker = exchange.fetch_ticker(f"{coin}/USDT:USDT")
                     performances.append({
                         'symbol': coin,
                         'price': ticker['last'],
@@ -126,17 +133,17 @@ elif page == "Opportunités Court Terme":
             opportunities = []
             
             progress = st.progress(0)
-            total = len([s for s in markets if s.endswith('/USDT')])
+            total = len([s for s in markets if s.endswith('USDT:USDT')])
             count = 0
             
             for symbol in markets:
-                if symbol.endswith('/USDT'):
+                if symbol.endswith('USDT:USDT'):
                     try:
                         ticker = exchange.fetch_ticker(symbol)
                         
                         if ticker['quoteVolume'] >= min_vol and abs(ticker['percentage']) >= min_var:
                             opportunities.append({
-                                'symbol': symbol.replace('/USDT', ''),
+                                'symbol': symbol.replace('/USDT:USDT', ''),
                                 'price': ticker['last'],
                                 'change': ticker['percentage'],
                                 'volume': ticker['quoteVolume']
@@ -179,8 +186,8 @@ else:  # Analyse Historique
         
         if st.button("Analyser"):
             try:
-                # Récupération des données
-                ohlcv = exchange.fetch_ohlcv(f"{symbol}/USDT", timeframes[selected_timeframe])
+                # Récupération des données avec le nouveau format de paire
+                ohlcv = exchange.fetch_ohlcv(f"{symbol}/USDT:USDT", timeframes[selected_timeframe])
                 df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
                 df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
                 
