@@ -96,48 +96,10 @@ if page == "Analyse en Direct":
         else:
             st.error(f"La crypto {symbol} n'est pas disponible sur KuCoin")
 
-# Page Top Performances
-elif page == "Top Performances":
-    st.title("🏆 Top Performances")
-    
-    major_coins = ['BTC', 'ETH', 'KCS', 'XRP', 'SOL', 'DOT', 'AVAX', 'MATIC']
-    
-    if st.button("Rafraîchir"):
-        try:
-            performances = []
-            for coin in major_coins:
-                valid_symbol = get_valid_symbol(coin)
-                if valid_symbol:
-                    try:
-                        ticker = exchange.fetch_ticker(valid_symbol)
-                        performances.append({
-                            'symbol': coin,
-                            'price': ticker['last'],
-                            'change_24h': ticker['percentage'],
-                            'volume': ticker['quoteVolume']
-                        })
-                    except:
-                        continue
-            
-            if performances:
-                performances.sort(key=lambda x: x['change_24h'], reverse=True)
-                
-                for p in performances:
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric(p['symbol'], f"{p['price']:.8f} USDT")
-                    with col2:
-                        st.metric("Variation 24h", f"{p['change_24h']:.2f}%")
-                    with col3:
-                        st.metric("Volume", f"{p['volume']:,.0f} USDT")
-                    st.markdown("---")
-            
-        except Exception as e:
-            st.error(f"Erreur: {str(e)}")
-
 elif page == "Opportunités Court Terme":
     st.title("🎯 Opportunités Court Terme")
     
+    # Paramètres de filtrage
     col1, col2 = st.columns(2)
     with col1:
         min_var = st.number_input("Variation minimum (%)", value=1.0)
@@ -150,43 +112,122 @@ elif page == "Opportunités Court Terme":
             opportunities = []
             
             progress = st.progress(0)
+            st.write("Analyse en cours... Veuillez patienter.")
+            
             usdt_markets = [s for s in markets if '/USDT' in s]
             total = len(usdt_markets)
             count = 0
             
             for symbol in usdt_markets:
                 try:
+                    # Récupération des données sur différentes périodes
                     ticker = exchange.fetch_ticker(symbol)
+                    ohlcv_short = exchange.fetch_ohlcv(symbol, '15m', limit=24)  # 6h
+                    ohlcv_7h = exchange.fetch_ohlcv(symbol, '15m', limit=28)    # 7h
+                    ohlcv_24h = exchange.fetch_ohlcv(symbol, '1h', limit=24)    # 24h
                     
-                    if ticker['quoteVolume'] >= min_vol and abs(ticker['percentage']) >= min_var:
-                        opportunities.append({
-                            'symbol': symbol.split('/')[0],
-                            'price': ticker['last'],
-                            'change': ticker['percentage'],
-                            'volume': ticker['quoteVolume']
-                        })
+                    if ticker['quoteVolume'] >= min_vol:
+                        # DataFrame pour chaque période
+                        df_short = pd.DataFrame(ohlcv_short, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                        df_7h = pd.DataFrame(ohlcv_7h, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                        df_24h = pd.DataFrame(ohlcv_24h, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
                         
-                except:
-                    pass
+                        # Calcul des variations sur différentes périodes
+                        price_change_1h = ((df_short['close'].iloc[-1] - df_short['close'].iloc[-4]) / df_short['close'].iloc[-4]) * 100
+                        price_change_7h = ((df_7h['close'].iloc[-1] - df_7h['close'].iloc[0]) / df_7h['close'].iloc[0]) * 100
+                        price_change_24h = ((df_24h['close'].iloc[-1] - df_24h['close'].iloc[0]) / df_24h['close'].iloc[0]) * 100
+                        
+                        vol_change = (df_short['volume'].iloc[-1] / df_short['volume'].mean()) * 100
+                        
+                        # RSI court terme
+                        delta = df_short['close'].diff()
+                        gain = (delta.where(delta > 0, 0)).rolling(window=6).mean()
+                        loss = (-delta.where(delta < 0, 0)).rolling(window=6).mean()
+                        rs = gain / loss
+                        rsi = 100 - (100 / (1 + rs))
+                        current_rsi = rsi.iloc[-1]
+                        
+                        if abs(price_change_1h) >= min_var:
+                            signal = "🟢 ACHAT" if price_change_1h > 0 else "🔴 VENTE"
+                            if (signal.startswith("🟢") and current_rsi < 70) or (signal.startswith("🔴") and current_rsi > 30):
+                                opportunities.append({
+                                    'symbol': symbol.split('/')[0],
+                                    'price': ticker['last'],
+                                    'price_change_1h': price_change_1h,
+                                    'price_change_7h': price_change_7h,
+                                    'price_change_24h': price_change_24h,
+                                    'volume_change': vol_change,
+                                    'rsi': current_rsi,
+                                    'signal': signal,
+                                    'volume': ticker['quoteVolume']
+                                })
+                except Exception as e:
+                    print(f"Erreur pour {symbol}: {str(e)}")
+                    continue
                 
                 count += 1
                 progress.progress(count / total)
             
-            opportunities.sort(key=lambda x: abs(x['change']), reverse=True)
+            # Tri des opportunités
+            opportunities.sort(key=lambda x: abs(x['price_change_1h']), reverse=True)
             
+            # Affichage des opportunités
             for op in opportunities:
+                st.markdown(f"## {op['symbol']}")
+                
+                # Prix et variations
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric(op['symbol'], f"{op['price']:.8f} USDT")
+                    st.metric("Prix", f"{op['price']:.8f} USDT")
                 with col2:
-                    st.metric("Variation", f"{op['change']:.2f}%")
+                    direction = "↗️" if op['price_change_1h'] > 0 else "↘️"
+                    st.metric("Variation 1h", f"{op['price_change_1h']:.2f}% {direction}")
                 with col3:
-                    st.metric("Volume", f"{op['volume']:,.0f} USDT")
-                st.markdown("---")
+                    st.metric("Volume 24h", f"{op['volume']:,.0f} USDT")
                 
+                # Indicateurs détaillés
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("RSI", f"{op['rsi']:.2f}")
+                with col2:
+                    st.metric("Variation 7h", f"{op['price_change_7h']:.2f}%")
+                with col3:
+                    st.metric("Variation 24h", f"{op['price_change_24h']:.2f}%")
+                with col4:
+                    st.metric("Variation volume", f"{op['volume_change']:.2f}%")
+                
+                # Analyse et recommandation
+                st.markdown(f"**Signal:** {op['signal']}")
+                
+                # Analyse supplémentaire
+                if op['signal'].startswith("🟢"):  # Signal d'achat
+                    if op['rsi'] < 30:
+                        st.success("📊 Opportunité d'achat forte (RSI survendu)")
+                    else:
+                        st.info("📈 Momentum haussier détecté")
+                else:  # Signal de vente
+                    if op['rsi'] > 70:
+                        st.error("📊 Opportunité de vente forte (RSI suracheté)")
+                    else:
+                        st.warning("📉 Momentum baissier détecté")
+                
+                # Tendance générale
+                changes = [op['price_change_1h'], op['price_change_7h'], op['price_change_24h']]
+                if all(x > 0 for x in changes):
+                    st.success("🚀 Tendance haussière sur toutes les périodes")
+                elif all(x < 0 for x in changes):
+                    st.error("📉 Tendance baissière sur toutes les périodes")
+                else:
+                    st.info("↔️ Tendance mixte")
+                
+                st.markdown("---")
+            
+            # Timestamp de mise à jour
+            st.write(f"Dernière mise à jour: {datetime.now().strftime('%H:%M:%S')}")
+            
         except Exception as e:
             st.error(f"Erreur: {str(e)}")
-
+            
 else:  # Analyse Historique
     st.title("📊 Analyse Historique")
     
