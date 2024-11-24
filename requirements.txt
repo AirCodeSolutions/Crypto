@@ -3,3 +3,4 @@ ccxt==4.1.87
 pandas==2.2.0
 numpy==1.26.3
 ta==0.10.2
+plotly==5.10.0
