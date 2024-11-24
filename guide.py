@@ -3,7 +3,7 @@ import streamlit as st
 
 class TradingGuide:
     @staticmethod
-    def render_guide():
+    def render(self):
         st.title("📚 Guide de Trading Crypto Avancé")
         
         guide_section = st.selectbox(
@@ -14,24 +14,24 @@ class TradingGuide:
         )
         
         if guide_section == "Démarrage Rapide":
-            TradingGuide._quick_start_guide()
+            self._quick_start_guide()
         elif guide_section == "Système de Scoring":
-            TradingGuide._scoring_system_guide()
+            self._scoring_system_guide()
         elif guide_section == "Trading Court Terme":
-            TradingGuide._short_term_trading_guide()
+            self._short_term_trading_guide()
         elif guide_section == "Gestion de Position":
-            TradingGuide._position_management_guide()
+            self._position_management_guide()
         elif guide_section == "Signaux de Trading":
-            TradingGuide._trading_signals_guide()
+            self._trading_signals_guide()
         elif guide_section == "Indicateurs Techniques":
-            TradingGuide._technical_indicators_guide()
+            self._technical_indicators_guide()
         elif guide_section == "Analyse Multi-Timeframes":
-            TradingGuide._multi_timeframe_guide()
+            self._multi_timeframe_guide()
         elif guide_section == "Gestion des Risques":
-            TradingGuide._risk_management_guide()
+            self._risk_management_guide()
 
     @staticmethod
-    def _quick_start_guide():
+    def _quick_start_guide(self):
         st.markdown("""
         ## 🚀 Guide de Démarrage Rapide
         
@@ -57,7 +57,7 @@ class TradingGuide:
         """)
 
     @staticmethod
-    def _scoring_system_guide():
+    def _scoring_system_guide(self):
         st.markdown("""
         ## 🎯 Comprendre le Système de Scoring
 
@@ -101,7 +101,7 @@ class TradingGuide:
         """)
 
     @staticmethod
-    def _short_term_trading_guide():
+    def _short_term_trading_guide(self):
         st.markdown("""
         ## ⚡ Guide du Trading Court Terme
         
@@ -139,7 +139,7 @@ class TradingGuide:
         """)
 
     @staticmethod
-    def _position_management_guide():
+    def _position_management_guide(self):
         st.markdown("""
         ## 💼 Gestion des Positions
         
@@ -175,7 +175,7 @@ class TradingGuide:
         """)
 
     @staticmethod
-    def _trading_signals_guide():
+    def _trading_signals_guide(self):
         st.markdown("""
         ## 🎯 Signaux de Trading
         
@@ -205,7 +205,7 @@ class TradingGuide:
         """)
 
     @staticmethod
-    def _risk_management_guide():
+    def _risk_management_guide(self):
         st.markdown("""
         ## ⚠️ Gestion des Risques
         
