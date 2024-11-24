@@ -15,7 +15,7 @@ st.set_page_config(
 )
 
 # Importation de toutes les classes
-from utils import get_valid_symbol, get_exchange  
+from utils import SessionState, get_exchange, get_valid_symbol  
 from technical_analysis import TechnicalAnalysis, SignalGenerator
 from portfolio_management import PortfolioManager
 from interface import (LiveAnalysisPage, PortfolioPage, OpportunitiesPage,
