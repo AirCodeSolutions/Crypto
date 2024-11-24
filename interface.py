@@ -2,6 +2,7 @@
 import streamlit as st
 from datetime import datetime
 import pandas as pd
+from utils import get_valid_symbol, calculate_timeframe_data  # Ajout de l'import
 
 class LiveAnalysisPage:
     def __init__(self, exchange, ta_analyzer, portfolio_manager):
@@ -29,7 +30,8 @@ class LiveAnalysisPage:
         with col1:
             if st.button("Ajouter à la liste de suivi"):
                 if symbol and symbol not in st.session_state.tracked_coins:
-                    if self.exchange.get_valid_symbol(symbol):
+                    valid_symbol = get_valid_symbol(self.exchange, symbol)
+                    if valid_symbol:
                         st.session_state.tracked_coins.add(symbol)
                         st.success(f"{symbol} ajouté à la liste de suivi")
                     else:
@@ -48,17 +50,31 @@ class LiveAnalysisPage:
 
     def _analyze_and_display_coin(self, coin):
         try:
-            # Récupération des données
-            ticker = self.exchange.fetch_ticker(f"{coin}/USDT")
-            df = self.exchange.calculate_timeframe_data(f"{coin}/USDT", '1h', 100)
-            
-            if df is not None:
-                # Analyse technique
-                analysis = self.ta.analyze_market_data(df, ticker['last'])
+            # Utilisation de la fonction importée
+            valid_symbol = get_valid_symbol(self.exchange, coin)
+            if valid_symbol:
+                # Récupération des données
+                ticker = self.exchange.fetch_ticker(valid_symbol)
+                df = calculate_timeframe_data(self.exchange, valid_symbol, '1h', 100)
                 
-                # Affichage des résultats
-                self._display_coin_analysis(coin, analysis, df)
-                
+                if df is not None:
+                    st.write(f"### {coin}")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric(
+                            "Prix",
+                            f"${ticker['last']:,.2f}",
+                            f"{ticker['percentage']:+.2f}%"
+                        )
+                    with col2:
+                        st.metric(
+                            "Volume 24h",
+                            f"${ticker['quoteVolume']:,.0f}",
+                            None
+                        )
+                    
+                    # Vous pouvez ajouter ici plus d'analyses selon vos besoins
+                    
         except Exception as e:
             st.error(f"Erreur pour {coin}: {str(e)}")
 
