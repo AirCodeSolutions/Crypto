@@ -1,19 +1,7 @@
-# utils.py
+# Dans utils.py ou config-and-utils.py
+
 import streamlit as st
 import ccxt
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
-import time
-import ta
-
-# Configuration de la page
-def setup_page():
-    st.set_page_config(
-        page_title="Analyseur Crypto Avancé",
-        page_icon="📊",
-        layout="wide"
-    )
 
 # Initialisation de l'exchange
 @st.cache_resource
@@ -28,122 +16,74 @@ def get_valid_symbol(exchange, symbol):
     Vérifie et formate le symbole pour l'exchange
     """
     try:
-        markets = exchange.load_markets()
-        if f"{symbol}/USDT" in markets:
-            return f"{symbol}/USDT"
-        elif f"{symbol}/USDT:USDT" in markets:
-            return f"{symbol}/USDT:USDT"
-        return None
-    except Exception as e:
-        st.error(f"Erreur lors de la vérification du symbol: {str(e)}")
-        return None
-
-def format_number(number, decimals=8):
-    """
-    Formate les nombres pour l'affichage
-    """
-    if number >= 1e6:
-        return f"{number/1e6:.2f}M"
-    elif number >= 1e3:
-        return f"{number/1e3:.2f}K"
-    else:
-        return f"{number:.{decimals}f}"
-
-def time_to_str(timestamp):
-    """
-    Convertit un timestamp en chaîne de caractères formatée
-    """
-    if isinstance(timestamp, (int, float)):
-        timestamp = datetime.fromtimestamp(timestamp/1000)
-    return timestamp.strftime("%Y-%m-%d %H:%M:%S")
-
-def calculate_timeframe_data(exchange, symbol, timeframe='1h', limit=100):
-    """
-    Récupère et calcule les données pour un timeframe donné
-    """
-    try:
-        ohlcv = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
-        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-        return df
-    except Exception as e:
-        st.error(f"Erreur lors du calcul des données {timeframe}: {str(e)}")
-        return None
-
-def display_error_message(error):
-    """
-    Affiche un message d'erreur formaté
-    """
-    st.error(f"""
-    ⚠️ Une erreur s'est produite:
-    {str(error)}
-    
-    Veuillez réessayer ou contacter le support si l'erreur persiste.
-    """)
-
-class SessionState:
-    """
-    Gestion de l'état de la session
-    """
-    def __init__(self):
-        if 'initialized' not in st.session_state:
-            st.session_state.initialized = True
-            self.initialize_session_state()
-
-    def initialize_session_state(self):
-        """
-        Initialise les variables de session
-        """
-        default_states = {
-            'tracked_coins': set(),
-            'portfolio': {
-                'positions': {},
-                'history': [],
-                'capital': 0
-            },
-            'settings': {
-                'min_volume': 100000,
-                'max_price': 20,
-                'risk_per_trade': 0.01
-            }
-        }
+        # Ajout de vérification de base
+        if not symbol:
+            return None
+            
+        # Formatage du symbol
+        symbol = symbol.upper().strip()
         
-        for key, value in default_states.items():
-            if key not in st.session_state:
-                st.session_state[key] = value
+        # Chargement des marchés disponibles
+        markets = exchange.load_markets()
+        
+        # Vérification des différents formats possibles
+        possible_pairs = [
+            f"{symbol}/USDT",
+            f"{symbol}/USDT:USDT",
+            f"{symbol}USDT"  # Certains exchanges utilisent ce format
+        ]
+        
+        for pair in possible_pairs:
+            if pair in markets:
+                return pair
+                
+        return None
+        
+    except Exception as e:
+        st.error(f"Erreur lors de la vérification du symbole: {str(e)}")
+        return None
 
-    @staticmethod
-    def get(key, default=None):
-        """
-        Récupère une valeur de la session
-        """
-        return st.session_state.get(key, default)
+# Utilisation dans LiveAnalysisPage
+class LiveAnalysisPage:
+    def __init__(self, exchange, ta_analyzer, portfolio_manager):
+        self.exchange = exchange
+        self.ta = ta_analyzer
+        self.portfolio = portfolio_manager
+        
+    def _manage_tracked_coins(self, symbol):
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Ajouter à la liste de suivi"):
+                if symbol and symbol not in st.session_state.tracked_coins:
+                    # Utilisation de get_valid_symbol comme fonction
+                    valid_symbol = get_valid_symbol(self.exchange, symbol)
+                    if valid_symbol:
+                        st.session_state.tracked_coins.add(symbol)
+                        st.success(f"{symbol} ajouté à la liste de suivi")
+                    else:
+                        st.error(f"{symbol} n'est pas une crypto valide")
 
-    @staticmethod
-    def set(key, value):
-        """
-        Définit une valeur dans la session
-        """
-        st.session_state[key] = value
+        with col2:
+            if st.button("Supprimer de la liste"):
+                if symbol in st.session_state.tracked_coins:
+                    st.session_state.tracked_coins.remove(symbol)
+                    st.info(f"{symbol} retiré de la liste de suivi")
 
-# Configuration des styles CSS personnalisés
-def load_css():
-    st.markdown("""
-        <style>
-        .stButton>button {
-            width: 100%;
-        }
-        .trade-card {
-            border: 1px solid #ddd;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-        }
-        .profit {
-            color: green;
-        }
-        .loss {
-            color: red;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    def _analyze_and_display_coin(self, coin):
+        try:
+            # Vérification du symbole valide
+            valid_symbol = get_valid_symbol(self.exchange, coin)
+            if valid_symbol:
+                # Récupération des données
+                ticker = self.exchange.fetch_ticker(valid_symbol)
+                df = calculate_timeframe_data(self.exchange, valid_symbol, '1h', 100)
+                
+                if df is not None:
+                    # Analyse technique
+                    analysis = self.ta.analyze_market_data(df, ticker['last'])
+                    
+                    # Affichage des résultats
+                    self._display_coin_analysis(coin, analysis, df)
+                    
+        except Exception as e:
+            st.error(f"Erreur pour {coin}: {str(e)}")
