@@ -1,7 +1,9 @@
 # pages.py
 import streamlit as st
 from datetime import datetime
+import plotly.graph_objects as go
 import pandas as pd
+import ta
 from utils import get_valid_symbol, calculate_timeframe_data
 from technical_analysis import SignalGenerator
 
@@ -123,6 +125,8 @@ class PortfolioPage:
             if st.button("Ajouter la position"):
                 self._handle_new_position(new_symbol, amount, entry_price, stop_loss, target_1, target_2)
 
+# Dans interface.py, remplacez les classes OpportunitiesPage et HistoricalAnalysisPage
+
 class OpportunitiesPage:
     def __init__(self, exchange, ta_analyzer):
         self.exchange = exchange
@@ -131,14 +135,7 @@ class OpportunitiesPage:
     def render(self):
         st.title("🎯 Opportunités Court Terme")
         
-        # Filtres
-        self._display_filters()
-        
-        # Recherche d'opportunités
-        if st.button("Rechercher"):
-            self._search_opportunities()
-
-    def _display_filters(self):
+        # Filtres de recherche
         col1, col2, col3 = st.columns(3)
         with col1:
             min_var = st.number_input("Variation minimum (%)", value=1.0)
@@ -146,11 +143,87 @@ class OpportunitiesPage:
             min_vol = st.number_input("Volume minimum (USDT)", value=100000.0)
         with col3:
             min_score = st.slider("Score minimum", 0.0, 1.0, 0.6)
-        return min_var, min_vol, min_score
 
-    def _search_opportunities(self):
-        # [Code de recherche d'opportunités]
-        pass
+        # Options supplémentaires
+        col1, col2 = st.columns(2)
+        with col1:
+            timeframe = st.selectbox(
+                "Timeframe",
+                ["5m", "15m", "1h", "4h"],
+                index=2
+            )
+        with col2:
+            max_price = st.number_input("Prix maximum (USDT)", value=20.0)
+
+        if st.button("🔍 Rechercher des opportunités"):
+            self._search_opportunities(min_var, min_vol, min_score, timeframe, max_price)
+
+    def _search_opportunities(self, min_var, min_vol, min_score, timeframe, max_price):
+        try:
+            markets = self.exchange.load_markets()
+            usdt_pairs = [symbol for symbol in markets.keys() if symbol.endswith('USDT')]
+            
+            opportunities = []
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            for i, symbol in enumerate(usdt_pairs):
+                try:
+                    status_text.text(f"Analyse de {symbol}...")
+                    ticker = self.exchange.fetch_ticker(symbol)
+                    
+                    # Filtres primaires
+                    if (ticker['quoteVolume'] >= min_vol and 
+                        abs(ticker['percentage']) >= min_var and 
+                        ticker['last'] <= max_price):
+                        
+                        # Analyse technique
+                        df = calculate_timeframe_data(self.exchange, symbol, timeframe, 100)
+                        if df is not None:
+                            signal_gen = SignalGenerator(df, ticker['last'])
+                            score = signal_gen.calculate_opportunity_score()
+                            signals = signal_gen.generate_trading_signals()
+                            
+                            if score >= min_score:
+                                opportunities.append({
+                                    'symbol': symbol.replace('/USDT', ''),
+                                    'price': ticker['last'],
+                                    'change': ticker['percentage'],
+                                    'volume': ticker['quoteVolume'],
+                                    'score': score,
+                                    'signal': signals['action'],
+                                    'reasons': signals['reasons']
+                                })
+                    
+                    progress_bar.progress((i + 1) / len(usdt_pairs))
+                    
+                except Exception as e:
+                    continue
+            
+            progress_bar.empty()
+            status_text.empty()
+            
+            if opportunities:
+                opportunities.sort(key=lambda x: x['score'], reverse=True)
+                
+                for opp in opportunities:
+                    with st.expander(f"{opp['symbol']} - Score: {opp['score']:.2f}"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Prix", f"${opp['price']:.4f}", f"{opp['change']:+.2f}%")
+                        with col2:
+                            st.metric("Volume 24h", f"${opp['volume']/1e6:.1f}M", None)
+                        
+                        if opp['signal']:
+                            signal_color = "🟢" if opp['signal'] == 'BUY' else "🔴"
+                            st.write(f"{signal_color} Signal: {opp['signal']}")
+                            for reason in opp['reasons']:
+                                st.write(f"• {reason}")
+            else:
+                st.info("Aucune opportunité trouvée avec les critères actuels")
+                
+        except Exception as e:
+            st.error(f"Erreur lors de la recherche : {str(e)}")
 
 class HistoricalAnalysisPage:
     def __init__(self, exchange, ta_analyzer):
@@ -159,9 +232,113 @@ class HistoricalAnalysisPage:
 
     def render(self):
         st.title("📊 Analyse Historique")
-        # [Code de l'analyse historique]
-        pass
+        
+        # Sélection de la crypto
+        symbol = st.text_input("Entrez le symbole (ex: BTC, ETH)", "").upper()
+        
+        # Paramètres d'analyse
+        col1, col2 = st.columns(2)
+        with col1:
+            timeframe = st.selectbox(
+                "Timeframe",
+                ["1h", "4h", "1d"],
+                index=0
+            )
+        with col2:
+            lookback = st.slider(
+                "Période d'analyse (jours)",
+                min_value=7,
+                max_value=90,
+                value=30
+            )
 
+        if symbol and st.button("Analyser"):
+            self._perform_historical_analysis(symbol, timeframe, lookback)
+
+    def _perform_historical_analysis(self, symbol, timeframe, lookback):
+        try:
+            valid_symbol = get_valid_symbol(self.exchange, symbol)
+            if valid_symbol:
+                with st.spinner("Analyse en cours..."):
+                    # Récupération des données
+                    df = calculate_timeframe_data(self.exchange, valid_symbol, timeframe, lookback * 24)
+                    
+                    if df is not None:
+                        # Calcul des indicateurs
+                        rsi = self.ta.calculate_rsi(df)
+                        df['ema9'] = ta.trend.ema_indicator(df['close'], window=9)
+                        df['ema20'] = ta.trend.ema_indicator(df['close'], window=20)
+                        df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
+                        
+                        # Affichage des graphiques
+                        fig = go.Figure()
+                        
+                        # Graphique des prix
+                        fig.add_trace(go.Candlestick(
+                            x=df.index,
+                            open=df['open'],
+                            high=df['high'],
+                            low=df['low'],
+                            close=df['close'],
+                            name="Prix"
+                        ))
+                        
+                        # Ajout des EMA
+                        fig.add_trace(go.Scatter(x=df.index, y=df['ema9'], name="EMA 9", line=dict(color='blue')))
+                        fig.add_trace(go.Scatter(x=df.index, y=df['ema20'], name="EMA 20", line=dict(color='orange')))
+                        fig.add_trace(go.Scatter(x=df.index, y=df['ema50'], name="EMA 50", line=dict(color='red')))
+                        
+                        fig.update_layout(
+                            title=f"{symbol} - Analyse historique",
+                            yaxis_title="Prix (USDT)",
+                            xaxis_title="Date",
+                            height=600
+                        )
+                        
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Statistiques clés
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric(
+                                "Variation totale",
+                                f"{((df['close'].iloc[-1] / df['close'].iloc[0] - 1) * 100):.2f}%"
+                            )
+                        with col2:
+                            st.metric(
+                                "Plus haut",
+                                f"${df['high'].max():.4f}"
+                            )
+                        with col3:
+                            st.metric(
+                                "Plus bas",
+                                f"${df['low'].min():.4f}"
+                            )
+                        
+                        # RSI
+                        st.subheader("RSI")
+                        fig_rsi = go.Figure()
+                        fig_rsi.add_trace(go.Scatter(x=df.index, y=rsi, name="RSI"))
+                        fig_rsi.add_hline(y=70, line_dash="dash", line_color="red")
+                        fig_rsi.add_hline(y=30, line_dash="dash", line_color="green")
+                        fig_rsi.update_layout(height=200)
+                        st.plotly_chart(fig_rsi, use_container_width=True)
+                        
+                        # Niveaux clés
+                        support, resistance = self.ta.calculate_support_resistance(df)
+                        st.subheader("Niveaux clés")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric("Support", f"${support:.4f}")
+                        with col2:
+                            st.metric("Résistance", f"${resistance:.4f}")
+                
+            else:
+                st.error(f"Symbole {symbol} non trouvé")
+                
+        except Exception as e:
+            st.error(f"Erreur lors de l'analyse : {str(e)}")
+            
 class TopPerformancePage:
     def __init__(self, exchange, ta_analyzer):
         self.exchange = exchange
