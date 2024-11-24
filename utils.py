@@ -62,7 +62,7 @@ def get_exchange():
         'timeout': 30000,
     })
 
-def get_valid_symbol(exchange, symbol):
+def get_valid_symbol(_exchange, symbol):
     """
     Vérifie et formate le symbole pour l'exchange
     """
@@ -71,7 +71,7 @@ def get_valid_symbol(exchange, symbol):
             return None
             
         symbol = symbol.upper().strip()
-        markets = exchange.load_markets()
+        markets = _exchange.load_markets()
         
         possible_pairs = [
             f"{symbol}/USDT",
@@ -88,14 +88,15 @@ def get_valid_symbol(exchange, symbol):
     except Exception as e:
         st.error(f"Erreur lors de la vérification du symbole: {str(e)}")
         return None
-
+    
 @st.cache_data(ttl=300)  # Cache de 5 minutes
-def calculate_timeframe_data(exchange, symbol, timeframe='1h', limit=100):
+def calculate_timeframe_data(_exchange, symbol, timeframe='1h', limit=100):
     """
     Récupère et calcule les données pour un timeframe donné
+    Note: Le préfixe _ sur _exchange empêche Streamlit de hasher cet argument
     """
     try:
-        ohlcv = exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+        ohlcv = _exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         return df
@@ -128,14 +129,14 @@ def time_to_str(timestamp):
     return timestamp.strftime("%Y-%m-%d %H:%M:%S")
 
 @st.cache_data(ttl=60)  # Cache de 1 minute
-def get_market_data(exchange, symbols):
+def get_market_data(_exchange, symbols):
     """
     Récupère les données de marché pour plusieurs symboles
     """
     data = {}
     for symbol in symbols:
         try:
-            ticker = exchange.fetch_ticker(f"{symbol}/USDT")
+            ticker = _exchange.fetch_ticker(f"{symbol}/USDT")
             data[symbol] = {
                 'price': ticker['last'],
                 'volume': ticker['quoteVolume'],
