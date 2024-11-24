@@ -2,7 +2,6 @@
 import streamlit as st
 
 class TradingGuide:
-    @staticmethod
     def render(self):
         st.title("📚 Guide de Trading Crypto Avancé")
         
