@@ -29,7 +29,7 @@ class TradingGuide:
         elif guide_section == "Gestion des Risques":
             self._risk_management_guide()
 
-    @staticmethod
+
     def _quick_start_guide(self):
         st.markdown("""
         ## 🚀 Guide de Démarrage Rapide
@@ -55,7 +55,7 @@ class TradingGuide:
         - Suivez votre plan de trading
         """)
 
-    @staticmethod
+   
     def _scoring_system_guide(self):
         st.markdown("""
         ## 🎯 Comprendre le Système de Scoring
@@ -99,7 +99,7 @@ class TradingGuide:
         | < 0.6 | Faible | Pas de trade |
         """)
 
-    @staticmethod
+    
     def _short_term_trading_guide(self):
         st.markdown("""
         ## ⚡ Guide du Trading Court Terme
@@ -137,7 +137,7 @@ class TradingGuide:
         - 13-15h: USA
         """)
 
-    @staticmethod
+   
     def _position_management_guide(self):
         st.markdown("""
         ## 💼 Gestion des Positions
@@ -173,7 +173,7 @@ class TradingGuide:
         ```
         """)
 
-    @staticmethod
+ 
     def _trading_signals_guide(self):
         st.markdown("""
         ## 🎯 Signaux de Trading
@@ -203,7 +203,7 @@ class TradingGuide:
         3. Patience et discipline
         """)
 
-    @staticmethod
+    
     def _risk_management_guide(self):
         st.markdown("""
         ## ⚠️ Gestion des Risques
