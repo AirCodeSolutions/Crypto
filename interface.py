@@ -206,58 +206,78 @@ class PortfolioPage:
                     st.rerun()
 
     def _display_history_and_stats(self):
-        st.subheader("📈 Historique et Statistiques")
-        
-        # Récupération des données
-        summary = self.portfolio.get_portfolio_summary()
-        history_df = self.portfolio.get_trade_history()
-        
-        # Affichage des statistiques globales
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric(
-                "Capital total",
-                f"${summary['capital_actuel']:.2f}",
-                f"{summary['performance']:.2f}%"
-            )
-            
-        with col2:
-            if summary['nombre_trades'] > 0:
-                win_rate = f"{summary['win_rate']:.1f}%"
-            else:
-                win_rate = "N/A"
-            st.metric("Win Rate", win_rate)
-            
-        with col3:
-            st.metric("Nombre de trades", summary['nombre_trades'])
-            
-        with col4:
-            st.metric("Drawdown Max", f"{summary['max_drawdown']:.2f}%")
-        
-        # Historique des trades
-        if not history_df.empty:
-            st.subheader("Historique des trades")
-            
-            # Formatage des colonnes pour l'affichage
-            history_df['Durée'] = history_df['duration'].astype(str)
-            history_df['P&L'] = history_df['pnl'].map('{:,.2f}%'.format)
-            
-            # Sélection et renommage des colonnes à afficher
-            display_df = history_df[[
-                'symbol', 'entry_price', 'exit_price', 'pnl', 'Durée', 'reason'
-            ]].rename(columns={
-                'symbol': 'Symbole',
-                'entry_price': 'Prix entrée',
-                'exit_price': 'Prix sortie',
-                'pnl': 'P&L',
-                'reason': 'Raison'
-            })
-            
-            st.dataframe(display_df)
+    st.subheader("📈 Historique et Statistiques")
+    
+    # Récupération des données
+    summary = self.portfolio.get_portfolio_summary()
+    history_df = self.portfolio.get_trade_history()
+    
+    # Calcul de la performance si elle n'existe pas dans le summary
+    if 'performance' not in summary:
+        if summary['capital_initial'] > 0:
+            performance = ((summary['capital_actuel'] / summary['capital_initial']) - 1) * 100
         else:
-            st.info("Aucun historique de trade disponible")
-            
+            performance = 0.0
+    else:
+        performance = summary['performance']
+    
+    # Affichage des statistiques globales
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "Capital total",
+            f"${summary['capital_actuel']:.2f}",
+            f"{performance:.2f}%"
+        )
+        
+    with col2:
+        if summary['nombre_trades'] > 0:
+            win_rate = f"{summary['win_rate']:.1f}%"
+        else:
+            win_rate = "N/A"
+        st.metric("Win Rate", win_rate)
+        
+    with col3:
+        st.metric("Nombre de trades", summary['nombre_trades'])
+        
+    with col4:
+        st.metric("Drawdown Max", f"{summary['max_drawdown']:.2f}%")
+    
+    # Historique des trades
+    if not history_df.empty:
+        st.subheader("Historique des trades")
+        
+        # Formatage des colonnes pour l'affichage
+        if 'duration' in history_df.columns:
+            history_df['Durée'] = history_df['duration'].astype(str)
+        else:
+            history_df['Durée'] = 'N/A'
+
+        if 'pnl' in history_df.columns:
+            history_df['P&L'] = history_df['pnl'].map('{:,.2f}%'.format)
+        else:
+            history_df['P&L'] = 'N/A'
+        
+        # Sélection et renommage des colonnes à afficher
+        display_columns = [col for col in ['symbol', 'entry_price', 'exit_price', 'pnl', 'Durée', 'reason'] 
+                         if col in history_df.columns]
+        
+        column_names = {
+            'symbol': 'Symbole',
+            'entry_price': 'Prix entrée',
+            'exit_price': 'Prix sortie',
+            'pnl': 'P&L',
+            'reason': 'Raison'
+        }
+        
+        display_df = history_df[display_columns].rename(columns=column_names)
+        
+        st.dataframe(display_df)
+    else:
+        st.info("Aucun historique de trade disponible")
+
+        
 class OpportunitiesPage:
     def __init__(self, exchange, ta_analyzer):
         self.exchange = exchange
