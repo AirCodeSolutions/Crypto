@@ -152,27 +152,27 @@ class PortfolioManager:
             stats['max_drawdown'] = max(stats['max_drawdown'], current_drawdown)
 
     def get_portfolio_summary(self):
-    """Génère un résumé du portfolio"""
-    stats = st.session_state.portfolio['performance']
-    capital_initial = st.session_state.portfolio['capital']
-    capital_actuel = st.session_state.portfolio['current_capital']
-    
-    # Calcul du win rate
-    win_rate = (stats['winning_trades'] / stats['total_trades'] * 100) if stats['total_trades'] > 0 else 0
-    
-    # Calcul de la performance
-    performance = ((capital_actuel / capital_initial - 1) * 100) if capital_initial > 0 else 0
-    
-    return {
-        'capital_initial': capital_initial,
-        'capital_actuel': capital_actuel,
-        'profit_total': stats['total_profit'],
-        'nombre_trades': stats['total_trades'],
-        'win_rate': win_rate,
-        'max_drawdown': stats['max_drawdown'],
-        'positions_ouvertes': len(st.session_state.portfolio['positions']),
-        'performance': performance
-    }
+        """Génère un résumé du portfolio"""
+        stats = st.session_state.portfolio['performance']
+        capital_initial = st.session_state.portfolio['capital']
+        capital_actuel = st.session_state.portfolio['current_capital']
+        
+        # Calcul du win rate
+        win_rate = (stats['winning_trades'] / stats['total_trades'] * 100) if stats['total_trades'] > 0 else 0
+        
+        # Calcul de la performance
+        performance = ((capital_actuel / capital_initial - 1) * 100) if capital_initial > 0 else 0
+        
+        return {
+            'capital_initial': capital_initial,
+            'capital_actuel': capital_actuel,
+            'profit_total': stats['total_profit'],
+            'nombre_trades': stats['total_trades'],
+            'win_rate': win_rate,
+            'max_drawdown': stats['max_drawdown'],
+            'positions_ouvertes': len(st.session_state.portfolio['positions']),
+            'performance': performance
+        }
 
 
     def get_trade_history(self):
