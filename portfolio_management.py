@@ -153,27 +153,33 @@ class PortfolioManager:
 
     def get_portfolio_summary(self):
         """Génère un résumé du portfolio"""
-        stats = st.session_state.portfolio['performance']
+        performance = {
+            'total_trades': 0,
+            'winning_trades': 0,
+            'total_profit': 0,
+            'max_drawdown': 0
+        } if 'performance' not in st.session_state.portfolio else st.session_state.portfolio['performance']
+        
         capital_initial = st.session_state.portfolio['capital']
         capital_actuel = st.session_state.portfolio['current_capital']
         
         # Calcul du win rate
-        win_rate = (stats['winning_trades'] / stats['total_trades'] * 100) if stats['total_trades'] > 0 else 0
+        win_rate = (performance['winning_trades'] / performance['total_trades'] * 100) if performance['total_trades'] > 0 else 0
         
-        # Calcul de la performance
-        performance = ((capital_actuel / capital_initial - 1) * 100) if capital_initial > 0 else 0
+        # Calcul de la performance en pourcentage
+        perf = ((capital_actuel / capital_initial - 1) * 100) if capital_initial > 0 else 0
         
         return {
             'capital_initial': capital_initial,
             'capital_actuel': capital_actuel,
-            'profit_total': stats['total_profit'],
-            'nombre_trades': stats['total_trades'],
+            'profit_total': performance['total_profit'],
+            'nombre_trades': performance['total_trades'],
             'win_rate': win_rate,
-            'max_drawdown': stats['max_drawdown'],
+            'max_drawdown': performance['max_drawdown'],
             'positions_ouvertes': len(st.session_state.portfolio['positions']),
-            'performance': performance
+            'performance': perf
         }
-
+    
     def get_trade_history(self):
         """Retourne l'historique des trades sous forme de DataFrame"""
         if not st.session_state.portfolio['history']:
