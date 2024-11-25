@@ -206,43 +206,43 @@ class PortfolioPage:
                     st.rerun()
 
     def _display_history_and_stats(self):
-    st.subheader("📈 Historique et Statistiques")
-    
-    # Récupération des données
-    summary = self.portfolio.get_portfolio_summary()
-    history_df = self.portfolio.get_trade_history()
-    
-    # Calcul de la performance si elle n'existe pas dans le summary
-    if 'performance' not in summary:
-        if summary['capital_initial'] > 0:
-            performance = ((summary['capital_actuel'] / summary['capital_initial']) - 1) * 100
+        st.subheader("📈 Historique et Statistiques")
+        
+        # Récupération des données
+        summary = self.portfolio.get_portfolio_summary()
+        history_df = self.portfolio.get_trade_history()
+        
+        # Calcul de la performance si elle n'existe pas dans le summary
+        if 'performance' not in summary:
+            if summary['capital_initial'] > 0:
+                performance = ((summary['capital_actuel'] / summary['capital_initial']) - 1) * 100
+            else:
+                performance = 0.0
         else:
-            performance = 0.0
-    else:
-        performance = summary['performance']
-    
-    # Affichage des statistiques globales
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric(
-            "Capital total",
-            f"${summary['capital_actuel']:.2f}",
-            f"{performance:.2f}%"
-        )
+            performance = summary['performance']
         
-    with col2:
-        if summary['nombre_trades'] > 0:
-            win_rate = f"{summary['win_rate']:.1f}%"
-        else:
-            win_rate = "N/A"
-        st.metric("Win Rate", win_rate)
+        # Affichage des statistiques globales
+        col1, col2, col3, col4 = st.columns(4)
         
-    with col3:
-        st.metric("Nombre de trades", summary['nombre_trades'])
-        
-    with col4:
-        st.metric("Drawdown Max", f"{summary['max_drawdown']:.2f}%")
+        with col1:
+            st.metric(
+                "Capital total",
+                f"${summary['capital_actuel']:.2f}",
+                f"{performance:.2f}%"
+            )
+            
+        with col2:
+            if summary['nombre_trades'] > 0:
+                win_rate = f"{summary['win_rate']:.1f}%"
+            else:
+                win_rate = "N/A"
+            st.metric("Win Rate", win_rate)
+            
+        with col3:
+            st.metric("Nombre de trades", summary['nombre_trades'])
+            
+        with col4:
+            st.metric("Drawdown Max", f"{summary['max_drawdown']:.2f}%")
     
     # Historique des trades
     if not history_df.empty:
