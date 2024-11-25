@@ -7,6 +7,7 @@ from datetime import datetime
 import time
 import ta
 
+
 # Configuration initiale
 st.set_page_config(
     page_title="Analyseur Crypto Avancé",
@@ -15,11 +16,11 @@ st.set_page_config(
 )
 
 # Importation de toutes les classes
-from utils import SessionState, get_exchange, get_valid_symbol  
+from utils import SessionState, format_numbre, get_exchange, get_valid_symbol  
 from technical_analysis import TechnicalAnalysis, SignalGenerator
 from portfolio_management import PortfolioManager
 from interface import (LiveAnalysisPage, PortfolioPage, OpportunitiesPage,
-                     HistoricalAnalysisPage, TopPerformancePage)
+                     HistoricalAnalysisPage, TopPerformancePage, CryptoAnalyzerApp)
 from guide import TradingGuide, Documentation
 
 class CryptoAnalyzerApp:
