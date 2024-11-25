@@ -125,8 +125,139 @@ class PortfolioPage:
             if st.button("Ajouter la position"):
                 self._handle_new_position(new_symbol, amount, entry_price, stop_loss, target_1, target_2)
 
-# Dans interface.py, remplacez les classes OpportunitiesPage et HistoricalAnalysisPage
+    def _handle_new_position(self, symbol, amount, entry_price, stop_loss, target_1, target_2):
+        try:
+            # Validation des entrées
+            if not all([symbol, amount > 0, entry_price > 0, stop_loss > 0, target_1 > 0, target_2 > 0]):
+                st.error("Tous les champs doivent être remplis avec des valeurs valides")
+                return
 
+            if stop_loss >= entry_price:
+                st.error("Le stop loss doit être inférieur au prix d'entrée")
+                return
+
+            if target_1 <= entry_price or target_2 <= target_1:
+                st.error("Les targets doivent être supérieurs au prix d'entrée et Target 2 > Target 1")
+                return
+
+            # Ajout de la position
+            success, message = self.portfolio.add_position(symbol, amount, entry_price, stop_loss, target_1, target_2)
+            
+            if success:
+                st.success(message)
+            else:
+                st.error(message)
+                
+        except Exception as e:
+            st.error(f"Erreur lors de l'ajout de la position : {str(e)}")
+
+    def _display_current_positions(self):
+        st.subheader("📊 Positions Ouvertes")
+        
+        # Récupération des positions
+        positions_df = self.portfolio.get_open_positions()
+        
+        if positions_df.empty:
+            st.info("Aucune position ouverte")
+            return
+            
+        # Mise à jour des positions
+        self.portfolio.update_positions()
+        
+        # Affichage des positions
+        for _, position in positions_df.iterrows():
+            with st.expander(f"{position['symbol']} - {position['pnl']:.2f}%"):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric(
+                        "Prix actuel",
+                        f"${position['current_price']:.4f}",
+                        f"{position['pnl']:.2f}%"
+                    )
+                    
+                with col2:
+                    st.metric("Montant", f"{position['amount']:.4f}")
+                    
+                with col3:
+                    st.metric("Valeur", f"${position['amount'] * position['current_price']:.2f}")
+                
+                # Niveaux importants
+                st.markdown("### Niveaux")
+                levels_col1, levels_col2, levels_col3 = st.columns(3)
+                
+                with levels_col1:
+                    st.write("Stop Loss:", f"${position['stop_loss']:.4f}")
+                    
+                with levels_col2:
+                    st.write("Target 1:", f"${position['target_1']:.4f}")
+                    
+                with levels_col3:
+                    st.write("Target 2:", f"${position['target_2']:.4f}")
+                
+                # Bouton de fermeture
+                if st.button("Fermer la position", key=f"close_{position['symbol']}"):
+                    self.portfolio.close_position(
+                        position['symbol'],
+                        position['current_price'],
+                        "Fermeture manuelle"
+                    )
+                    st.success(f"Position {position['symbol']} fermée")
+                    st.rerun()
+
+    def _display_history_and_stats(self):
+        st.subheader("📈 Historique et Statistiques")
+        
+        # Récupération des données
+        summary = self.portfolio.get_portfolio_summary()
+        history_df = self.portfolio.get_trade_history()
+        
+        # Affichage des statistiques globales
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                "Capital total",
+                f"${summary['capital_actuel']:.2f}",
+                f"{summary['performance']:.2f}%"
+            )
+            
+        with col2:
+            if summary['nombre_trades'] > 0:
+                win_rate = f"{summary['win_rate']:.1f}%"
+            else:
+                win_rate = "N/A"
+            st.metric("Win Rate", win_rate)
+            
+        with col3:
+            st.metric("Nombre de trades", summary['nombre_trades'])
+            
+        with col4:
+            st.metric("Drawdown Max", f"{summary['max_drawdown']:.2f}%")
+        
+        # Historique des trades
+        if not history_df.empty:
+            st.subheader("Historique des trades")
+            
+            # Formatage des colonnes pour l'affichage
+            history_df['Durée'] = history_df['duration'].astype(str)
+            history_df['P&L'] = history_df['pnl'].map('{:,.2f}%'.format)
+            
+            # Sélection et renommage des colonnes à afficher
+            display_df = history_df[[
+                'symbol', 'entry_price', 'exit_price', 'pnl', 'Durée', 'reason'
+            ]].rename(columns={
+                'symbol': 'Symbole',
+                'entry_price': 'Prix entrée',
+                'exit_price': 'Prix sortie',
+                'pnl': 'P&L',
+                'reason': 'Raison'
+            })
+            
+            st.dataframe(display_df)
+        else:
+            st.info("Aucun historique de trade disponible")
+            
 class OpportunitiesPage:
     def __init__(self, exchange, ta_analyzer):
         self.exchange = exchange
