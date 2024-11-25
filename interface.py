@@ -126,7 +126,7 @@ class PortfolioPage:
         # Historique et statistiques
         self._display_history_and_stats()
 
-     def _manage_capital(self):
+    def _manage_capital(self):
         """Gestion du capital initial"""
         initial_capital = st.session_state.portfolio['capital']
         new_capital = st.number_input(
