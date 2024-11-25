@@ -224,6 +224,7 @@ class OpportunitiesPage:
                 
         except Exception as e:
             st.error(f"Erreur lors de la recherche : {str(e)}")
+# Dans interface.py, modifiez la classe HistoricalAnalysisPage
 
 class HistoricalAnalysisPage:
     def __init__(self, exchange, ta_analyzer):
@@ -233,111 +234,146 @@ class HistoricalAnalysisPage:
     def render(self):
         st.title("📊 Analyse Historique")
         
-        # Sélection de la crypto
-        symbol = st.text_input("Entrez le symbole (ex: BTC, ETH)", "").upper()
-        
-        # Paramètres d'analyse
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
+            symbol = st.text_input("Entrez le symbole (ex: BTC, ETH)", "").upper()
+        with col2:
             timeframe = st.selectbox(
                 "Timeframe",
                 ["1h", "4h", "1d"],
                 index=0
             )
-        with col2:
+        with col3:
             lookback = st.slider(
-                "Période d'analyse (jours)",
+                "Jours d'historique",
                 min_value=7,
                 max_value=90,
                 value=30
             )
 
-        if symbol and st.button("Analyser"):
-            self._perform_historical_analysis(symbol, timeframe, lookback)
+        if symbol:
+            valid_symbol = get_valid_symbol(self.exchange, symbol)
+            if valid_symbol:
+                if st.button("📊 Analyser"):
+                    with st.spinner(f"Analyse de {symbol} en cours..."):
+                        self._perform_historical_analysis(valid_symbol, timeframe, lookback)
+            else:
+                st.error(f"Symbole {symbol} non trouvé")
 
     def _perform_historical_analysis(self, symbol, timeframe, lookback):
         try:
-            valid_symbol = get_valid_symbol(self.exchange, symbol)
-            if valid_symbol:
-                with st.spinner("Analyse en cours..."):
-                    # Récupération des données
-                    df = calculate_timeframe_data(self.exchange, valid_symbol, timeframe, lookback * 24)
-                    
-                    if df is not None:
-                        # Calcul des indicateurs
-                        rsi = self.ta.calculate_rsi(df)
-                        df['ema9'] = ta.trend.ema_indicator(df['close'], window=9)
-                        df['ema20'] = ta.trend.ema_indicator(df['close'], window=20)
-                        df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
-                        
-                        # Affichage des graphiques
-                        fig = go.Figure()
-                        
-                        # Graphique des prix
-                        fig.add_trace(go.Candlestick(
-                            x=df.index,
-                            open=df['open'],
-                            high=df['high'],
-                            low=df['low'],
-                            close=df['close'],
-                            name="Prix"
-                        ))
-                        
-                        # Ajout des EMA
-                        fig.add_trace(go.Scatter(x=df.index, y=df['ema9'], name="EMA 9", line=dict(color='blue')))
-                        fig.add_trace(go.Scatter(x=df.index, y=df['ema20'], name="EMA 20", line=dict(color='orange')))
-                        fig.add_trace(go.Scatter(x=df.index, y=df['ema50'], name="EMA 50", line=dict(color='red')))
-                        
-                        fig.update_layout(
-                            title=f"{symbol} - Analyse historique",
-                            yaxis_title="Prix (USDT)",
-                            xaxis_title="Date",
-                            height=600
-                        )
-                        
-                        st.plotly_chart(fig, use_container_width=True)
-                        
-                        # Statistiques clés
-                        col1, col2, col3 = st.columns(3)
-                        with col1:
-                            st.metric(
-                                "Variation totale",
-                                f"{((df['close'].iloc[-1] / df['close'].iloc[0] - 1) * 100):.2f}%"
-                            )
-                        with col2:
-                            st.metric(
-                                "Plus haut",
-                                f"${df['high'].max():.4f}"
-                            )
-                        with col3:
-                            st.metric(
-                                "Plus bas",
-                                f"${df['low'].min():.4f}"
-                            )
-                        
-                        # RSI
-                        st.subheader("RSI")
-                        fig_rsi = go.Figure()
-                        fig_rsi.add_trace(go.Scatter(x=df.index, y=rsi, name="RSI"))
-                        fig_rsi.add_hline(y=70, line_dash="dash", line_color="red")
-                        fig_rsi.add_hline(y=30, line_dash="dash", line_color="green")
-                        fig_rsi.update_layout(height=200)
-                        st.plotly_chart(fig_rsi, use_container_width=True)
-                        
-                        # Niveaux clés
-                        support, resistance = self.ta.calculate_support_resistance(df)
-                        st.subheader("Niveaux clés")
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            st.metric("Support", f"${support:.4f}")
-                        with col2:
-                            st.metric("Résistance", f"${resistance:.4f}")
+            # Récupération des données
+            df = calculate_timeframe_data(self.exchange, symbol, timeframe, lookback * 24)
+            
+            if df is not None and not df.empty:
+                # Calcul des indicateurs
+                df['rsi'] = self.ta.calculate_rsi(df)
+                df['ema9'] = ta.trend.ema_indicator(df['close'], window=9)
+                df['ema20'] = ta.trend.ema_indicator(df['close'], window=20)
+                df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
+                df['macd'] = ta.trend.macd_diff(df['close'])
+                
+                # Prix actuel et variation
+                current_price = df['close'].iloc[-1]
+                price_change = ((current_price / df['close'].iloc[0] - 1) * 100)
+                
+                # Affichage des métriques principales
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Prix actuel", f"${current_price:.4f}", 
+                             f"{price_change:+.2f}%")
+                with col2:
+                    st.metric("Plus haut", f"${df['high'].max():.4f}")
+                with col3:
+                    st.metric("Plus bas", f"${df['low'].min():.4f}")
+                
+                # Graphique des prix
+                st.subheader("Graphique des prix")
+                fig = go.Figure()
+                
+                # Chandelier
+                fig.add_trace(go.Candlestick(
+                    x=df.index,
+                    open=df['open'],
+                    high=df['high'],
+                    low=df['low'],
+                    close=df['close'],
+                    name="Prix"
+                ))
+                
+                # EMAs
+                fig.add_trace(go.Scatter(x=df.index, y=df['ema9'], 
+                                       name="EMA 9", line=dict(color='blue')))
+                fig.add_trace(go.Scatter(x=df.index, y=df['ema20'], 
+                                       name="EMA 20", line=dict(color='orange')))
+                fig.add_trace(go.Scatter(x=df.index, y=df['ema50'], 
+                                       name="EMA 50", line=dict(color='red')))
+                
+                fig.update_layout(
+                    title=f"Analyse de {symbol}",
+                    yaxis_title="Prix (USDT)",
+                    xaxis_title="Date",
+                    height=600,
+                    template="plotly_dark"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # RSI
+                st.subheader("RSI")
+                fig_rsi = go.Figure()
+                fig_rsi.add_trace(go.Scatter(x=df.index, y=df['rsi'], name="RSI"))
+                fig_rsi.add_hline(y=70, line_dash="dash", line_color="red")
+                fig_rsi.add_hline(y=30, line_dash="dash", line_color="green")
+                fig_rsi.update_layout(
+                    height=200,
+                    template="plotly_dark",
+                    yaxis_title="RSI"
+                )
+                st.plotly_chart(fig_rsi, use_container_width=True)
+                
+                # MACD
+                st.subheader("MACD")
+                fig_macd = go.Figure()
+                fig_macd.add_trace(go.Scatter(x=df.index, y=df['macd'], name="MACD"))
+                fig_macd.add_hline(y=0, line_dash="dash", line_color="gray")
+                fig_macd.update_layout(
+                    height=200,
+                    template="plotly_dark",
+                    yaxis_title="MACD"
+                )
+                st.plotly_chart(fig_macd, use_container_width=True)
+                
+                # Niveaux clés
+                support, resistance = self.ta.calculate_support_resistance(df)
+                st.subheader("Niveaux clés")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Support", f"${support:.4f}")
+                with col2:
+                    st.metric("Résistance", f"${resistance:.4f}")
+                
+                # Analyse du signal actuel
+                signal_gen = SignalGenerator(df, current_price)
+                signals = signal_gen.generate_trading_signals()
+                
+                # Affichage du signal
+                st.subheader("Signal actuel")
+                if signals['action']:
+                    signal_color = "🟢" if signals['action'] == 'BUY' else "🔴"
+                    st.write(f"{signal_color} {signals['action']}")
+                    for reason in signals['reasons']:
+                        st.write(f"• {reason}")
+                else:
+                    st.info("Pas de signal clair pour le moment")
                 
             else:
-                st.error(f"Symbole {symbol} non trouvé")
+                st.error("Aucune donnée disponible pour cette période")
                 
         except Exception as e:
             st.error(f"Erreur lors de l'analyse : {str(e)}")
+            st.exception(e)  # Affiche les détails de l'erreur en mode développement
+
             
 class TopPerformancePage:
     def __init__(self, exchange, ta_analyzer):
