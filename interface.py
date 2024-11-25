@@ -96,12 +96,40 @@ class PortfolioPage:
         st.title("💼 Gestion du Portefeuille")
 
 
-        # Ajout du bouton de réinitialisation dans un expander
         with st.expander("⚙️ Paramètres du Portfolio"):
             col1, col2 = st.columns(2)
             with col1:
-                # Configuration du capital initial
-                self._manage_capital()
+                # Configuration du capital initial avec une clé unique
+                initial_capital = st.session_state.portfolio['capital']
+                new_capital = st.number_input(
+                    "Capital (USDT)",
+                    min_value=0.0,
+                    value=float(initial_capital) if initial_capital > 0 else 1000.0,
+                    step=100.0,
+                    key="capital_input_settings"  # Ajout d'une clé unique
+                )
+                
+                # Si le capital a été modifié
+                if new_capital != initial_capital:
+                    # Vérifier s'il y a des positions ouvertes
+                    if st.session_state.portfolio['positions']:
+                        st.warning("⚠️ Impossible de modifier le capital avec des positions ouvertes")
+                    else:
+                        # Mise à jour du capital
+                        st.session_state.portfolio['capital'] = new_capital
+                        st.session_state.portfolio['current_capital'] = new_capital
+                        
+                        # Réinitialisation des performances
+                        st.session_state.portfolio['performance'] = {
+                            'total_trades': 0,
+                            'winning_trades': 0,
+                            'total_profit': 0,
+                            'max_drawdown': 0
+                        }
+                        
+                        st.success(f"💰 Capital mis à jour à {new_capital} USDT")
+                        st.rerun()
+                        
             with col2:
                 # Bouton de réinitialisation
                 if st.button("🗑️ Réinitialiser Portfolio", type="secondary"):
@@ -113,10 +141,9 @@ class PortfolioPage:
                     else:
                         # Réinitialisation directe s'il n'y a pas de positions ouvertes
                         self._reset_portfolio()
+
                         
-        # Configuration du capital initial
-        self._manage_capital()
-        
+                
         # Formulaire d'ajout de position
         self._add_position_form()
         
@@ -126,37 +153,7 @@ class PortfolioPage:
         # Historique et statistiques
         self._display_history_and_stats()
 
-    def _manage_capital(self):
-        """Gestion du capital initial"""
-        initial_capital = st.session_state.portfolio['capital']
-        new_capital = st.number_input(
-            "Capital (USDT)",
-            min_value=0.0,
-            value=float(initial_capital) if initial_capital > 0 else 1000.0,
-            step=100.0
-        )
-        
-        # Si le capital a été modifié
-        if new_capital != initial_capital:
-            # Vérifier s'il y a des positions ouvertes
-            if st.session_state.portfolio['positions']:
-                st.warning("⚠️ Impossible de modifier le capital avec des positions ouvertes")
-                return
-                
-            # Mise à jour du capital
-            st.session_state.portfolio['capital'] = new_capital
-            st.session_state.portfolio['current_capital'] = new_capital
-            
-            # Réinitialisation des performances
-            st.session_state.portfolio['performance'] = {
-                'total_trades': 0,
-                'winning_trades': 0,
-                'total_profit': 0,
-                'max_drawdown': 0
-            }
-            
-            st.success(f"💰 Capital mis à jour à {new_capital} USDT")
-            st.rerun()
+    
             
     def _reset_portfolio(self):
         """Réinitialise le portfolio à son état initial"""
