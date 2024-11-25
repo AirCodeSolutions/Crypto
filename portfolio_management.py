@@ -151,7 +151,7 @@ class PortfolioManager:
             current_drawdown = abs(pnl)
             stats['max_drawdown'] = max(stats['max_drawdown'], current_drawdown)
 
-   def get_portfolio_summary(self):
+    def get_portfolio_summary(self):
     """Génère un résumé du portfolio"""
     stats = st.session_state.portfolio['performance']
     capital_initial = st.session_state.portfolio['capital']
@@ -173,6 +173,8 @@ class PortfolioManager:
         'positions_ouvertes': len(st.session_state.portfolio['positions']),
         'performance': performance
     }
+
+
     def get_trade_history(self):
         """Retourne l'historique des trades sous forme de DataFrame"""
         if not st.session_state.portfolio['history']:
