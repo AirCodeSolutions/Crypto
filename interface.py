@@ -118,20 +118,126 @@ class PortfolioPage:
             st.session_state.portfolio['current_capital'] = st.session_state.portfolio['capital']
 
     def _add_position_form(self):
-        with st.expander("➕ Ajouter une nouvelle position"):
-            col1, col2 = st.columns(2)
+    with st.expander("➕ Ajouter une nouvelle position"):
+        # Première ligne : Symbole et Prix d'entrée
+        col1, col2 = st.columns(2)
+        with col1:
+            new_symbol = st.text_input("Symbole (ex: BTC)", "").upper()
+            amount = st.number_input("Montant (USDT)", min_value=0.0, value=100.0)
+        with col2:
+            entry_price = st.number_input("Prix d'entrée", min_value=0.0, value=0.0, format="%.8f")
+        
+        # Calculateur d'aide
+        st.markdown("---")
+        st.markdown("### 🎯 Calculateur de niveaux")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            risk_percentage = st.slider(
+                "Risque acceptable (%)", 
+                min_value=0.5, 
+                max_value=5.0, 
+                value=1.5,
+                step=0.5,
+                help="Pourcentage de perte maximale acceptable"
+            )
+        with col2:
+            risk_reward = st.slider(
+                "Ratio Risque/Récompense", 
+                min_value=1.5, 
+                max_value=5.0, 
+                value=2.0,
+                step=0.5,
+                help="Ratio entre profit potentiel et risque"
+            )
+
+        if entry_price > 0:
+            # Calcul des niveaux suggérés
+            stop_loss = entry_price * (1 - risk_percentage/100)
+            risk_amount = entry_price - stop_loss
+            target_1 = entry_price + (risk_amount * risk_reward)
+            target_2 = entry_price + (risk_amount * (risk_reward * 1.5))
+
+            # Affichage des niveaux calculés
+            st.markdown("#### Niveaux suggérés:")
+            col1, col2, col3 = st.columns(3)
             with col1:
-                new_symbol = st.text_input("Symbole (ex: BTC)", "").upper()
-                amount = st.number_input("Montant (USDT)", min_value=0.0, value=100.0)
-                entry_price = st.number_input("Prix d'entrée", min_value=0.0, value=0.0)
+                suggested_sl = st.metric(
+                    "Stop Loss suggéré",
+                    f"{stop_loss:.8f}",
+                    f"{-risk_percentage:.1f}%"
+                )
             with col2:
-                stop_loss = st.number_input("Stop Loss", min_value=0.0, value=0.0)
-                target_1 = st.number_input("Target 1", min_value=0.0, value=0.0)
-                target_2 = st.number_input("Target 2", min_value=0.0, value=0.0)
-            
-            if st.button("Ajouter la position"):
+                suggested_t1 = st.metric(
+                    "Target 1 suggéré",
+                    f"{target_1:.8f}",
+                    f"+{risk_percentage * risk_reward:.1f}%"
+                )
+            with col3:
+                suggested_t2 = st.metric(
+                    "Target 2 suggéré",
+                    f"{target_2:.8f}",
+                    f"+{risk_percentage * risk_reward * 1.5:.1f}%"
+                )
+
+            # Champs pour les niveaux réels
+            st.markdown("---")
+            st.markdown("### 📊 Niveaux de la position")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                stop_loss = st.number_input(
+                    "Stop Loss", 
+                    min_value=0.0, 
+                    value=float(stop_loss), 
+                    format="%.8f",
+                    help="Niveau de stop loss en USDT"
+                )
+            with col2:
+                target_1 = st.number_input(
+                    "Target 1", 
+                    min_value=0.0, 
+                    value=float(target_1), 
+                    format="%.8f",
+                    help="Premier objectif de profit"
+                )
+            with col3:
+                target_2 = st.number_input(
+                    "Target 2", 
+                    min_value=0.0, 
+                    value=float(target_2), 
+                    format="%.8f",
+                    help="Second objectif de profit"
+                )
+
+            # Calcul des métriques de la position
+            if amount > 0:
+                potential_loss = (stop_loss - entry_price) * (amount / entry_price)
+                potential_profit_1 = (target_1 - entry_price) * (amount / entry_price)
+                potential_profit_2 = (target_2 - entry_price) * (amount / entry_price)
+
+                st.markdown("#### Analyse de la position")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric(
+                        "Perte maximale",
+                        f"{potential_loss:.2f} USDT",
+                        f"{(potential_loss/amount)*100:.1f}% du capital"
+                    )
+                with col2:
+                    st.metric(
+                        "Profit potentiel (T2)",
+                        f"{potential_profit_2:.2f} USDT",
+                        f"{(potential_profit_2/amount)*100:.1f}% du capital"
+                    )
+
+            # Bouton d'ajout
+            st.markdown("---")
+            if st.button("Ajouter la position", type="primary"):
                 self._handle_new_position(new_symbol, amount, entry_price, stop_loss, target_1, target_2)
 
+        else:
+            st.info("Entrez un prix d'entrée pour voir les niveaux suggérés")
+            
     def _handle_new_position(self, symbol, amount, entry_price, stop_loss, target_1, target_2):
         try:
             # Validation des entrées
