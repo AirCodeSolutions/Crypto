@@ -259,23 +259,23 @@ class PortfolioPage:
             else:
                 history_df['P&L'] = 'N/A'
             
-        # Sélection et renommage des colonnes à afficher
-        display_columns = [col for col in ['symbol', 'entry_price', 'exit_price', 'pnl', 'Durée', 'reason'] 
-                         if col in history_df.columns]
-        
-        column_names = {
-            'symbol': 'Symbole',
-            'entry_price': 'Prix entrée',
-            'exit_price': 'Prix sortie',
-            'pnl': 'P&L',
-            'reason': 'Raison'
-        }
-        
-        display_df = history_df[display_columns].rename(columns=column_names)
-        
-        st.dataframe(display_df)
-    else:
-        st.info("Aucun historique de trade disponible")
+            # Sélection et renommage des colonnes à afficher
+            display_columns = [col for col in ['symbol', 'entry_price', 'exit_price', 'pnl', 'Durée', 'reason'] 
+                             if col in history_df.columns]
+            
+            column_names = {
+                'symbol': 'Symbole',
+                'entry_price': 'Prix entrée',
+                'exit_price': 'Prix sortie',
+                'pnl': 'P&L',
+                'reason': 'Raison'
+            }
+            
+            display_df = history_df[display_columns].rename(columns=column_names)
+            
+            st.dataframe(display_df)
+        else:
+            st.info("Aucun historique de trade disponible")
 
         
 class OpportunitiesPage:
