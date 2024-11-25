@@ -16,11 +16,11 @@ st.set_page_config(
 )
 
 # Importation de toutes les classes
-from utils import SessionState, format_numbre, get_exchange, get_valid_symbol  
+from utils import SessionState, format_number, get_exchange, get_valid_symbol  
 from technical_analysis import TechnicalAnalysis, SignalGenerator
 from portfolio_management import PortfolioManager
 from interface import (LiveAnalysisPage, PortfolioPage, OpportunitiesPage,
-                     HistoricalAnalysisPage, TopPerformancePage, CryptoAnalyzerApp)
+                     HistoricalAnalysisPage, TopPerformancePage)
 from guide import TradingGuide, Documentation
 
 class CryptoAnalyzerApp:
