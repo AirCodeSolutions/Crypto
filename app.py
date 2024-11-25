@@ -101,7 +101,7 @@ class CryptoAnalyzerApp:
         st.markdown("---")
         st.markdown("""
         <div style='text-align: center'>
-            <p>Développé avec ❤️ | Données fournies par KuCoin</p>
+            <p>Développé avec ❤️par AirCodeSolutions | Données fournies par KuCoin</p>
         </div>
         """, unsafe_allow_html=True)
 
