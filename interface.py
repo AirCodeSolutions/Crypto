@@ -244,21 +244,21 @@ class PortfolioPage:
         with col4:
             st.metric("Drawdown Max", f"{summary['max_drawdown']:.2f}%")
     
-    # Historique des trades
-    if not history_df.empty:
-        st.subheader("Historique des trades")
-        
-        # Formatage des colonnes pour l'affichage
-        if 'duration' in history_df.columns:
-            history_df['Durée'] = history_df['duration'].astype(str)
-        else:
-            history_df['Durée'] = 'N/A'
+        # Historique des trades
+        if not history_df.empty:
+            st.subheader("Historique des trades")
+            
+            # Formatage des colonnes pour l'affichage
+            if 'duration' in history_df.columns:
+                history_df['Durée'] = history_df['duration'].astype(str)
+            else:
+                history_df['Durée'] = 'N/A'
 
-        if 'pnl' in history_df.columns:
-            history_df['P&L'] = history_df['pnl'].map('{:,.2f}%'.format)
-        else:
-            history_df['P&L'] = 'N/A'
-        
+            if 'pnl' in history_df.columns:
+                history_df['P&L'] = history_df['pnl'].map('{:,.2f}%'.format)
+            else:
+                history_df['P&L'] = 'N/A'
+            
         # Sélection et renommage des colonnes à afficher
         display_columns = [col for col in ['symbol', 'entry_price', 'exit_price', 'pnl', 'Durée', 'reason'] 
                          if col in history_df.columns]
