@@ -172,7 +172,7 @@ class PortfolioManager:
             'max_drawdown': stats['max_drawdown'],
             'positions_ouvertes': len(st.session_state.portfolio['positions']),
             'performance': performance
-        }
+            }
 
 
     def get_trade_history(self):
