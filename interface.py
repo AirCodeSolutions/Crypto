@@ -4,8 +4,13 @@ from datetime import datetime
 import plotly.graph_objects as go
 import pandas as pd
 import ta
-from utils import get_valid_symbol, calculate_timeframe_data
+from utils import (
+    get_valid_symbol, 
+    calculate_timeframe_data, 
+    format_number  # Ajout de cet import
+)
 from technical_analysis import SignalGenerator
+
 
 class LiveAnalysisPage:
     def __init__(self, exchange, ta_analyzer, portfolio_manager):
@@ -677,8 +682,24 @@ class CryptoAnalyzerApp:
         }
 
     def run(self):
+        from utils import format_number  # Ajout ici aussi pour être sûr
+        
         st.sidebar.title("Navigation")
         page_name = st.sidebar.selectbox("Choisir une page", list(self.pages.keys()))
         
+        # Informations générales dans le sidebar
+        if st.session_state.portfolio['capital'] > 0:
+            st.sidebar.markdown("---")
+            st.sidebar.markdown("### 💰 Portfolio")
+            st.sidebar.metric(
+                "Capital actuel",
+                f"{format_number(st.session_state.portfolio['current_capital'])} USDT",
+                f"{((st.session_state.portfolio['current_capital'] / st.session_state.portfolio['capital']) - 1) * 100:.2f}%"
+            )
+            
         # Rendu de la page sélectionnée
-        self.pages[page_name].render()
+        try:
+            self.pages[page_name].render()
+        except Exception as e:
+            st.error(f"Erreur lors du chargement de la page: {str(e)}")
+            

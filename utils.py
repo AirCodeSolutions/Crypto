@@ -104,6 +104,7 @@ def calculate_timeframe_data(_exchange, symbol, timeframe='1h', limit=100):
         st.error(f"Erreur lors du calcul des données {timeframe}: {str(e)}")
         return None
 
+# Dans utils.py
 def format_number(number, decimals=8):
     """
     Formate les nombres pour l'affichage
@@ -119,7 +120,7 @@ def format_number(number, decimals=8):
             return f"{number:.{decimals}f}"
     except Exception as e:
         return str(number)
-
+    
 def time_to_str(timestamp):
     """
     Convertit un timestamp en chaîne de caractères formatée
