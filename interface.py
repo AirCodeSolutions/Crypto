@@ -7,9 +7,11 @@ import ta
 from utils import (
     get_valid_symbol, 
     calculate_timeframe_data, 
-    format_number  # Ajout de cet import
+    format_number,
+    get_exchange  # Ajout de cet import
 )
-from technical_analysis import SignalGenerator
+from technical_analysis import SignalGenerator, TechnicalAnalysis  # Ajout de TechnicalAnalysis
+from portfolio_management import PortfolioManager  # Ajout de cet import
 
 
 class LiveAnalysisPage:
