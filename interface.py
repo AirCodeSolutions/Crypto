@@ -94,7 +94,26 @@ class PortfolioPage:
 
     def render(self):
         st.title("💼 Gestion du Portefeuille")
-        
+
+
+        # Ajout du bouton de réinitialisation dans un expander
+        with st.expander("⚙️ Paramètres du Portfolio"):
+            col1, col2 = st.columns(2)
+            with col1:
+                # Configuration du capital initial
+                self._manage_capital()
+            with col2:
+                # Bouton de réinitialisation
+                if st.button("🗑️ Réinitialiser Portfolio", type="secondary"):
+                    if st.session_state.portfolio['positions']:
+                        # Demande de confirmation si des positions sont ouvertes
+                        if st.warning("⚠️ Attention: Cette action supprimera toutes vos positions et votre historique. Êtes-vous sûr?"):
+                            if st.button("✅ Confirmer la réinitialisation"):
+                                self._reset_portfolio()
+                    else:
+                        # Réinitialisation directe s'il n'y a pas de positions ouvertes
+                        self._reset_portfolio()
+                        
         # Configuration du capital initial
         self._manage_capital()
         
@@ -108,15 +127,39 @@ class PortfolioPage:
         self._display_history_and_stats()
 
     def _manage_capital(self):
+        """Gestion du capital initial"""
         if st.session_state.portfolio['capital'] == 0:
-            st.session_state.portfolio['capital'] = st.number_input(
+            new_capital = st.number_input(
                 "Capital initial (USDT)",
                 min_value=0.0,
                 value=1000.0,
                 step=100.0
             )
-            st.session_state.portfolio['current_capital'] = st.session_state.portfolio['capital']
+            if new_capital > 0:
+                st.session_state.portfolio['capital'] = new_capital
+                st.session_state.portfolio['current_capital'] = new_capital
+                st.success(f"💰 Capital initial défini à {new_capital} USDT")
+        else:
+            st.info(f"Capital actuel: {st.session_state.portfolio['current_capital']:.2f} USDT")
+            
 
+    def _reset_portfolio(self):
+        """Réinitialise le portfolio à son état initial"""
+        st.session_state.portfolio = {
+            'positions': {},
+            'history': [],
+            'capital': 0,
+            'current_capital': 0,
+            'performance': {
+                'total_trades': 0,
+                'winning_trades': 0,
+                'total_profit': 0,
+                'max_drawdown': 0
+            }
+        }
+        st.success("✨ Portfolio réinitialisé avec succès!")
+        st.rerun()  # Rafraîchit la page pour afficher les changements
+        
     def _add_position_form(self):
         with st.expander("➕ Ajouter une nouvelle position"):
             # Première ligne : Symbole et Prix d'entrée
