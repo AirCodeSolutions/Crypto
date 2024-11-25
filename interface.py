@@ -126,23 +126,38 @@ class PortfolioPage:
         # Historique et statistiques
         self._display_history_and_stats()
 
-    def _manage_capital(self):
+     def _manage_capital(self):
         """Gestion du capital initial"""
-        if st.session_state.portfolio['capital'] == 0:
-            new_capital = st.number_input(
-                "Capital initial (USDT)",
-                min_value=0.0,
-                value=1000.0,
-                step=100.0
-            )
-            if new_capital > 0:
-                st.session_state.portfolio['capital'] = new_capital
-                st.session_state.portfolio['current_capital'] = new_capital
-                st.success(f"💰 Capital initial défini à {new_capital} USDT")
-        else:
-            st.info(f"Capital actuel: {st.session_state.portfolio['current_capital']:.2f} USDT")
+        initial_capital = st.session_state.portfolio['capital']
+        new_capital = st.number_input(
+            "Capital (USDT)",
+            min_value=0.0,
+            value=float(initial_capital) if initial_capital > 0 else 1000.0,
+            step=100.0
+        )
+        
+        # Si le capital a été modifié
+        if new_capital != initial_capital:
+            # Vérifier s'il y a des positions ouvertes
+            if st.session_state.portfolio['positions']:
+                st.warning("⚠️ Impossible de modifier le capital avec des positions ouvertes")
+                return
+                
+            # Mise à jour du capital
+            st.session_state.portfolio['capital'] = new_capital
+            st.session_state.portfolio['current_capital'] = new_capital
             
-
+            # Réinitialisation des performances
+            st.session_state.portfolio['performance'] = {
+                'total_trades': 0,
+                'winning_trades': 0,
+                'total_profit': 0,
+                'max_drawdown': 0
+            }
+            
+            st.success(f"💰 Capital mis à jour à {new_capital} USDT")
+            st.rerun()
+            
     def _reset_portfolio(self):
         """Réinitialise le portfolio à son état initial"""
         st.session_state.portfolio = {
@@ -158,7 +173,7 @@ class PortfolioPage:
             }
         }
         st.success("✨ Portfolio réinitialisé avec succès!")
-        st.rerun()  # Rafraîchit la page pour afficher les changements
+        st.rerun()
         
     def _add_position_form(self):
         with st.expander("➕ Ajouter une nouvelle position"):
