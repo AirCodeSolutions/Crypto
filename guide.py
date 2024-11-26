@@ -9,7 +9,8 @@ class TradingGuide:
             "Choisir une section",
             ["Démarrage Rapide", "Système de Scoring", "Trading Court Terme", 
              "Gestion de Position", "Signaux de Trading", "Indicateurs Techniques", 
-             "Analyse Multi-Timeframes", "Gestion des Risques"]
+             "Analyse Multi-Timeframes", "Gestion des Risques","Analyse des Bougies",
+             "Recommandations pour Trader"]
         )
         
         if guide_section == "Démarrage Rapide":
@@ -28,6 +29,10 @@ class TradingGuide:
             self._multi_timeframe_guide()
         elif guide_section == "Gestion des Risques":
             self._risk_management_guide()
+        elif guide_section == "Analyse des Bougies":
+            self._candle_analysis_guide()
+        elif guide_section == "Recommandations pour Trader":
+            self._trading_recommendations_guide()
 
 
     def _quick_start_guide(self):
@@ -243,6 +248,109 @@ class TradingGuide:
         2. Pas d'émotions
         3. Journal de trading
         4. Plan de trading strict
+        """)
+
+    def _candle_analysis_guide(self):
+        st.markdown("""
+        ## 🕯️ Analyse des Bougies
+
+        ### 1. Confirmation de Tendance
+        
+        #### Bougies Haussières
+        ```
+        - Minimum 2-3 bougies vertes consécutives
+        - Corps des bougies > mèches
+        - Volume croissant sur les vertes
+        - Clôture au-dessus des EMAs
+        ```
+        
+        #### Signaux d'Alerte
+        ```
+        - Longues mèches supérieures
+        - Bougies rouges consécutives
+        - Volume décroissant
+        - Dojis après tendance
+        ```
+
+        ### 2. Patterns Importants
+        
+        #### Patterns Haussiers
+        - Marteau : Retournement potentiel
+        - Avalement haussier : Signal fort
+        - Étoile du matin : Confirmation de support
+        
+        #### Patterns Baissiers
+        - Étoile du soir : Signal de sommet
+        - Avalement baissier : Changement de tendance
+        - Pendu : Warning sur résistance
+
+        ### 3. Volume et Bougies
+        ```
+        - Volume > moyenne sur bougies vertes
+        - Volume faible sur consolidation
+        - Explosion de volume sur breakout
+        - Confirmation par le volume
+        ```
+        """)
+
+    def _trading_recommendations_guide(self):
+        st.markdown("""
+        ## 💡 Recommandations pour Trader
+
+        ### 1. Critères d'Entrée Optimaux
+        
+        #### Configuration Idéale
+        ```
+        - Score technique > 0.7
+        - 2-3 bougies vertes consécutives
+        - Volume croissant
+        - Support proche (-1-2%)
+        - RSI entre 30-45
+        ```
+
+        #### Confirmation Multi-Timeframes
+        ```
+        - Tendance 4h alignée
+        - Support validé sur 1h
+        - Momentum positif sur 15m
+        - Volume confirmé sur tous TF
+        ```
+
+        ### 2. À Éviter Absolument
+        
+        #### Configurations Risquées
+        ```
+        - FOMO sur pompes
+        - Trading contre la tendance
+        - Absence de stop loss
+        - Position oversized
+        ```
+
+        #### Contexte Défavorable
+        ```
+        - Annonces importantes proches
+        - Très haute volatilité
+        - Volume anormalement faible
+        - Résistance majeure proche
+        ```
+
+        ### 3. Meilleures Pratiques
+        
+        #### Timing
+        ```
+        - Préférer les sessions actives
+        - Éviter les annonces macro
+        - Attendre la confirmation
+        - Pas de rush sur l'entrée
+        ```
+
+        #### Psychologie
+        ```
+        - Suivre le plan de trading
+        - Ne pas surtraider
+        - Accepter les petites pertes
+        - Tenir un journal détaillé
+        ```
         """)
 
 class Documentation:
