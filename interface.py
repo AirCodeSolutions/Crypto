@@ -434,62 +434,62 @@ class PortfolioPage:
                     st.rerun()
 
     def _add_risk_management_section(self):
-    with st.expander("⚠️ Gestion des Risques"):
-        st.markdown("""
-        ### Règles de gestion des risques
-        
-        1. **Position Size** 🎯
-        - Maximum 1-2% du capital par trade
-        - Stop loss toujours défini
-        - Ratio risque/récompense minimum de 1:2
-        
-        2. **Diversification** 📊
-        - Maximum 20% du capital en crypto
-        - Pas plus de 4-5 positions simultanées
-        - Varier les types de cryptos
-        
-        3. **Périodes de Trading** ⏰
-        - Éviter les annonces importantes
-        - Préférer les périodes de forte liquidité
-        - Pas de FOMO sur les pics de volatilité
-        """)
-        
-        # Calculs de gestion des risques
-        capital = st.session_state.portfolio['current_capital']
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            risk_percentage = st.slider(
-                "% de risque par trade",
-                min_value=0.5,
-                max_value=2.0,
-                value=1.0,
-                step=0.1,
-                help="Pourcentage du capital à risquer par trade"
-            )
+        with st.expander("⚠️ Gestion des Risques"):
+            st.markdown("""
+            ### Règles de gestion des risques
             
-            max_risk_amount = capital * (risk_percentage/100)
-            st.metric(
-                "Risque maximum par trade",
-                f"${max_risk_amount:.2f}",
-                help="Perte maximale acceptable par position"
-            )
+            1. **Position Size** 🎯
+            - Maximum 1-2% du capital par trade
+            - Stop loss toujours défini
+            - Ratio risque/récompense minimum de 1:2
             
-        with col2:
-            max_positions = st.slider(
-                "Nombre maximum de positions",
-                min_value=1,
-                max_value=5,
-                value=3,
-                help="Nombre maximum de positions simultanées"
-            )
+            2. **Diversification** 📊
+            - Maximum 20% du capital en crypto
+            - Pas plus de 4-5 positions simultanées
+            - Varier les types de cryptos
             
-            position_size = capital / max_positions
-            st.metric(
-                "Taille suggérée par position",
-                f"${position_size:.2f}",
-                help="Montant suggéré pour chaque position"
-            )
+            3. **Périodes de Trading** ⏰
+            - Éviter les annonces importantes
+            - Préférer les périodes de forte liquidité
+            - Pas de FOMO sur les pics de volatilité
+            """)
+            
+            # Calculs de gestion des risques
+            capital = st.session_state.portfolio['current_capital']
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                risk_percentage = st.slider(
+                    "% de risque par trade",
+                    min_value=0.5,
+                    max_value=2.0,
+                    value=1.0,
+                    step=0.1,
+                    help="Pourcentage du capital à risquer par trade"
+                )
+                
+                max_risk_amount = capital * (risk_percentage/100)
+                st.metric(
+                    "Risque maximum par trade",
+                    f"${max_risk_amount:.2f}",
+                    help="Perte maximale acceptable par position"
+                )
+                
+            with col2:
+                max_positions = st.slider(
+                    "Nombre maximum de positions",
+                    min_value=1,
+                    max_value=5,
+                    value=3,
+                    help="Nombre maximum de positions simultanées"
+                )
+                
+                position_size = capital / max_positions
+                st.metric(
+                    "Taille suggérée par position",
+                    f"${position_size:.2f}",
+                    help="Montant suggéré pour chaque position"
+                )
     
     def _display_history_and_stats(self):
         st.subheader("📈 Historique et Statistiques")
