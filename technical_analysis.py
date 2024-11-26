@@ -161,9 +161,35 @@ class SignalGenerator:
         """
         Calcule un score global pour l'opportunité
         """
-        momentum = self.ta.calculate_momentum_score(self.df)
-        sentiment = self.ta.get_market_sentiment(self.df)
-        volume_trend = self.ta.analyze_volume_profile(self.df)
+        # Prix actuel en tendance haussière par rapport aux EMAs ?
+        df = self.df.copy()
+        df['ema9'] = ta.trend.ema_indicator(df['close'], window=9)
+        df['ema20'] = ta.trend.ema_indicator(df['close'], window=20)
+        df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
         
-        technical_score = momentum * 0.4 + sentiment * 0.4 + (volume_trend/2) * 0.2
-        return technical_score
+        trend_score = 0
+        if df['close'].iloc[-1] > df['ema9'].iloc[-1] > df['ema20'].iloc[-1]:
+            trend_score = 0.4
+        elif df['close'].iloc[-1] > df['ema20'].iloc[-1]:
+            trend_score = 0.2
+            
+        # RSI dans une zone intéressante ?
+        rsi = ta.momentum.rsi(df['close']).iloc[-1]
+        rsi_score = 0
+        if 30 <= rsi <= 40:  # Zone de survente
+            rsi_score = 0.3
+        elif 40 < rsi <= 60:  # Zone neutre
+            rsi_score = 0.2
+            
+        # Volume significatif ?
+        volume_sma = df['volume'].rolling(window=20).mean().iloc[-1]
+        volume_score = 0
+        if df['volume'].iloc[-1] > volume_sma * 1.5:
+            volume_score = 0.3
+        elif df['volume'].iloc[-1] > volume_sma:
+            volume_score = 0.2
+            
+        # Score final
+        final_score = trend_score + rsi_score + volume_score
+        
+        return min(final_score, 1.0)  # Score maximum de 1.0
