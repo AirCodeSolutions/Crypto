@@ -1154,6 +1154,167 @@ class GuidePage:
         st.title("📚 Guide de Trading Crypto Avancé")
         # [Code du guide]
         pass
+    
+class MicroBudgetTrading:
+    def __init__(self, exchange):
+        self.exchange = exchange
+        self.max_position_size = 35  # Taille maximum par position en USDT
+        self.min_volume = 50000      # Volume minimum pour la liquidité
+        self.max_price = 5           # Prix maximum par crypto
+        self.min_price = 0.1         # Prix minimum par crypto
+
+    def find_opportunities(self):
+        """Trouve des opportunités adaptées aux petits budgets"""
+        try:
+            markets = self.exchange.load_markets()
+            opportunities = []
+            
+            for symbol in markets:
+                if not symbol.endswith('/USDT'):
+                    continue
+                    
+                ticker = self.exchange.fetch_ticker(symbol)
+                price = ticker['last']
+                volume = ticker['quoteVolume']
+                
+                # Filtres spécifiques micro-budget
+                if (self.min_price <= price <= self.max_price and 
+                    volume >= self.min_volume):
+                    
+                    # Récupération des données
+                    df = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
+                    if df is None:
+                        continue
+                        
+                    # Analyse spécifique micro-budget
+                    signal = self._analyze_micro_opportunity(df, price)
+                    if signal['score'] >= 0.7:  # Seulement les meilleures opportunités
+                        opportunities.append({
+                            'symbol': symbol.replace('/USDT', ''),
+                            'price': price,
+                            'score': signal['score'],
+                            'volume': volume,
+                            'suggested_position': min(
+                                self.max_position_size,
+                                self.max_position_size * signal['score']
+                            ),
+                            'target': price * 1.03,  # Target +3%
+                            'stop_loss': price * 0.985,  # Stop loss -1.5%
+                            'reasons': signal['reasons']
+                        })
+            
+            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
+            
+        except Exception as e:
+            return f"Erreur: {str(e)}"
+
+    def _analyze_micro_opportunity(self, df, current_price):
+        """Analyse spécifique pour le micro-trading"""
+        score = 0
+        reasons = []
+        
+        # 1. Analyse des volumes récents
+        recent_volume = df['volume'].tail(3).mean()
+        avg_volume = df['volume'].mean()
+        if recent_volume > avg_volume * 1.2:
+            score += 0.3
+            reasons.append("Volume en augmentation")
+        
+        # 2. Tendance des prix (3 dernières bougies)
+        last_candles = df.tail(3)
+        green_candles = sum(last_candles['close'] > last_candles['open'])
+        if green_candles >= 2:
+            score += 0.3
+            reasons.append(f"{green_candles}/3 bougies vertes")
+        
+        # 3. RSI pas trop haut
+        rsi = ta.momentum.rsi(df['close']).iloc[-1]
+        if 30 <= rsi <= 50:
+            score += 0.2
+            reasons.append("RSI dans zone favorable")
+        
+        # 4. Validation du support
+        last_lows = df['low'].tail(10).min()
+        if current_price <= last_lows * 1.02:
+            score += 0.2
+            reasons.append("Proche du support")
+            
+        return {
+            'score': min(score, 1.0),
+            'reasons': reasons
+        }
+
+class MicroTradingPage:
+    def __init__(self, exchange, portfolio_manager):
+        self.exchange = exchange
+        self.portfolio = portfolio_manager
+        self.micro_trader = MicroBudgetTrading(exchange)
+        
+    def render(self):
+        st.title("🎯 Trading Micro-Budget")
+        
+        # Guide rapide
+        with st.expander("📚 Guide Micro-Budget", expanded=True):
+            st.markdown("""
+            ### Règles pour trader avec 100€:
+            1. **Position size**: 30-35€ maximum par position
+            2. **Objectif**: +3% par trade
+            3. **Stop loss**: -1.5% systématique
+            4. **Cryptos cibles**: Entre 0.1$ et 5$
+            5. **Positions**: 2-3 maximum en même temps
+            
+            ### ⚠️ Points importants:
+            - Ne jamais acheter sans stop loss
+            - Prendre ses profits à +3%
+            - Ne pas garder une position plus de 24h
+            """)
+        
+        if st.button("🔍 Chercher des opportunités micro-budget"):
+            with st.spinner("Recherche en cours..."):
+                opportunities = self.micro_trader.find_opportunities()
+                
+                if isinstance(opportunities, str):  # En cas d'erreur
+                    st.error(opportunities)
+                elif opportunities:
+                    for opp in opportunities[:5]:  # Top 5 seulement
+                        with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Prix", f"${opp['price']:.4f}")
+                            with col2:
+                                st.metric("Position suggérée", f"${opp['suggested_position']:.2f}")
+                            with col3:
+                                profit = (opp['target'] - opp['price']) / opp['price'] * 100
+                                st.metric("Profit potentiel", f"+{profit:.1f}%")
+                            
+                            st.markdown("### Niveaux suggérés:")
+                            levels_col1, levels_col2, levels_col3 = st.columns(3)
+                            with levels_col1:
+                                st.write("🔴 Stop Loss:", f"${opp['stop_loss']:.4f}")
+                            with levels_col2:
+                                st.write("🎯 Target:", f"${opp['target']:.4f}")
+                            with levels_col3:
+                                risk = (opp['price'] - opp['stop_loss']) * (opp['suggested_position'] / opp['price'])
+                                st.write("💰 Risque:", f"${risk:.2f}")
+                            
+                            st.markdown("### Raisons du signal:")
+                            for reason in opp['reasons']:
+                                st.write(f"✅ {reason}")
+                            
+                            if st.button("📝 Préparer l'ordre", key=f"prep_{opp['symbol']}"):
+                                st.session_state['prepared_trade'] = {
+                                    'symbol': opp['symbol'],
+                                    'price': opp['price'],
+                                    'stop_loss': opp['stop_loss'],
+                                    'target_1': opp['target'],
+                                    'target_2': opp['target'] * 1.02,
+                                    'suggested_amount': opp['suggested_position'],
+                                    'score': opp['score']
+                                }
+                                st.success(f"✅ Trade préparé! Allez dans Portfolio pour finaliser.")
+                else:
+                    st.info("Aucune opportunité trouvée pour le moment. Réessayez plus tard.")
+
 
 # Main App
 class CryptoAnalyzerApp:
@@ -1165,6 +1326,7 @@ class CryptoAnalyzerApp:
         self.pages = {
             "Analyse en Direct": LiveAnalysisPage(self.exchange, self.ta, self.portfolio),
             "Portefeuille": PortfolioPage(self.portfolio),
+            "Trading Micro-Budget": MicroTradingPage(self.exchange, self.portfolio), 
             "Top Performances": TopPerformancePage(self.exchange, self.ta),
             "Opportunités Court Terme": OpportunitiesPage(self.exchange, self.ta),
             "Analyse Historique": HistoricalAnalysisPage(self.exchange, self.ta),
