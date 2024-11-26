@@ -145,36 +145,8 @@ class LiveAnalysisPage:
                             for reason in signals['reasons']:
                                 st.write(f"• {reason}")
                                 
-
-
-                    # Bouton pour ajouter au portfolio si signal d'achat
-                    if signals['action'] == 'BUY':
-                        if st.button("📝 Préparer un ordre", key=f"prepare_{coin}"):
-                            # Calcul des niveaux suggérés
-                            risk_percentage = 1.5  # 1.5% de stop loss par défaut
-                            stop_loss = ticker['last'] * (1 - risk_percentage/100)
-                            risk_amount = ticker['last'] - stop_loss
-                            target_1 = ticker['last'] + (risk_amount * 2)  # R/R 1:2
-                            target_2 = ticker['last'] + (risk_amount * 3)  # R/R 1:3
-
-                            # Stockage des informations dans la session
-                            st.session_state['prepared_trade'] = {
-                                'symbol': coin,
-                                'price': ticker['last'],
-                                'stop_loss': stop_loss,
-                                'target_1': target_1,
-                                'target_2': target_2,
-                                'support': support,
-                                'resistance': resistance,
-                                'score': score
-                            }
-                            
-                            st.success(f"✅ Trade préparé pour {coin}! Allez dans Portfolio pour finaliser l'ordre.")
-                        
         except Exception as e:
             st.error(f"Erreur pour {coin}: {str(e)}")
-
-
 
 class PortfolioPage:
     def __init__(self, portfolio_manager):
@@ -240,8 +212,7 @@ class PortfolioPage:
         
         # Historique et statistiques
         self._display_history_and_stats()
-        # Vérifier les trades préparés
-        self._check_prepared_trade()
+
     
             
     def _reset_portfolio(self):
@@ -592,51 +563,6 @@ class PortfolioPage:
         else:
             st.info("Aucun historique de trade disponible")
 
-    def _check_prepared_trade(self):
-        if 'prepared_trade' in st.session_state:
-            trade = st.session_state['prepared_trade']
-            
-            st.info("💫 Trade préparé disponible!")
-            with st.expander("📝 Détails du trade préparé"):
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Symbole", trade['symbol'])
-                    st.metric("Prix actuel", f"${trade['price']:.8f}")
-                    st.metric("Score technique", f"{trade['score']:.2f}")
-                with col2:
-                    st.metric("Support", f"${trade['support']:.8f}")
-                    st.metric("Résistance", f"${trade['resistance']:.8f}")
-                
-                # Calcul de la taille suggérée de position
-                capital = st.session_state.portfolio['current_capital']
-                suggested_risk = capital * 0.01  # 1% du capital
-                position_size = (suggested_risk / (trade['price'] - trade['stop_loss'])) * trade['price']
-                
-                st.markdown("### 📊 Position suggérée")
-                col1, col2 = st.columns(2)
-                with col1:
-                    amount = st.number_input(
-                        "Montant (USDT)",
-                        min_value=0.0,
-                        value=min(position_size, capital * 0.1),  # Max 10% du capital
-                        step=10.0
-                    )
-                with col2:
-                    risk_percent = (amount * (trade['price'] - trade['stop_loss'])) / capital * 100
-                    st.metric("Risque", f"{risk_percent:.2f}%")
-                
-                if st.button("✅ Créer la position"):
-                    self._handle_new_position(
-                        trade['symbol'],
-                        amount,
-                        trade['price'],
-                        trade['stop_loss'],
-                        trade['target_1'],
-                        trade['target_2']
-                    )
-                    del st.session_state['prepared_trade']
-                    st.rerun()
-                
         
 class OpportunitiesPage:
     def __init__(self, exchange, ta_analyzer):
