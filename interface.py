@@ -67,7 +67,85 @@ class LiveAnalysisPage:
                 df = calculate_timeframe_data(self.exchange, valid_symbol, '1h', 100)
                 
                 if df is not None:
-                    # ... code existant ...
+                    # Création d'un container pour cette crypto
+                    with st.container():
+                        # En-tête avec les infos principales
+                        st.markdown(f"### {coin}")
+                        
+                        # Première ligne : Prix et volume
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric(
+                                "Prix",
+                                f"${ticker['last']:,.8f}",
+                                f"{ticker['percentage']:+.2f}%"
+                            )
+                        with col2:
+                            st.metric(
+                                "Volume 24h",
+                                f"${ticker['quoteVolume']/1e6:.1f}M",
+                                None
+                            )
+                        with col3:
+                            # Calcul du RSI
+                            rsi = self.ta.calculate_rsi(df).iloc[-1]
+                            st.metric(
+                                "RSI",
+                                f"{rsi:.1f}",
+                                None,
+                                help="RSI > 70: Suracheté, RSI < 30: Survendu"
+                            )
+
+                        # Signaux et recommandations
+                        signal_gen = SignalGenerator(df, ticker['last'])
+                        score = signal_gen.calculate_opportunity_score()
+                        signals = signal_gen.generate_trading_signals()
+
+                        # Affichage du score et des signaux
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric(
+                                "Score Technique",
+                                f"{score:.2f}",
+                                help="Score > 0.7: Fort potentiel"
+                            )
+                        with col2:
+                            if signals['action']:
+                                signal_color = "🟢" if signals['action'] == 'BUY' else "🔴"
+                                st.markdown(f"{signal_color} **{signals['action']}**")
+                                
+                        # Niveaux clés
+                        support, resistance = self.ta.calculate_support_resistance(df)
+                        st.markdown("#### 🎯 Niveaux clés")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Support", f"${support:.8f}")
+                        with col2:
+                            st.metric("Prix actuel", f"${ticker['last']:.8f}")
+                        with col3:
+                            st.metric("Résistance", f"${resistance:.8f}")
+                            
+                        # Bouton pour ajouter au portfolio si signal d'achat
+                        if signals['action'] == 'BUY':
+                            if st.button("📝 Préparer un ordre", key=f"prepare_{coin}"):
+                                st.session_state.prepared_trade = {
+                                    'symbol': coin,
+                                    'price': ticker['last'],
+                                    'support': support,
+                                    'resistance': resistance,
+                                    'score': score
+                                }
+                                # Redirection vers la page Portfolio
+                                st.session_state.page = "Portfolio"
+                                st.experimental_rerun()
+                                
+                        # Affichage des raisons du signal
+                        if signals['reasons']:
+                            st.markdown("#### 📊 Analyse")
+                            for reason in signals['reasons']:
+                                st.write(f"• {reason}")
+                                
+
 
                     # Bouton pour ajouter au portfolio si signal d'achat
                     if signals['action'] == 'BUY':
@@ -93,6 +171,11 @@ class LiveAnalysisPage:
                             
                             st.success(f"✅ Trade préparé pour {coin}! Allez dans Portfolio pour finaliser l'ordre.")
                         
+        except Exception as e:
+            st.error(f"Erreur pour {coin}: {str(e)}")
+
+
+
 class PortfolioPage:
     def __init__(self, portfolio_manager):
         self.portfolio = portfolio_manager
