@@ -87,7 +87,6 @@ class LiveAnalysisPage:
                                 None
                             )
                         with col3:
-                            # Calcul du RSI
                             rsi = self.ta.calculate_rsi(df).iloc[-1]
                             st.metric(
                                 "RSI",
@@ -96,12 +95,40 @@ class LiveAnalysisPage:
                                 help="RSI > 70: Suracheté, RSI < 30: Survendu"
                             )
 
+                        # Analyse de la tendance des bougies
+                        last_candles = df.tail(5)  # Prendre les 5 dernières bougies
+                        green_candles = sum(last_candles['close'] > last_candles['open'])
+                        trend_strength = green_candles / 5 * 100
+
+                        # Afficher l'analyse des bougies
+                        st.markdown("#### 🕯️ Analyse des bougies")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric(
+                                "Bougies vertes (5 dernières)",
+                                f"{green_candles}/5",
+                                f"{trend_strength:.0f}% haussier"
+                            )
+                        with col2:
+                            consecutive_green = 0
+                            for i in range(len(last_candles)-1, -1, -1):
+                                if last_candles.iloc[i]['close'] > last_candles.iloc[i]['open']:
+                                    consecutive_green += 1
+                                else:
+                                    break
+                            st.metric(
+                                "Bougies vertes consécutives",
+                                f"{consecutive_green}",
+                                help="Nombre de bougies vertes consécutives"
+                            )
+
                         # Signaux et recommandations
                         signal_gen = SignalGenerator(df, ticker['last'])
                         score = signal_gen.calculate_opportunity_score()
                         signals = signal_gen.generate_trading_signals()
 
                         # Affichage du score et des signaux
+                        st.markdown("#### 📊 Analyse Technique")
                         col1, col2 = st.columns(2)
                         with col1:
                             st.metric(
@@ -113,7 +140,7 @@ class LiveAnalysisPage:
                             if signals['action']:
                                 signal_color = "🟢" if signals['action'] == 'BUY' else "🔴"
                                 st.markdown(f"{signal_color} **{signals['action']}**")
-                                
+                        
                         # Niveaux clés
                         support, resistance = self.ta.calculate_support_resistance(df)
                         st.markdown("#### 🎯 Niveaux clés")
@@ -124,44 +151,44 @@ class LiveAnalysisPage:
                             st.metric("Prix actuel", f"${ticker['last']:.8f}")
                         with col3:
                             st.metric("Résistance", f"${resistance:.8f}")
-                            
-                                                     
-
 
                         # Bouton pour ajouter au portfolio si signal d'achat
-                        if signals['action'] == 'BUY':
-                            if st.button("📝 Préparer un ordre", key=f"prepare_{coin}"):
-                                # Calcul des niveaux suggérés
-                                risk_percentage = 1.5  # 1.5% de stop loss par défaut
-                                stop_loss = ticker['last'] * (1 - risk_percentage/100)
-                                risk_amount = ticker['last'] - stop_loss
-                                target_1 = ticker['last'] + (risk_amount * 2)  # R/R 1:2
-                                target_2 = ticker['last'] + (risk_amount * 3)  # R/R 1:3
+                        if signals['action'] == 'BUY' and consecutive_green >= 2:  # Au moins 2 bougies vertes consécutives
+                            st.markdown("---")
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.success("✅ Confirmation de tendance haussière")
+                            with col2:
+                                if st.button("📝 Préparer un ordre", key=f"prepare_{coin}"):
+                                    # Calcul des niveaux suggérés
+                                    risk_percentage = 1.5
+                                    stop_loss = ticker['last'] * (1 - risk_percentage/100)
+                                    risk_amount = ticker['last'] - stop_loss
+                                    target_1 = ticker['last'] + (risk_amount * 2)
+                                    target_2 = ticker['last'] + (risk_amount * 3)
 
-                                # Stockage des informations dans la session
-                                st.session_state['prepared_trade'] = {
-                                    'symbol': coin,
-                                    'price': ticker['last'],
-                                    'stop_loss': stop_loss,
-                                    'target_1': target_1,
-                                    'target_2': target_2,
-                                    'support': support,
-                                    'resistance': resistance,
-                                    'score': score
-                                }
-                                
-                                st.success(f"✅ Trade préparé pour {coin}! Allez dans Portfolio pour finaliser l'ordre.")
+                                    st.session_state['prepared_trade'] = {
+                                        'symbol': coin,
+                                        'price': ticker['last'],
+                                        'stop_loss': stop_loss,
+                                        'target_1': target_1,
+                                        'target_2': target_2,
+                                        'support': support,
+                                        'resistance': resistance,
+                                        'score': score
+                                    }
+                                    st.success(f"✅ Trade préparé pour {coin}! Allez dans Portfolio pour finaliser l'ordre.")
+
                         # Affichage des raisons du signal
                         if signals['reasons']:
-                            st.markdown("#### 📊 Analyse")
+                            st.markdown("#### 📊 Analyse détaillée")
                             for reason in signals['reasons']:
                                 st.write(f"• {reason}")
-                            
+                        
         except Exception as e:
             st.error(f"Erreur pour {coin}: {str(e)}")
 
-
-
+        
 class PortfolioPage:
     def __init__(self, portfolio_manager):
         self.portfolio = portfolio_manager
