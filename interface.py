@@ -659,14 +659,58 @@ class OpportunitiesPage:
     def render(self):
         st.title("🎯 Opportunités Court Terme")
         
+        # Section d'information
+        with st.expander("ℹ️ Guide des Opportunités", expanded=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("""
+                ### 🎯 Configuration Idéale
+                - Score technique > 0.7
+                - 2-3 bougies vertes consécutives
+                - Volume croissant
+                - Support proche (-1-2%)
+                - RSI entre 30-45
+                """)
+                
+                st.markdown("""
+                ### ⏱️ Horizons de Trading
+                - 5m : Scalping (15-30 min)
+                - 15m : Intraday (1-4 heures)
+                - 1h : Swing court (6-24 heures)
+                - 4h : Swing long (2-5 jours)
+                """)
+            
+            with col2:
+                st.markdown("""
+                ### 🚫 À Éviter
+                - RSI > 70 (surachat)
+                - Volume décroissant
+                - Résistance proche
+                - Bougies rouges
+                """)
+                
+                st.markdown("""
+                ### 💰 Gestion des Trades
+                - Stop loss : -1.5% du prix d'entrée
+                - Target 1 : +2-3%
+                - Target 2 : +4-5%
+                - Sortie partielle à T1
+                """)
+        
         # Filtres de recherche
+        st.markdown("### 🔍 Filtres de Recherche")
         col1, col2, col3 = st.columns(3)
         with col1:
             min_var = st.number_input("Variation minimum (%)", value=1.0)
         with col2:
             min_vol = st.number_input("Volume minimum (USDT)", value=100000.0)
         with col3:
-            min_score = st.slider("Score minimum", 0.0, 1.0, 0.6)
+            min_score = st.slider("Score minimum", 
+                                min_value=0.0, 
+                                max_value=1.0, 
+                                value=0.7,
+                                help="Recommandé : ≥ 0.7 pour plus de fiabilité")
 
         # Options supplémentaires
         col1, col2 = st.columns(2)
@@ -674,13 +718,31 @@ class OpportunitiesPage:
             timeframe = st.selectbox(
                 "Timeframe",
                 ["5m", "15m", "1h", "4h"],
-                index=2
+                index=2,
+                help="""
+                5m : Trading ultra court terme (très risqué)
+                15m : Trading intraday
+                1h : Recommandé pour débutants
+                4h : Trades plus sûrs mais moins fréquents
+                """
             )
         with col2:
-            max_price = st.number_input("Prix maximum (USDT)", value=20.0)
+            max_price = st.number_input("Prix maximum (USDT)", 
+                                      value=20.0,
+                                      help="Filtrer les cryptos selon leur prix unitaire")
+
+        # Avertissement
+        st.info("""
+        ℹ️ **Note importante :** 
+        - Plus le timeframe est petit, plus le risque est élevé
+        - Commencez par le timeframe 1h si vous débutez
+        - Attendez toujours la confirmation des 3 bougies vertes
+        - Vérifiez toujours la tendance sur le timeframe supérieur
+        """)
 
         if st.button("🔍 Rechercher des opportunités"):
             self._search_opportunities(min_var, min_vol, min_score, timeframe, max_price)
+            
 
     def _search_opportunities(self, min_var, min_vol, min_score, timeframe, max_price):
         try:
