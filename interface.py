@@ -52,6 +52,7 @@ class LiveAnalysisPage:
                 if symbol in st.session_state.tracked_coins:
                     st.session_state.tracked_coins.remove(symbol)
                     st.info(f"{symbol} retiré de la liste de suivi")
+    
 
     def _display_tracked_coins(self):
         st.subheader("Cryptos suivies")
@@ -59,34 +60,93 @@ class LiveAnalysisPage:
             self._analyze_and_display_coin(coin)
 
     def _analyze_and_display_coin(self, coin):
-        try:
-            # Utilisation de la fonction importée
-            valid_symbol = get_valid_symbol(self.exchange, coin)
-            if valid_symbol:
-                # Récupération des données
-                ticker = self.exchange.fetch_ticker(valid_symbol)
-                df = calculate_timeframe_data(self.exchange, valid_symbol, '1h', 100)
-                
-                if df is not None:
-                    st.write(f"### {coin}")
-                    col1, col2 = st.columns(2)
+    try:
+        valid_symbol = get_valid_symbol(self.exchange, coin)
+        if valid_symbol:
+            ticker = self.exchange.fetch_ticker(valid_symbol)
+            df = calculate_timeframe_data(self.exchange, valid_symbol, '1h', 100)
+            
+            if df is not None:
+                # Création d'un container pour cette crypto
+                with st.container():
+                    # En-tête avec les infos principales
+                    st.markdown(f"### {coin}")
+                    
+                    # Première ligne : Prix et volume
+                    col1, col2, col3 = st.columns(3)
                     with col1:
                         st.metric(
                             "Prix",
-                            f"${ticker['last']:,.2f}",
+                            f"${ticker['last']:,.8f}",
                             f"{ticker['percentage']:+.2f}%"
                         )
                     with col2:
                         st.metric(
                             "Volume 24h",
-                            f"${ticker['quoteVolume']:,.0f}",
+                            f"${ticker['quoteVolume']/1e6:.1f}M",
                             None
                         )
-                    
-                    # Vous pouvez ajouter ici plus d'analyses selon vos besoins
-                    
-        except Exception as e:
-            st.error(f"Erreur pour {coin}: {str(e)}")
+                    with col3:
+                        # Calcul du RSI
+                        rsi = self.ta.calculate_rsi(df).iloc[-1]
+                        st.metric(
+                            "RSI",
+                            f"{rsi:.1f}",
+                            None,
+                            help="RSI > 70: Suracheté, RSI < 30: Survendu"
+                        )
+
+                    # Signaux et recommandations
+                    signal_gen = SignalGenerator(df, ticker['last'])
+                    score = signal_gen.calculate_opportunity_score()
+                    signals = signal_gen.generate_trading_signals()
+
+                    # Affichage du score et des signaux
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric(
+                            "Score Technique",
+                            f"{score:.2f}",
+                            help="Score > 0.7: Fort potentiel"
+                        )
+                    with col2:
+                        if signals['action']:
+                            signal_color = "🟢" if signals['action'] == 'BUY' else "🔴"
+                            st.markdown(f"{signal_color} **{signals['action']}**")
+                            
+                    # Niveaux clés
+                    support, resistance = self.ta.calculate_support_resistance(df)
+                    st.markdown("#### 🎯 Niveaux clés")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Support", f"${support:.8f}")
+                    with col2:
+                        st.metric("Prix actuel", f"${ticker['last']:.8f}")
+                    with col3:
+                        st.metric("Résistance", f"${resistance:.8f}")
+                        
+                    # Bouton pour ajouter au portfolio si signal d'achat
+                    if signals['action'] == 'BUY':
+                        if st.button("📝 Préparer un ordre", key=f"prepare_{coin}"):
+                            st.session_state.prepared_trade = {
+                                'symbol': coin,
+                                'price': ticker['last'],
+                                'support': support,
+                                'resistance': resistance,
+                                'score': score
+                            }
+                            # Redirection vers la page Portfolio
+                            st.session_state.page = "Portfolio"
+                            st.experimental_rerun()
+                            
+                    # Affichage des raisons du signal
+                    if signals['reasons']:
+                        st.markdown("#### 📊 Analyse")
+                        for reason in signals['reasons']:
+                            st.write(f"• {reason}")
+                            
+    except Exception as e:
+        st.error(f"Erreur pour {coin}: {str(e)}")
 
 class PortfolioPage:
     def __init__(self, portfolio_manager):
@@ -373,6 +433,64 @@ class PortfolioPage:
                     st.success(f"Position {position['symbol']} fermée")
                     st.rerun()
 
+    def _add_risk_management_section(self):
+    with st.expander("⚠️ Gestion des Risques"):
+        st.markdown("""
+        ### Règles de gestion des risques
+        
+        1. **Position Size** 🎯
+        - Maximum 1-2% du capital par trade
+        - Stop loss toujours défini
+        - Ratio risque/récompense minimum de 1:2
+        
+        2. **Diversification** 📊
+        - Maximum 20% du capital en crypto
+        - Pas plus de 4-5 positions simultanées
+        - Varier les types de cryptos
+        
+        3. **Périodes de Trading** ⏰
+        - Éviter les annonces importantes
+        - Préférer les périodes de forte liquidité
+        - Pas de FOMO sur les pics de volatilité
+        """)
+        
+        # Calculs de gestion des risques
+        capital = st.session_state.portfolio['current_capital']
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            risk_percentage = st.slider(
+                "% de risque par trade",
+                min_value=0.5,
+                max_value=2.0,
+                value=1.0,
+                step=0.1,
+                help="Pourcentage du capital à risquer par trade"
+            )
+            
+            max_risk_amount = capital * (risk_percentage/100)
+            st.metric(
+                "Risque maximum par trade",
+                f"${max_risk_amount:.2f}",
+                help="Perte maximale acceptable par position"
+            )
+            
+        with col2:
+            max_positions = st.slider(
+                "Nombre maximum de positions",
+                min_value=1,
+                max_value=5,
+                value=3,
+                help="Nombre maximum de positions simultanées"
+            )
+            
+            position_size = capital / max_positions
+            st.metric(
+                "Taille suggérée par position",
+                f"${position_size:.2f}",
+                help="Montant suggéré pour chaque position"
+            )
+    
     def _display_history_and_stats(self):
         st.subheader("📈 Historique et Statistiques")
         
