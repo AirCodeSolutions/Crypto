@@ -690,31 +690,62 @@ class OpportunitiesPage:
             opportunities = []
             progress_bar = st.progress(0)
             status_text = st.empty()
-            
+
             for i, symbol in enumerate(usdt_pairs):
                 try:
                     status_text.text(f"Analyse de {symbol}...")
                     ticker = self.exchange.fetch_ticker(symbol)
+                    price = ticker['last']
                     
-                    # Filtres primaires
-                    if (ticker['quoteVolume'] >= min_vol and 
-                        abs(ticker['percentage']) >= min_var and 
-                        ticker['last'] <= max_price):
-                        
-                        # Analyse technique
+                    # Filtre initial sur prix et volume
+                    if price <= max_price and ticker['quoteVolume'] >= min_vol:
                         df = calculate_timeframe_data(self.exchange, symbol, timeframe, 100)
                         if df is not None:
-                            signal_gen = SignalGenerator(df, ticker['last'])
+                            # 1. Vérification des bougies vertes consécutives
+                            last_candles = df.tail(3)  # Prendre les 3 dernières bougies
+                            green_candles = sum(last_candles['close'] > last_candles['open'])
+                            consecutive_green = 0
+                            for idx in range(len(last_candles)-1, -1, -1):
+                                if last_candles.iloc[idx]['close'] > last_candles.iloc[idx]['open']:
+                                    consecutive_green += 1
+                                else:
+                                    break
+                                    
+                            # 2. Vérification du volume croissant
+                            volume_growing = (df['volume'].iloc[-1] > df['volume'].iloc[-2] > df['volume'].iloc[-3])
+                            
+                            # 3. Calcul de la distance au support
+                            support, resistance = self.ta.calculate_support_resistance(df)
+                            distance_to_support = ((price - support) / price) * 100
+                            
+                            # 4. Calcul du RSI
+                            rsi = self.ta.calculate_rsi(df).iloc[-1]
+                            
+                            # 5. Calcul du score technique
+                            signal_gen = SignalGenerator(df, price)
                             score = signal_gen.calculate_opportunity_score()
                             signals = signal_gen.generate_trading_signals()
                             
-                            if score >= min_score:
+                            # Configuration idéale
+                            ideal_setup = (
+                                score >= min_score and          # Score minimum
+                                consecutive_green >= 2 and      # Au moins 2 bougies vertes consécutives
+                                volume_growing and              # Volume croissant
+                                30 <= rsi <= 45 and            # RSI dans la zone idéale
+                                0 <= distance_to_support <= 2   # Support proche
+                            )
+                            
+                            if ideal_setup:
                                 opportunities.append({
                                     'symbol': symbol.replace('/USDT', ''),
-                                    'price': ticker['last'],
-                                    'change': ticker['percentage'],
-                                    'volume': ticker['quoteVolume'],
+                                    'price': price,
                                     'score': score,
+                                    'green_candles': consecutive_green,
+                                    'rsi': rsi,
+                                    'distance_to_support': distance_to_support,
+                                    'volume_trend': "Croissant" if volume_growing else "Décroissant",
+                                    'change_24h': ticker['percentage'],
+                                    'volume': ticker['quoteVolume'],
                                     'signal': signals['action'],
                                     'reasons': signals['reasons']
                                 })
@@ -728,28 +759,57 @@ class OpportunitiesPage:
             status_text.empty()
             
             if opportunities:
-                opportunities.sort(key=lambda x: x['score'], reverse=True)
+                st.success(f"🎯 {len(opportunities)} configurations idéales trouvées!")
+                
+                # Tri par score et RSI
+                opportunities.sort(key=lambda x: (x['score'], -abs(37.5-x['rsi'])), reverse=True)
                 
                 for opp in opportunities:
-                    with st.expander(f"{opp['symbol']} - Score: {opp['score']:.2f}"):
-                        col1, col2 = st.columns(2)
+                    with st.expander(f"💎 {opp['symbol']} - Score: {opp['score']:.2f}"):
+                        # Métriques principales
+                        col1, col2, col3 = st.columns(3)
                         with col1:
-                            st.metric("Prix", f"${opp['price']:.4f}", f"{opp['change']:+.2f}%")
+                            st.metric("Prix", f"${opp['price']:.8f}", f"{opp['change_24h']:+.2f}%")
                         with col2:
-                            st.metric("Volume 24h", f"${opp['volume']/1e6:.1f}M", None)
+                            st.metric("RSI", f"{opp['rsi']:.1f}", 
+                                     help="Idéal entre 30-45")
+                        with col3:
+                            st.metric("Distance Support", f"{opp['distance_to_support']:.1f}%",
+                                     help="Distance au support le plus proche")
                         
-                        if opp['signal']:
-                            signal_color = "🟢" if opp['signal'] == 'BUY' else "🔴"
-                            st.write(f"{signal_color} Signal: {opp['signal']}")
+                        # Confirmations
+                        st.markdown("#### ✅ Confirmations")
+                        conf_col1, conf_col2 = st.columns(2)
+                        with conf_col1:
+                            st.write(f"• {opp['green_candles']} bougies vertes consécutives")
+                            st.write(f"• Volume {opp['volume_trend']}")
+                        with conf_col2:
+                            st.write(f"• Score technique: {opp['score']:.2f}")
+                            st.write(f"• RSI: {opp['rsi']:.1f}")
+                        
+                        # Raisons détaillées
+                        if opp['reasons']:
+                            st.markdown("#### 📊 Analyse détaillée")
                             for reason in opp['reasons']:
                                 st.write(f"• {reason}")
+                        
+                        # Bouton d'action
+                        if st.button("📝 Préparer un ordre", key=f"prepare_{opp['symbol']}"):
+                            st.session_state['prepared_trade'] = {
+                                'symbol': opp['symbol'],
+                                'price': opp['price'],
+                                'score': opp['score'],
+                                'rsi': opp['rsi'],
+                                'support': opp['price'] * (1 - opp['distance_to_support']/100)
+                            }
+                            st.success(f"✅ Trade préparé pour {opp['symbol']}! Allez dans Portfolio pour finaliser l'ordre.")
+                            
             else:
-                st.info("Aucune opportunité trouvée avec les critères actuels")
+                st.info("Aucune configuration idéale trouvée actuellement. Réessayez plus tard ou ajustez les filtres.")
                 
         except Exception as e:
             st.error(f"Erreur lors de la recherche : {str(e)}")
-# Dans interface.py, modifiez la classe HistoricalAnalysisPage
-
+        
 class HistoricalAnalysisPage:
     def __init__(self, exchange, ta_analyzer):
         self.exchange = exchange
