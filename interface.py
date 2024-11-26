@@ -125,52 +125,38 @@ class LiveAnalysisPage:
                         with col3:
                             st.metric("Résistance", f"${resistance:.8f}")
                             
+                                                     
+
+
                         # Bouton pour ajouter au portfolio si signal d'achat
                         if signals['action'] == 'BUY':
                             if st.button("📝 Préparer un ordre", key=f"prepare_{coin}"):
-                                st.session_state.prepared_trade = {
+                                # Calcul des niveaux suggérés
+                                risk_percentage = 1.5  # 1.5% de stop loss par défaut
+                                stop_loss = ticker['last'] * (1 - risk_percentage/100)
+                                risk_amount = ticker['last'] - stop_loss
+                                target_1 = ticker['last'] + (risk_amount * 2)  # R/R 1:2
+                                target_2 = ticker['last'] + (risk_amount * 3)  # R/R 1:3
+
+                                # Stockage des informations dans la session
+                                st.session_state['prepared_trade'] = {
                                     'symbol': coin,
                                     'price': ticker['last'],
+                                    'stop_loss': stop_loss,
+                                    'target_1': target_1,
+                                    'target_2': target_2,
                                     'support': support,
                                     'resistance': resistance,
                                     'score': score
                                 }
-                                # Redirection vers la page Portfolio
-                                st.session_state.page = "Portfolio"
-                                st.experimental_rerun()
                                 
+                                st.success(f"✅ Trade préparé pour {coin}! Allez dans Portfolio pour finaliser l'ordre.")
                         # Affichage des raisons du signal
                         if signals['reasons']:
                             st.markdown("#### 📊 Analyse")
                             for reason in signals['reasons']:
                                 st.write(f"• {reason}")
-                                
-
-
-                    # Bouton pour ajouter au portfolio si signal d'achat
-                    if signals['action'] == 'BUY':
-                        if st.button("📝 Préparer un ordre", key=f"prepare_{coin}"):
-                            # Calcul des niveaux suggérés
-                            risk_percentage = 1.5  # 1.5% de stop loss par défaut
-                            stop_loss = ticker['last'] * (1 - risk_percentage/100)
-                            risk_amount = ticker['last'] - stop_loss
-                            target_1 = ticker['last'] + (risk_amount * 2)  # R/R 1:2
-                            target_2 = ticker['last'] + (risk_amount * 3)  # R/R 1:3
-
-                            # Stockage des informations dans la session
-                            st.session_state['prepared_trade'] = {
-                                'symbol': coin,
-                                'price': ticker['last'],
-                                'stop_loss': stop_loss,
-                                'target_1': target_1,
-                                'target_2': target_2,
-                                'support': support,
-                                'resistance': resistance,
-                                'score': score
-                            }
                             
-                            st.success(f"✅ Trade préparé pour {coin}! Allez dans Portfolio pour finaliser l'ordre.")
-                        
         except Exception as e:
             st.error(f"Erreur pour {coin}: {str(e)}")
 
