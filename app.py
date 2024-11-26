@@ -10,7 +10,7 @@ import ta
 
 # Configuration initiale
 st.set_page_config(
-    page_title="Analyseur Crypto Avancé",
+    page_title="Analyseur Crypto par AirCodeSolutions",
     page_icon="📊",
     layout="wide"
 )
@@ -20,7 +20,7 @@ from utils import SessionState, format_number, get_exchange, get_valid_symbol
 from technical_analysis import TechnicalAnalysis, SignalGenerator
 from portfolio_management import PortfolioManager
 from interface import (LiveAnalysisPage, PortfolioPage, OpportunitiesPage,
-                     HistoricalAnalysisPage, TopPerformancePage)
+                     HistoricalAnalysisPage, TopPerformancePage, MicroTradingPage)
 from guide import TradingGuide, Documentation
 
 class CryptoAnalyzerApp:
