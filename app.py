@@ -9,7 +9,7 @@ import ta
 
 # Configuration initiale
 st.set_page_config(
-    page_title="Analyseur Crypto AirCodeSolutions",
+    page_title="Analyseur Crypto par AirCodeSolutions",
     page_icon="📊",
     layout="wide"
 )
