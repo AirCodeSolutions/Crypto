@@ -1164,53 +1164,53 @@ class MicroBudgetTrading:
         self.min_price = 0.1         # Prix minimum par crypto
 
     def find_opportunities(self):
-    try:
-        markets = self.exchange.load_markets()
-        opportunities = []
+        try:
+            markets = self.exchange.load_markets()
+            opportunities = []
     
-        for symbol in markets:
-            try:
-                if not symbol.endswith('/USDT'):
-                    continue
-                
-                ticker = self.exchange.fetch_ticker(symbol)
-                price = ticker.get('last')
-                volume = ticker.get('quoteVolume')
-            
-                # Vérification des valeurs None
-                if price is None or volume is None:
-                    continue
-            
-                # Filtres spécifiques micro-budget
-                if (self.min_price <= price <= self.max_price and 
-                    volume >= self.min_volume):
-                
-                    # Récupération des données
-                    df = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
-                    if df is None:
+            for symbol in markets:
+                try:
+                    if not symbol.endswith('/USDT'):
                         continue
+                
+                    ticker = self.exchange.fetch_ticker(symbol)
+                    price = ticker.get('last')
+                    volume = ticker.get('quoteVolume')
+            
+                    # Vérification des valeurs None
+                    if price is None or volume is None:
+                        continue
+            
+                    # Filtres spécifiques micro-budget
+                    if (self.min_price <= price <= self.max_price and 
+                        volume >= self.min_volume):
+                
+                        # Récupération des données
+                        df = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
+                        if df is None:
+                            continue
                     
-                    # Analyse spécifique micro-budget
-                    signal = self._analyze_micro_opportunity(df, price)
-                    if signal['score'] >= 0.7:  # Seulement les meilleures opportunités
-                        opportunities.append({
-                            'symbol': symbol.replace('/USDT', ''),
-                            'price': price,
-                            'score': signal['score'],
-                            'volume': volume,
-                            'suggested_position': min(
-                                self.max_position_size,
-                                self.max_position_size * signal['score']
-                            ),
-                            'target': price * 1.03,  # Target +3%
-                            'stop_loss': price * 0.985,  # Stop loss -1.5%
-                            'reasons': signal['reasons']
-                        })
+                        # Analyse spécifique micro-budget
+                        signal = self._analyze_micro_opportunity(df, price)
+                        if signal['score'] >= 0.7:  # Seulement les meilleures opportunités
+                            opportunities.append({
+                                'symbol': symbol.replace('/USDT', ''),
+                                'price': price,
+                                'score': signal['score'],
+                                'volume': volume,
+                                'suggested_position': min(
+                                    self.max_position_size,
+                                    self.max_position_size * signal['score']
+                                ),
+                                'target': price * 1.03,  # Target +3%
+                                'stop_loss': price * 0.985,  # Stop loss -1.5%
+                                'reasons': signal['reasons']
+                            })
         
-        return sorted(opportunities, key=lambda x: x['score'], reverse=True)
+            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
         
-    except Exception as e:
-        return f"Erreur: {str(e)}"
+        except Exception as e:
+            return f"Erreur: {str(e)}"
 
     def _analyze_micro_opportunity(self, df, current_price):
         """Analyse spécifique pour le micro-trading"""
