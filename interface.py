@@ -1164,31 +1164,31 @@ class MicroBudgetTrading:
         self.min_price = 0.1         # Prix minimum par crypto
 
     def find_opportunities(self):
-    try:
-        markets = self.exchange.load_markets()
-        opportunities = []
+        try:
+            markets = self.exchange.load_markets()
+            opportunities = []
         
-        for symbol in markets:
-            try:
-                if not symbol.endswith('/USDT'):
-                    continue
-                    
-                ticker = self.exchange.fetch_ticker(symbol)
-                price = ticker.get('last')
-                volume = ticker.get('quoteVolume')
-                
-                # Vérification des valeurs None
-                if price is None or volume is None:
-                    continue
-                
-                # Filtres spécifiques micro-budget
-                if (self.min_price <= price <= self.max_price and 
-                    volume >= self.min_volume):
-                                       
-                    # Récupération des données
-                    df = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
-                    if df is None:
+            for symbol in markets:
+                try:
+                    if not symbol.endswith('/USDT'):
                         continue
+                    
+                    ticker = self.exchange.fetch_ticker(symbol)
+                    price = ticker.get('last')
+                    volume = ticker.get('quoteVolume')
+                
+                    # Vérification des valeurs None
+                    if price is None or volume is None:
+                        continue
+                
+                    # Filtres spécifiques micro-budget
+                    if (self.min_price <= price <= self.max_price and 
+                        volume >= self.min_volume):
+                                       
+                        # Récupération des données
+                        df = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
+                        if df is None:
+                            continue
                         
                     # Analyse spécifique micro-budget
                     signal = self._analyze_micro_opportunity(df, price)
