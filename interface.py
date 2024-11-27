@@ -1185,10 +1185,10 @@ class MicroBudgetTrading:
                     if (self.min_price <= price <= self.max_price and 
                         volume >= self.min_volume):
                                        
-                        # Récupération des données
-                        df = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
-                        if df is None:
-                            continue
+                    # Récupération des données
+                    df = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
+                    if df is None:
+                        continue
                         
                     # Analyse spécifique micro-budget
                     signal = self._analyze_micro_opportunity(df, price)
