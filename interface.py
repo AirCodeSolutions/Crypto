@@ -1163,6 +1163,8 @@ class MicroBudgetTrading:
         self.min_volume = 100000     # Augmenté pour plus de liquidité
         self.max_price = 5          
         self.min_price = 0.1
+        # Initialisation de l'AI
+        self.ai_predictor = AIPredictor()
     def render(self):
         st.title("🎯 Trading Micro-Budget")
         
@@ -1366,43 +1368,41 @@ class MicroTradingPage:
                         """)
                 else:
                     st.error("Erreur lors du test")
+    def _display_opportunity(self, opp):
+    with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Prix", f"${opp['price']:.4f}")
+        with col2:
+            st.metric("Position suggérée", f"${opp['suggested_position']:.2f}")
+        with col3:
+            profit = (opp['target'] - opp['price']) / opp['price'] * 100
+            st.metric("Profit potentiel", f"+{profit:.1f}%")
+        
+        st.markdown("### Niveaux suggérés:")
+        levels_col1, levels_col2, levels_col3 = st.columns(3)
+        with levels_col1:
+            st.write("🔴 Stop Loss:", f"${opp['stop_loss']:.4f}")
+        with levels_col2:
+            st.write("🎯 Target:", f"${opp['target']:.4f}")
+        with levels_col3:
+            risk = (opp['price'] - opp['stop_loss']) * (opp['suggested_position'] / opp['price'])
+            st.write("💰 Risque:", f"${risk:.2f}")
+        
+        st.markdown("### Raisons du signal:")
+        for reason in opp['reasons']:
+            st.write(f"✅ {reason}")
+        
+        if st.button("📝 Préparer l'ordre", key=f"prep_{opp['symbol']}"):
+            st.session_state['prepared_trade'] = {
+                'symbol': opp['symbol'],
+                'price': opp['price'],
+                'stop_loss': opp['stop_loss'],
+                'target_1': opp['target'],
+                'target_2': opp['target'] * 1.02,
+                'suggested_amount': opp['suggested_position'],
+                'score': opp['score']
+            }
+            st.success(f"✅ Trade préparé! Allez dans Portfolio pour finaliser.")
 
 # Main App
-class CryptoAnalyzerApp:
-    def __init__(self):
-        self.exchange = get_exchange()
-        self.ta = TechnicalAnalysis()
-        self.portfolio = PortfolioManager(self.exchange)
-        
-        self.pages = {
-            "Analyse en Direct": LiveAnalysisPage(self.exchange, self.ta, self.portfolio),
-            "Portefeuille": PortfolioPage(self.portfolio),
-            "Trading Micro-Budget": MicroTradingPage(self.exchange, self.portfolio), 
-            "Top Performances": TopPerformancePage(self.exchange, self.ta),
-            "Opportunités Court Terme": OpportunitiesPage(self.exchange, self.ta),
-            "Analyse Historique": HistoricalAnalysisPage(self.exchange, self.ta),
-            "Guide & Explications": GuidePage()
-        }
-
-    def run(self):
-        from utils import format_number  # Ajout ici aussi pour être sûr
-        
-        st.sidebar.title("Navigation")
-        page_name = st.sidebar.selectbox("Choisir une page", list(self.pages.keys()))
-        
-        # Informations générales dans le sidebar
-        if st.session_state.portfolio['capital'] > 0:
-            st.sidebar.markdown("---")
-            st.sidebar.markdown("### 💰 Portfolio")
-            st.sidebar.metric(
-                "Capital actuel",
-                f"{format_number(st.session_state.portfolio['current_capital'])} USDT",
-                f"{((st.session_state.portfolio['current_capital'] / st.session_state.portfolio['capital']) - 1) * 100:.2f}%"
-            )
-            
-        # Rendu de la page sélectionnée
-        try:
-            self.pages[page_name].render()
-        except Exception as e:
-            st.error(f"Erreur lors du chargement de la page: {str(e)}")
-            
