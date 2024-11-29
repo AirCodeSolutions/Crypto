@@ -1162,7 +1162,7 @@ class MicroBudgetTrading:
         self.min_volume = 100000     # Augmenté pour plus de liquidité
         self.max_price = 5          
         self.min_price = 0.1
-     def render(self):
+    def render(self):
         st.title("🎯 Trading Micro-Budget")
         
         # Guide rapide
