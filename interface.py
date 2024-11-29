@@ -12,7 +12,7 @@ from utils import (
 )
 from technical_analysis import SignalGenerator, TechnicalAnalysis  # Ajout de TechnicalAnalysis
 from portfolio_management import PortfolioManager  # Ajout de cet import
-
+from ai_predictor import AIPredictor, AITester  # Ajout de ces imports
 
 
 class LiveAnalysisPage:
