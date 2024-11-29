@@ -1164,64 +1164,64 @@ class MicroBudgetTrading:
         self.min_price = 0.1
 
     def find_opportunities(self):
-    try:
-        markets = self.exchange.load_markets()
-        opportunities = []
+        try:
+            markets = self.exchange.load_markets()
+            opportunities = []
         
-        for symbol in markets:
-            try:
-                ticker = self.exchange.fetch_ticker(symbol)
-                price = ticker.get('last')
-                volume = ticker.get('quoteVolume')
+            for symbol in markets:
+                try:
+                    ticker = self.exchange.fetch_ticker(symbol)
+                    price = ticker.get('last')
+                    volume = ticker.get('quoteVolume')
                 
-                # Vérification supplémentaire
-                if price is None or volume is None:
-                    continue
+                    # Vérification supplémentaire
+                    if price is None or volume is None:
+                        continue
                     
-                # Critères de rejet stricts
-                if ticker['percentage'] > 10:  # Éviter les pompes
-                    continue
+                    # Critères de rejet stricts
+                    if ticker['percentage'] > 10:  # Éviter les pompes
+                        continue
                     
-                if price <= self.min_price or price >= self.max_price:
-                    continue
+                    if price <= self.min_price or price >= self.max_price:
+                        continue
                     
-                if volume < self.min_volume:
+                    if volume < self.min_volume:
+                        continue
+                
+                    # Double vérification avec timeframes différents
+                    df_15m = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
+                    df_1h = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
+                
+                    if df_15m is None or df_1h is None:
+                        continue
+                    
+                    # Analyse des deux timeframes
+                    signal_15m = self._analyze_micro_opportunity(df_15m, price, symbol)  # Ajout de symbol
+                    signal_1h = self._analyze_micro_opportunity(df_1h, price, symbol)  # Ajout de symbol
+                
+                    # Ne garder que les opportunités validées sur les deux timeframes
+                    if signal_15m['score'] >= 0.7 and signal_1h['score'] >= 0.6:
+                        opportunities.append({
+                            'symbol': symbol.replace('/USDT', ''),
+                            'price': price,
+                            'score': min(signal_15m['score'], signal_1h['score']),
+                            'volume': volume,
+                            'suggested_position': min(
+                                self.max_position_size,
+                                self.max_position_size * signal_15m['score']
+                            ),
+                            'target': price * 1.02,  # Target plus conservateur
+                            'stop_loss': price * 0.985,
+                            'reasons': signal_15m['reasons'] + [" (15m)"] + signal_1h['reasons'] + [" (1h)"]
+                        })
+                    
+                except Exception as e:
                     continue
                 
-                # Double vérification avec timeframes différents
-                df_15m = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
-                df_1h = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
-                
-                if df_15m is None or df_1h is None:
-                    continue
-                    
-                # Analyse des deux timeframes
-                signal_15m = self._analyze_micro_opportunity(df_15m, price, symbol)  # Ajout de symbol
-                signal_1h = self._analyze_micro_opportunity(df_1h, price, symbol)  # Ajout de symbol
-                
-                # Ne garder que les opportunités validées sur les deux timeframes
-                if signal_15m['score'] >= 0.7 and signal_1h['score'] >= 0.6:
-                    opportunities.append({
-                        'symbol': symbol.replace('/USDT', ''),
-                        'price': price,
-                        'score': min(signal_15m['score'], signal_1h['score']),
-                        'volume': volume,
-                        'suggested_position': min(
-                            self.max_position_size,
-                            self.max_position_size * signal_15m['score']
-                        ),
-                        'target': price * 1.02,  # Target plus conservateur
-                        'stop_loss': price * 0.985,
-                        'reasons': signal_15m['reasons'] + [" (15m)"] + signal_1h['reasons'] + [" (1h)"]
-                    })
-                    
-            except Exception as e:
-                continue
-                
-        return sorted(opportunities, key=lambda x: x['score'], reverse=True)
+            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
         
-    except Exception as e:
-        return f"Erreur: {str(e)}"
+        except Exception as e:
+            return f"Erreur: {str(e)}"
 
 def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de symbol comme paramètre
     try:
