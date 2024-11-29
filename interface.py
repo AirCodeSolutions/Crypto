@@ -1164,121 +1164,124 @@ class MicroBudgetTrading:
         self.min_price = 0.1
 
     def find_opportunities(self):
-       try:
-            markets = self.exchange.load_markets()
-            opportunities = []
-            
-            for symbol in markets:
-                try:
-                    ticker = self.exchange.fetch_ticker(symbol)
-                    price = ticker.get('last')
-                    volume = ticker.get('quoteVolume')
-                    
-                    # Vérification supplémentaire
-                    if price is None or volume is None:
-                        continue
-                        
-                    # Critères de rejet stricts
-                    if ticker['percentage'] > 10:  # Éviter les pompes
-                        continue
-                        
-                    if price <= self.min_price or price >= self.max_price:
-                        continue
-                        
-                    if volume < self.min_volume:
-                        continue
-                    
-                    # Double vérification avec timeframes différents
-                    df_15m = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
-                    df_1h = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
-                    
-                    if df_15m is None or df_1h is None:
-                        continue
-                        
-                    # Analyse des deux timeframes
-                    signal_15m = self._analyze_micro_opportunity(df_15m, price)
-                    signal_1h = self._analyze_micro_opportunity(df_1h, price)
-                    
-                    # Ne garder que les opportunités validées sur les deux timeframes
-                    if signal_15m['score'] >= 0.7 and signal_1h['score'] >= 0.6:
-                        opportunities.append({
-                            'symbol': symbol,
-                            'price': price,
-                            'score': min(signal_15m['score'], signal_1h['score']),
-                            'volume': volume,
-                            'suggested_position': min(
-                                self.max_position_size,
-                                self.max_position_size * signal_15m['score']
-                            ),
-                            'target': price * 1.02,  # Target plus conservateur
-                            'stop_loss': price * 0.985,
-                            'reasons': signal_15m['reasons'] + [" (15m)"] + 
-                                     signal_1h['reasons'] + [" (1h)"]
-                        })
-                        
-                except Exception as e:
+    try:
+        markets = self.exchange.load_markets()
+        opportunities = []
+        
+        for symbol in markets:
+            try:
+                ticker = self.exchange.fetch_ticker(symbol)
+                price = ticker.get('last')
+                volume = ticker.get('quoteVolume')
+                
+                # Vérification supplémentaire
+                if price is None or volume is None:
                     continue
                     
-            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
-            
-        except Exception as e:
-            return f"Erreur: {str(e)}"
+                # Critères de rejet stricts
+                if ticker['percentage'] > 10:  # Éviter les pompes
+                    continue
+                    
+                if price <= self.min_price or price >= self.max_price:
+                    continue
+                    
+                if volume < self.min_volume:
+                    continue
+                
+                # Double vérification avec timeframes différents
+                df_15m = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
+                df_1h = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
+                
+                if df_15m is None or df_1h is None:
+                    continue
+                    
+                # Analyse des deux timeframes
+                signal_15m = self._analyze_micro_opportunity(df_15m, price, symbol)  # Ajout de symbol
+                signal_1h = self._analyze_micro_opportunity(df_1h, price, symbol)  # Ajout de symbol
+                
+                # Ne garder que les opportunités validées sur les deux timeframes
+                if signal_15m['score'] >= 0.7 and signal_1h['score'] >= 0.6:
+                    opportunities.append({
+                        'symbol': symbol.replace('/USDT', ''),
+                        'price': price,
+                        'score': min(signal_15m['score'], signal_1h['score']),
+                        'volume': volume,
+                        'suggested_position': min(
+                            self.max_position_size,
+                            self.max_position_size * signal_15m['score']
+                        ),
+                        'target': price * 1.02,  # Target plus conservateur
+                        'stop_loss': price * 0.985,
+                        'reasons': signal_15m['reasons'] + [" (15m)"] + signal_1h['reasons'] + [" (1h)"]
+                    })
+                    
+            except Exception as e:
+                continue
+                
+        return sorted(opportunities, key=lambda x: x['score'], reverse=True)
+        
+    except Exception as e:
+        return f"Erreur: {str(e)}"
 
-    def _analyze_micro_opportunity(self, df, current_price):
-            score = 0
-            reasons = []
+def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de symbol comme paramètre
+    try:
+        score = 0
+        reasons = []
         
-            # Analyse multi-timeframes
-            df_1h = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
-            if df_1h is None:
-                return {'score': 0, 'reasons': ['Données 1h non disponibles']}
+        # Analyse multi-timeframes
+        df_1h = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
+        if df_1h is None:
+            return {'score': 0, 'reasons': ['Données 1h non disponibles']}
 
-            # 1. Tendance horaire positive
-            ema9_1h = ta.trend.ema_indicator(df_1h['close'], window=9)
-            ema20_1h = ta.trend.ema_indicator(df_1h['close'], window=20)
-            if ema9_1h.iloc[-1] > ema20_1h.iloc[-1]:
-                score += 0.2
-                reasons.append("Tendance horaire haussière")
+        # 1. Tendance horaire positive
+        ema9_1h = ta.trend.ema_indicator(df_1h['close'], window=9)
+        ema20_1h = ta.trend.ema_indicator(df_1h['close'], window=20)
+        if ema9_1h.iloc[-1] > ema20_1h.iloc[-1]:
+            score += 0.2
+            reasons.append("Tendance horaire haussière")
+    
+        # 2. Volume significatif et croissant
+        recent_volume = df['volume'].tail(3).mean()
+        avg_volume = df['volume'].mean()
+        if recent_volume > avg_volume * 1.5:  # Augmenté le seuil
+            score += 0.2
+            reasons.append("Volume très fort")
+        elif recent_volume > avg_volume * 1.2:
+            score += 0.1
+            reasons.append("Volume en augmentation")
+    
+        # 3. Analyse des bougies plus stricte
+        last_candles = df.tail(3)
+        green_candles = sum(last_candles['close'] > last_candles['open'])
+        if green_candles >= 3:  # 3 bougies vertes requises
+            score += 0.3
+            reasons.append(f"3 bougies vertes consécutives")
+    
+        # 4. RSI plus conservateur
+        rsi = ta.momentum.rsi(df['close']).iloc[-1]
+        if 35 <= rsi <= 45:  # Zone optimale plus étroite
+            score += 0.2
+            reasons.append("RSI dans zone idéale (35-45)")
+    
+        # 5. Support solide
+        support = df['low'].rolling(10).min().iloc[-1]
+        if current_price <= support * 1.02:
+            score += 0.1
+            reasons.append("Proche d'un support solide")
+    
+        # 6. Momentum
+        macd = ta.trend.macd_diff(df['close']).iloc[-1]
+        if macd > 0 and macd > ta.trend.macd_diff(df['close']).iloc[-2]:
+            score += 0.1
+            reasons.append("MACD en progression")
         
-            # 2. Volume significatif et croissant
-            recent_volume = df['volume'].tail(3).mean()
-            avg_volume = df['volume'].mean()
-            if recent_volume > avg_volume * 1.5:  # Augmenté le seuil
-                score += 0.2
-                reasons.append("Volume très fort")
-            elif recent_volume > avg_volume * 1.2:
-                score += 0.1
-                reasons.append("Volume en augmentation")
+        return {
+            'score': min(score, 1.0),
+            'reasons': reasons
+        }
         
-            # 3. Analyse des bougies plus stricte
-            last_candles = df.tail(3)
-            green_candles = sum(last_candles['close'] > last_candles['open'])
-            if green_candles >= 3:  # 3 bougies vertes requises
-                score += 0.3
-                reasons.append(f"3 bougies vertes consécutives")
-        
-            # 4. RSI plus conservateur
-            rsi = ta.momentum.rsi(df['close']).iloc[-1]
-            if 35 <= rsi <= 45:  # Zone optimale plus étroite
-                score += 0.2
-                reasons.append("RSI dans zone idéale (35-45)")
-        
-            # 5. Support solide
-            support = df['low'].rolling(10).min().iloc[-1]
-            if current_price <= support * 1.02:
-                score += 0.1
-                reasons.append("Proche d'un support solide")
-        
-            # 6. Momentum
-            macd = ta.trend.macd_diff(df['close']).iloc[-1]
-            if macd > 0 and macd > ta.trend.macd_diff(df['close']).iloc[-2]:
-                score += 0.1
-                reasons.append("MACD en progression")
-            
-            return {
-                'score': min(score, 1.0),
-                'reasons': reasons
-            }
+    except Exception as e:
+        return {'score': 0, 'reasons': [f'Erreur: {str(e)}']}
 
 class MicroTradingPage:
     def __init__(self, exchange, portfolio_manager):
