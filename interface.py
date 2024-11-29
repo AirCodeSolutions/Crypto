@@ -1369,40 +1369,40 @@ class MicroTradingPage:
                 else:
                     st.error("Erreur lors du test")
     def _display_opportunity(self, opp):
-    with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Prix", f"${opp['price']:.4f}")
-        with col2:
-            st.metric("Position suggérée", f"${opp['suggested_position']:.2f}")
-        with col3:
-            profit = (opp['target'] - opp['price']) / opp['price'] * 100
-            st.metric("Profit potentiel", f"+{profit:.1f}%")
+        with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Prix", f"${opp['price']:.4f}")
+            with col2:
+                st.metric("Position suggérée", f"${opp['suggested_position']:.2f}")
+            with col3:
+                profit = (opp['target'] - opp['price']) / opp['price'] * 100
+                st.metric("Profit potentiel", f"+{profit:.1f}%")
         
-        st.markdown("### Niveaux suggérés:")
-        levels_col1, levels_col2, levels_col3 = st.columns(3)
-        with levels_col1:
-            st.write("🔴 Stop Loss:", f"${opp['stop_loss']:.4f}")
-        with levels_col2:
-            st.write("🎯 Target:", f"${opp['target']:.4f}")
-        with levels_col3:
-            risk = (opp['price'] - opp['stop_loss']) * (opp['suggested_position'] / opp['price'])
-            st.write("💰 Risque:", f"${risk:.2f}")
+            st.markdown("### Niveaux suggérés:")
+            levels_col1, levels_col2, levels_col3 = st.columns(3)
+            with levels_col1:
+                st.write("🔴 Stop Loss:", f"${opp['stop_loss']:.4f}")
+            with levels_col2:
+                st.write("🎯 Target:", f"${opp['target']:.4f}")
+            with levels_col3:
+                risk = (opp['price'] - opp['stop_loss']) * (opp['suggested_position'] / opp['price'])
+                st.write("💰 Risque:", f"${risk:.2f}")
         
-        st.markdown("### Raisons du signal:")
-        for reason in opp['reasons']:
-            st.write(f"✅ {reason}")
+            st.markdown("### Raisons du signal:")
+            for reason in opp['reasons']:
+                st.write(f"✅ {reason}")
         
-        if st.button("📝 Préparer l'ordre", key=f"prep_{opp['symbol']}"):
-            st.session_state['prepared_trade'] = {
-                'symbol': opp['symbol'],
-                'price': opp['price'],
-                'stop_loss': opp['stop_loss'],
-                'target_1': opp['target'],
-                'target_2': opp['target'] * 1.02,
-                'suggested_amount': opp['suggested_position'],
-                'score': opp['score']
-            }
-            st.success(f"✅ Trade préparé! Allez dans Portfolio pour finaliser.")
+            if st.button("📝 Préparer l'ordre", key=f"prep_{opp['symbol']}"):
+                st.session_state['prepared_trade'] = {
+                    'symbol': opp['symbol'],
+                    'price': opp['price'],
+                    'stop_loss': opp['stop_loss'],
+                    'target_1': opp['target'],
+                    'target_2': opp['target'] * 1.02,
+                    'suggested_amount': opp['suggested_position'],
+                    'score': opp['score']
+                }
+                st.success(f"✅ Trade préparé! Allez dans Portfolio pour finaliser.")
 
 # Main App
