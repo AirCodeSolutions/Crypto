@@ -1162,6 +1162,24 @@ class MicroBudgetTrading:
         self.min_volume = 100000     # Augmenté pour plus de liquidité
         self.max_price = 5          
         self.min_price = 0.1
+     def render(self):
+        st.title("🎯 Trading Micro-Budget")
+        
+        # Guide rapide
+        with st.expander("📚 Guide Micro-Budget", expanded=True):
+            st.markdown("""
+            ### Règles pour trader avec 100€:
+            1. **Position size**: 30-35€ maximum par position
+            2. **Objectif**: +3% par trade
+            3. **Stop loss**: -1.5% systématique
+            4. **Cryptos cibles**: Entre 0.1$ et 5$
+            5. **Positions**: 2-3 maximum en même temps
+            
+            ### ⚠️ Points importants:
+            - Ne jamais acheter sans stop loss
+            - Prendre ses profits à +3%
+            - Ne pas garder une position plus de 24h
+            """)
 
     def find_opportunities(self):
         try:
@@ -1283,77 +1301,70 @@ def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de sym
     except Exception as e:
         return {'score': 0, 'reasons': [f'Erreur: {str(e)}']}
 
+
 class MicroTradingPage:
     def __init__(self, exchange, portfolio_manager):
         self.exchange = exchange
         self.portfolio = portfolio_manager
         self.micro_trader = MicroBudgetTrading(exchange)
+        self.ai_tester = AITester(exchange, self.micro_trader.ai_predictor)
         
     def render(self):
         st.title("🎯 Trading Micro-Budget")
         
-        # Guide rapide
-        with st.expander("📚 Guide Micro-Budget", expanded=True):
-            st.markdown("""
-            ### Règles pour trader avec 100€:
-            1. **Position size**: 30-35€ maximum par position
-            2. **Objectif**: +3% par trade
-            3. **Stop loss**: -1.5% systématique
-            4. **Cryptos cibles**: Entre 0.1$ et 5$
-            5. **Positions**: 2-3 maximum en même temps
-            
-            ### ⚠️ Points importants:
-            - Ne jamais acheter sans stop loss
-            - Prendre ses profits à +3%
-            - Ne pas garder une position plus de 24h
-            """)
+        # Onglets
+        tab1, tab2 = st.tabs(["Trading", "Test & Optimisation"])
         
-        if st.button("🔍 Chercher des opportunités micro-budget"):
-            with st.spinner("Recherche en cours..."):
-                opportunities = self.micro_trader.find_opportunities()
+        with tab1:
+            self._render_trading_interface()
+            
+        with tab2:
+            self._render_testing_interface()
+    
+    def _render_testing_interface(self):
+        st.subheader("🧪 Test des Prédictions")
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            symbol = st.text_input("Crypto à tester (ex: BTC)", "").upper()
+        with col2:
+            days = st.number_input("Jours d'historique", min_value=7, value=30)
+            
+        if st.button("🔬 Lancer le test"):
+            with st.spinner("Test en cours..."):
+                results = self.ai_tester.backtest_predictions(f"{symbol}/USDT", days)
                 
-                if isinstance(opportunities, str):  # En cas d'erreur
-                    st.error(opportunities)
-                elif opportunities:
-                    for opp in opportunities[:5]:  # Top 5 seulement
-                        with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Prix", f"${opp['price']:.4f}")
-                            with col2:
-                                st.metric("Position suggérée", f"${opp['suggested_position']:.2f}")
-                            with col3:
-                                profit = (opp['target'] - opp['price']) / opp['price'] * 100
-                                st.metric("Profit potentiel", f"+{profit:.1f}%")
-                            
-                            st.markdown("### Niveaux suggérés:")
-                            levels_col1, levels_col2, levels_col3 = st.columns(3)
-                            with levels_col1:
-                                st.write("🔴 Stop Loss:", f"${opp['stop_loss']:.4f}")
-                            with levels_col2:
-                                st.write("🎯 Target:", f"${opp['target']:.4f}")
-                            with levels_col3:
-                                risk = (opp['price'] - opp['stop_loss']) * (opp['suggested_position'] / opp['price'])
-                                st.write("💰 Risque:", f"${risk:.2f}")
-                            
-                            st.markdown("### Raisons du signal:")
-                            for reason in opp['reasons']:
-                                st.write(f"✅ {reason}")
-                            
-                            if st.button("📝 Préparer l'ordre", key=f"prep_{opp['symbol']}"):
-                                st.session_state['prepared_trade'] = {
-                                    'symbol': opp['symbol'],
-                                    'price': opp['price'],
-                                    'stop_loss': opp['stop_loss'],
-                                    'target_1': opp['target'],
-                                    'target_2': opp['target'] * 1.02,
-                                    'suggested_amount': opp['suggested_position'],
-                                    'score': opp['score']
-                                }
-                                st.success(f"✅ Trade préparé! Allez dans Portfolio pour finaliser.")
+                if results:
+                    # Affichage des métriques
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Précision", f"{results['metrics']['accuracy']:.1%}")
+                    with col2:
+                        st.metric("Prédictions correctes", 
+                                f"{results['metrics']['precision']:.1%}")
+                    with col3:
+                        st.metric("Détection hausses", 
+                                f"{results['metrics']['recall']:.1%}")
+                    
+                    # Visualisation
+                    fig = self.ai_tester.visualize_results(results, symbol)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                    # Recommandations
+                    st.subheader("💡 Analyse")
+                    if results['metrics']['accuracy'] > 0.7:
+                        st.success("""
+                            ✅ Les prédictions sont fiables pour cette crypto.
+                            Recommandation: Vous pouvez suivre les signaux d'achat.
+                        """)
+                    else:
+                        st.warning("""
+                            ⚠️ Les prédictions manquent de fiabilité.
+                            Recommandation: Attendez des signaux plus forts.
+                        """)
                 else:
-                    st.info("Aucune opportunité trouvée pour le moment. Réessayez plus tard.")
-
+                    st.error("Erreur lors du test")
 
 # Main App
 class CryptoAnalyzerApp:
