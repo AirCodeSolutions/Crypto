@@ -51,7 +51,7 @@ class TradingGuide:
 
     def _get_quick_start_content(self) -> str:
         return """
-        # Guide de Démarrage Rapide Dev
+        # Guide de Démarrage Rapide 
         
         ## Configuration Initiale
         - Capital initial: 100€ maximum pour débuter

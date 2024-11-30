@@ -1191,7 +1191,7 @@ class TopPerformancePage:
 
 class GuidePage:
     def render(self):
-        st.title("📚 Guide de Trading Crypto Avancé")
+        st.title("📚 Guide de Trading Crypto Avancé DEV")
         # [Code du guide]
         pass
     
