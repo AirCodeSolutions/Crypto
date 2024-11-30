@@ -1027,32 +1027,8 @@ class TopPerformancePage:
         self.exchange = exchange
         self.ta = ta_analyzer
 
-    def render(self):
-        st.title("🏆 Top Performances (Prix ≤ 20 USDT)")
-        
-        # Filtres de base
-        col1, col2 = st.columns(2)
-        with col1:
-            min_volume = st.number_input(
-                "Volume minimum (USDT)",
-                min_value=10000.0,
-                value=100000.0,
-                step=10000.0
-            )
-        with col2:
-            min_score = st.slider(
-                "Score minimum pour achat",
-                0.0, 1.0, 0.6,
-                help="Score technique minimum pour considérer un achat"
-            )
-
-        if st.button("🔄 Actualiser les données"):
-            with st.spinner("Analyse en cours..."):
-                self._analyze_and_display_opportunities(min_volume, min_score)
-
     def _analyze_and_display_opportunities(self, min_volume, min_score):
         try:
-            # Récupération des marchés USDT
             markets = self.exchange.load_markets()
             usdt_pairs = [symbol for symbol in markets.keys() if symbol.endswith('USDT')]
             
@@ -1062,55 +1038,73 @@ class TopPerformancePage:
             for i, symbol in enumerate(usdt_pairs):
                 try:
                     ticker = self.exchange.fetch_ticker(symbol)
-                    price = ticker['last']
                     
-                    # Filtre sur le prix et le volume
-                    if price <= 20 and ticker['quoteVolume'] >= min_volume:
-                        # Récupération des données pour l'analyse
+                    # Vérification des valeurs None
+                    price = ticker.get('last')
+                    volume = ticker.get('quoteVolume')
+                    percentage = ticker.get('percentage', 0)
+                    
+                    if price is None or volume is None:
+                        continue
+                    
+                    # Filtre sur le prix et le volume avec vérification explicite
+                    if not isinstance(price, (int, float)) or not isinstance(volume, (int, float)):
+                        continue
+                        
+                    if price <= 20 and volume >= min_volume:
                         df = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
-                        if df is not None:
-                            # Analyse technique
-                            rsi = self.ta.calculate_rsi(df).iloc[-1]
-                            market_sentiment = self.ta.get_market_sentiment(df)
-                            volume_profile = self.ta.analyze_volume_profile(df)
-                            
-                            # Génération des signaux
-                            signal_gen = SignalGenerator(df, price)
-                            score = signal_gen.calculate_opportunity_score()
-                            signals = signal_gen.generate_trading_signals()
+                        if df is not None and not df.empty:
+                            # Analyse technique avec vérification des valeurs
+                            try:
+                                rsi = self.ta.calculate_rsi(df).iloc[-1]
+                                market_sentiment = self.ta.get_market_sentiment(df)
+                                volume_profile = self.ta.analyze_volume_profile(df)
+                                
+                                if any(x is None for x in [rsi, market_sentiment, volume_profile]):
+                                    continue
+                                
+                                # Génération des signaux
+                                signal_gen = SignalGenerator(df, price)
+                                score = signal_gen.calculate_opportunity_score()
+                                signals = signal_gen.generate_trading_signals()
 
-                            opportunities.append({
-                                'symbol': symbol.replace('/USDT', ''),
-                                'price': price,
-                                'change_24h': ticker['percentage'],
-                                'volume': ticker['quoteVolume'],
-                                'rsi': rsi,
-                                'sentiment': market_sentiment,
-                                'volume_trend': volume_profile,
-                                'score': score,
-                                'signal': signals['action'],
-                                'reasons': signals['reasons'] if signals['action'] == 'BUY' else []
-                            })
+                                if score is not None:  # Vérification du score
+                                    opportunities.append({
+                                        'symbol': symbol.replace('/USDT', ''),
+                                        'price': price,
+                                        'change_24h': percentage,
+                                        'volume': volume,
+                                        'rsi': rsi,
+                                        'sentiment': market_sentiment,
+                                        'volume_trend': volume_profile,
+                                        'score': score,
+                                        'signal': signals.get('action'),
+                                        'reasons': signals.get('reasons', []) if signals.get('action') == 'BUY' else []
+                                    })
+                            except (AttributeError, IndexError) as e:
+                                st.warning(f"Erreur d'analyse pour {symbol}: {str(e)}")
+                                continue
                 
                     # Mise à jour de la progression
                     progress_bar.progress((i + 1) / len(usdt_pairs))
                     
                 except Exception as e:
+                    st.warning(f"Erreur pour {symbol}: {str(e)}")
                     continue
             
             progress_bar.empty()
             
             # Affichage des résultats
             if opportunities:
-                # Tri par score technique
-                opportunities.sort(key=lambda x: (x['score'], x['change_24h']), reverse=True)
+                # Tri par score technique avec vérification
+                opportunities.sort(key=lambda x: (x.get('score', 0), x.get('change_24h', 0)), reverse=True)
                 
                 # Séparation en deux catégories
                 buy_signals = []
                 watch_list = []
                 
                 for opp in opportunities:
-                    if opp['score'] >= min_score and opp['signal'] == 'BUY':
+                    if opp.get('score', 0) >= min_score and opp.get('signal') == 'BUY':
                         buy_signals.append(opp)
                     else:
                         watch_list.append(opp)
@@ -1128,9 +1122,10 @@ class TopPerformancePage:
                             with col3:
                                 st.metric("Volume 24h", f"${opp['volume']/1e6:.1f}M", None)
                             
-                            st.markdown("#### Raisons d'achat:")
-                            for reason in opp['reasons']:
-                                st.write(f"✅ {reason}")
+                            if opp['reasons']:
+                                st.markdown("#### Raisons d'achat:")
+                                for reason in opp['reasons']:
+                                    st.write(f"✅ {reason}")
                 
                 # Affichage de la watchlist
                 st.markdown("### 👀 Watch List")
@@ -1144,10 +1139,12 @@ class TopPerformancePage:
                             help=f"Score: {opp['score']:.2f}\nRSI: {opp['rsi']:.1f}"
                         )
             else:
-                st.warning("Aucune opportunité trouvée avec les critères actuels")
+                st.info("Aucune opportunité trouvée avec les critères actuels")
                 
         except Exception as e:
             st.error(f"Erreur lors de l'analyse : {str(e)}")
+            st.exception(e)  # Pour le débogage
+
 
 
 class GuidePage:
