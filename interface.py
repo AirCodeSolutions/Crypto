@@ -1,6 +1,7 @@
 # interface.py
 import streamlit as st
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import pandas as pd
 import ta
@@ -1197,10 +1198,11 @@ class GuidePage:
 class MicroBudgetTrading:
     def __init__(self, exchange, ai_predictor=None):
         self.exchange = exchange
-        self.max_position_size = 35  # Maximum 35 USDT par position
-        self.min_volume = 50000     # Augmenté pour plus de liquidité
+        self.max_position_size = 35  
+        self.min_volume = 50000     
         self.max_price = 5          
-        self.min_price = 0.1
+        self.min_price = 0.01
+        self.max_symbols = 20  # Limite le nombre de symboles analysés
         self.ai_predictor = ai_predictor or AIPredictor()
 
     
@@ -1226,55 +1228,77 @@ class MicroBudgetTrading:
 
     def find_opportunities(self):
         try:
-            # Ne chercher que les paires USDT
+            # Pré-filtrage des marchés USDT
             markets = {k: v for k, v in self.exchange.load_markets().items() 
                       if k.endswith('/USDT')}
             
-            opportunities = []
+            # Obtenir les tickers en une seule requête
+            all_tickers = self.exchange.fetch_tickers(list(markets.keys()))
+            time.sleep(1)  # Pause pour respecter la limite de requêtes
             
-            for symbol in markets:
+            # Pré-filtrage basé sur les tickers
+            potential_symbols = []
+            for symbol, ticker in all_tickers.items():
                 try:
-                    # Vérification basique du ticker
-                    ticker = self.exchange.fetch_ticker(symbol)
                     price = ticker['last']
                     volume = ticker['quoteVolume']
                     
-                    # Filtres de base
-                    if not (self.min_price <= price <= self.max_price):
-                        continue
-                    if volume < self.min_volume:
-                        continue
-                    if abs(ticker['percentage']) > 15:  # Éviter les cryptos trop volatiles
-                        continue
-                        
-                    # Analyse technique
-                    df = calculate_timeframe_data(self.exchange, symbol, '15m', 96)  # 24h de données
+                    if (self.min_price <= price <= self.max_price and 
+                        volume >= self.min_volume and 
+                        abs(ticker['percentage']) <= 15):
+                        potential_symbols.append({
+                            'symbol': symbol,
+                            'price': price,
+                            'volume': volume,
+                            'change': ticker['percentage']
+                        })
+                except:
+                    continue
+            
+            # Prendre les 20 meilleurs par volume
+            potential_symbols.sort(key=lambda x: x['volume'], reverse=True)
+            potential_symbols = potential_symbols[:self.max_symbols]
+            
+            opportunities = []
+            
+            for symbol_data in potential_symbols:
+                try:
+                    symbol = symbol_data['symbol']
+                    price = symbol_data['price']
+                    
+                    # Récupérer les données avec un délai
+                    df = calculate_timeframe_data(self.exchange, symbol, '1h', 24)  # Changé en 1h
                     if df is None or df.empty:
                         continue
                         
-                    # Calculs techniques simplifiés
+                    time.sleep(0.5)  # Pause entre chaque analyse
+                    
+                    # Calculs techniques
                     rsi = ta.momentum.rsi(df['close'], window=14).iloc[-1]
                     ema9 = ta.trend.ema_indicator(df['close'], window=9).iloc[-1]
                     ema20 = ta.trend.ema_indicator(df['close'], window=20).iloc[-1]
                     
-                    # Vérification des conditions
+                    # Conditions
                     trend_up = ema9 > ema20
                     good_rsi = 30 <= rsi <= 45
                     volume_ok = df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1]
                     
-                    if trend_up and good_rsi and volume_ok:
-                        stop_loss = price * 0.985  # -1.5%
-                        target = price * 1.03      # +3%
+                    score = sum([trend_up, good_rsi, volume_ok]) / 3
+                    
+                    if score >= 0.67:  # Au moins 2 conditions sur 3
+                        stop_loss = price * 0.985
+                        target = price * 1.03
                         
                         opportunities.append({
                             'symbol': symbol.replace('/USDT', ''),
                             'price': price,
-                            'volume_24h': volume,
-                            'change_24h': ticker['percentage'],
+                            'volume_24h': symbol_data['volume'],
+                            'change_24h': symbol_data['change'],
                             'rsi': rsi,
                             'stop_loss': stop_loss,
                             'target': target,
-                            'suggested_position': 30,  # Position fixe de 30 USDT pour commencer
+                            'suggested_position': 30,
+                            'score': score,
                             'risk_reward': (target - price) / (price - stop_loss),
                             'conditions': {
                                 'tendance': '✅' if trend_up else '❌',
@@ -1286,8 +1310,7 @@ class MicroBudgetTrading:
                 except Exception as e:
                     continue
             
-            # Trier par RSI optimal (plus proche de 40)
-            return sorted(opportunities, key=lambda x: abs(40 - x['rsi']))
+            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
             
         except Exception as e:
             return f"Erreur globale: {str(e)}"
