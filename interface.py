@@ -1210,24 +1210,38 @@ class MicroBudgetTrading:
             # 2. Récupérer les tickers en une seule fois
             all_tickers = self.exchange.fetch_tickers(list(markets.keys()))
             
-            # 3. Analyse simple sans calculs techniques
+            # 3. Analyse simple
             for symbol, ticker in all_tickers.items():
                 try:
                     price = ticker['last']
                     volume = ticker['quoteVolume']
                     change = ticker['percentage']
                     
-                    # Filtres très basiques
-                    if (price <= 5 and                  # Prix max 5 USDT
-                        volume >= 10000 and             # Volume minimum très réduit
-                        -5 <= change <= 5):            # Variation modérée
+                    # Filtres basiques
+                    if (price <= 5 and 
+                        volume >= 10000 and
+                        -5 <= change <= 5):
+                        
+                        # Calcul des niveaux
+                        stop_loss = price * 0.985  # -1.5%
+                        target = price * 1.03      # +3%
                         
                         opportunities.append({
                             'symbol': symbol.replace('/USDT', ''),
                             'price': price,
                             'volume_24h': volume,
                             'change_24h': change,
-                            'score': 1.0 if -2 <= change <= 2 else 0.5
+                            'stop_loss': stop_loss,
+                            'target': target,
+                            'suggested_position': 30,  # Position fixe de 30 USDT
+                            'score': 1.0 if -2 <= change <= 2 else 0.5,
+                            'rsi': 0,  # Valeur par défaut
+                            'conditions': {
+                                'tendance': '✅' if change > 0 else '❌',
+                                'volume': '✅' if volume >= 50000 else '❌',
+                                'volatilité': '✅' if abs(change) <= 3 else '❌'
+                            },
+                            'risk_reward': (target - price) / (price - stop_loss)
                         })
                 
                 except Exception as e:
@@ -1238,6 +1252,22 @@ class MicroBudgetTrading:
         except Exception as e:
             print(f"Erreur détaillée: {str(e)}")
             return []
+
+    def _format_opportunity(self, opp):
+        """Formatage standard des opportunités"""
+        return {
+            'symbol': opp['symbol'],
+            'price': opp['price'],
+            'volume_24h': opp['volume_24h'],
+            'change_24h': opp['change_24h'],
+            'stop_loss': opp['stop_loss'],
+            'target': opp['target'],
+            'suggested_position': opp['suggested_position'],
+            'score': opp['score'],
+            'rsi': opp['rsi'],
+            'conditions': opp['conditions'],
+            'risk_reward': opp['risk_reward']
+        }
 def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de symbol comme paramètre
     try:
         score = 0
