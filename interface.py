@@ -1286,7 +1286,7 @@ class MicroBudgetTrading:
             'risk_reward': opp['risk_reward'],
             'reasons': opp['reasons']
         }
-        }
+        
 def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de symbol comme paramètre
     try:
         score = 0
