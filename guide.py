@@ -18,7 +18,7 @@ class TradingGuide:
         """Initialise les sections du guide avec leur contenu"""
         self.sections = {
             "quick_start": self.Section(
-                title="Guide de Démarrage Rapide Test",
+                title="Guide de Démarrage Rapide",
                 content=self._get_quick_start_content(),
                 subsections={
                     "setup": "Configuration Initiale",
@@ -51,7 +51,7 @@ class TradingGuide:
 
     def _get_quick_start_content(self) -> str:
         return """
-        # Guide de Démarrage Rapide
+        # Guide de Démarrage Rapide Dev
         
         ## Configuration Initiale
         - Capital initial: 100€ maximum pour débuter
