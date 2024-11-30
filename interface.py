@@ -1034,80 +1034,93 @@ class TopPerformancePage:
             
             opportunities = []
             progress_bar = st.progress(0)
+            status_text = st.empty()
             
             for i, symbol in enumerate(usdt_pairs):
                 try:
+                    status_text.text(f"Analyse de {symbol}...")
                     ticker = self.exchange.fetch_ticker(symbol)
                     
-                    # Vérification des valeurs None
-                    price = ticker.get('last')
-                    volume = ticker.get('quoteVolume')
-                    percentage = ticker.get('percentage', 0)
-                    
-                    if price is None or volume is None:
+                    # Vérification des valeurs avec conversions explicites
+                    try:
+                        price = float(ticker.get('last', 0))
+                        volume = float(ticker.get('quoteVolume', 0))
+                        percentage = float(ticker.get('percentage', 0))
+                    except (TypeError, ValueError):
                         continue
                     
-                    # Filtre sur le prix et le volume avec vérification explicite
-                    if not isinstance(price, (int, float)) or not isinstance(volume, (int, float)):
+                    # Vérification sécurisée des conditions
+                    if not (price and volume):  # Si l'un des deux est 0 ou None
+                        continue
+                    
+                    # Comparaison sécurisée
+                    if not (0 < price <= 20.0 and volume >= float(min_volume)):
                         continue
                         
-                    if price <= 20 and volume >= min_volume:
-                        df = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
-                        if df is not None and not df.empty:
-                            # Analyse technique avec vérification des valeurs
-                            try:
-                                rsi = self.ta.calculate_rsi(df).iloc[-1]
-                                market_sentiment = self.ta.get_market_sentiment(df)
-                                volume_profile = self.ta.analyze_volume_profile(df)
-                                
-                                if any(x is None for x in [rsi, market_sentiment, volume_profile]):
-                                    continue
-                                
-                                # Génération des signaux
-                                signal_gen = SignalGenerator(df, price)
-                                score = signal_gen.calculate_opportunity_score()
-                                signals = signal_gen.generate_trading_signals()
-
-                                if score is not None:  # Vérification du score
-                                    opportunities.append({
-                                        'symbol': symbol.replace('/USDT', ''),
-                                        'price': price,
-                                        'change_24h': percentage,
-                                        'volume': volume,
-                                        'rsi': rsi,
-                                        'sentiment': market_sentiment,
-                                        'volume_trend': volume_profile,
-                                        'score': score,
-                                        'signal': signals.get('action'),
-                                        'reasons': signals.get('reasons', []) if signals.get('action') == 'BUY' else []
-                                    })
-                            except (AttributeError, IndexError) as e:
-                                st.warning(f"Erreur d'analyse pour {symbol}: {str(e)}")
-                                continue
-                
-                    # Mise à jour de la progression
-                    progress_bar.progress((i + 1) / len(usdt_pairs))
+                    df = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
+                    if df is None or df.empty:
+                        continue
+                        
+                    try:
+                        # Calcul des indicateurs avec vérification
+                        rsi = self.ta.calculate_rsi(df)
+                        if rsi is None or rsi.empty:
+                            continue
+                        rsi_value = float(rsi.iloc[-1])
+                        
+                        market_sentiment = float(self.ta.get_market_sentiment(df))
+                        volume_profile = float(self.ta.analyze_volume_profile(df))
+                        
+                        # Génération des signaux
+                        signal_gen = SignalGenerator(df, price)
+                        score = float(signal_gen.calculate_opportunity_score())
+                        signals = signal_gen.generate_trading_signals()
+                        
+                        if not all(x is not None for x in [rsi_value, market_sentiment, volume_profile, score]):
+                            continue
+                        
+                        opportunities.append({
+                            'symbol': symbol.replace('/USDT', ''),
+                            'price': price,
+                            'change_24h': percentage,
+                            'volume': volume,
+                            'rsi': rsi_value,
+                            'sentiment': market_sentiment,
+                            'volume_trend': volume_profile,
+                            'score': score,
+                            'signal': signals.get('action', ''),
+                            'reasons': signals.get('reasons', []) if signals.get('action') == 'BUY' else []
+                        })
+                        
+                    except (ValueError, TypeError, AttributeError) as e:
+                        st.warning(f"Erreur d'analyse pour {symbol}: {str(e)}")
+                        continue
                     
                 except Exception as e:
-                    st.warning(f"Erreur pour {symbol}: {str(e)}")
                     continue
+                
+                finally:
+                    # Mise à jour de la progression
+                    progress_bar.progress(min((i + 1) / len(usdt_pairs), 1.0))
             
             progress_bar.empty()
+            status_text.empty()
             
-            # Affichage des résultats
             if opportunities:
-                # Tri par score technique avec vérification
-                opportunities.sort(key=lambda x: (x.get('score', 0), x.get('change_24h', 0)), reverse=True)
+                # Tri sécurisé
+                opportunities.sort(key=lambda x: (float(x.get('score', 0)), float(x.get('change_24h', 0))), reverse=True)
                 
-                # Séparation en deux catégories
                 buy_signals = []
                 watch_list = []
                 
                 for opp in opportunities:
-                    if opp.get('score', 0) >= min_score and opp.get('signal') == 'BUY':
-                        buy_signals.append(opp)
-                    else:
-                        watch_list.append(opp)
+                    try:
+                        if float(opp.get('score', 0)) >= float(min_score) and opp.get('signal') == 'BUY':
+                            buy_signals.append(opp)
+                        else:
+                            watch_list.append(opp)
+                    except (ValueError, TypeError):
+                        continue
                 
                 # Affichage des signaux d'achat
                 if buy_signals:
@@ -1118,9 +1131,9 @@ class TopPerformancePage:
                             with col1:
                                 st.metric("Prix", f"${opp['price']:.4f}", f"{opp['change_24h']:+.2f}%")
                             with col2:
-                                st.metric("RSI", f"{opp['rsi']:.1f}", None)
+                                st.metric("RSI", f"{opp['rsi']:.1f}")
                             with col3:
-                                st.metric("Volume 24h", f"${opp['volume']/1e6:.1f}M", None)
+                                st.metric("Volume 24h", f"${opp['volume']/1e6:.1f}M")
                             
                             if opp['reasons']:
                                 st.markdown("#### Raisons d'achat:")
@@ -1128,22 +1141,50 @@ class TopPerformancePage:
                                     st.write(f"✅ {reason}")
                 
                 # Affichage de la watchlist
-                st.markdown("### 👀 Watch List")
-                cols = st.columns(3)
-                for i, opp in enumerate(watch_list):
-                    with cols[i % 3]:
-                        st.metric(
-                            opp['symbol'],
-                            f"${opp['price']:.4f}",
-                            f"{opp['change_24h']:+.2f}%",
-                            help=f"Score: {opp['score']:.2f}\nRSI: {opp['rsi']:.1f}"
-                        )
+                if watch_list:
+                    st.markdown("### 👀 Watch List")
+                    cols = st.columns(3)
+                    for i, opp in enumerate(watch_list):
+                        with cols[i % 3]:
+                            try:
+                                st.metric(
+                                    opp['symbol'],
+                                    f"${opp['price']:.4f}",
+                                    f"{opp['change_24h']:+.2f}%",
+                                    help=f"Score: {opp['score']:.2f}\nRSI: {opp['rsi']:.1f}"
+                                )
+                            except (ValueError, TypeError):
+                                continue
             else:
                 st.info("Aucune opportunité trouvée avec les critères actuels")
                 
         except Exception as e:
             st.error(f"Erreur lors de l'analyse : {str(e)}")
-            st.exception(e)  # Pour le débogage
+            import traceback
+            st.error(traceback.format_exc())
+
+    def render(self):
+        st.title("🏆 Top Performances (Prix ≤ 20 USDT)")
+        
+        # Filtres de base
+        col1, col2 = st.columns(2)
+        with col1:
+            min_volume = st.number_input(
+                "Volume minimum (USDT)",
+                min_value=10000.0,
+                value=100000.0,
+                step=10000.0
+            )
+        with col2:
+            min_score = st.slider(
+                "Score minimum pour achat",
+                0.0, 1.0, 0.6,
+                help="Score technique minimum pour considérer un achat"
+            )
+
+        if st.button("🔄 Actualiser les données"):
+            with st.spinner("Analyse en cours..."):
+                self._analyze_and_display_opportunities(min_volume, min_score)
 
 
 
