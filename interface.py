@@ -15,6 +15,18 @@ from portfolio_management import PortfolioManager  # Ajout de cet import
 from ai_predictor import AIPredictor, AITester  # Ajout de ces imports
 
 
+# Export the page classes
+__all__ = [
+    'LiveAnalysisPage',
+    'PortfolioPage', 
+    'OpportunitiesPage',
+    'HistoricalAnalysisPage',
+    'TopPerformancePage',
+    'MicroTradingPage',
+    'GuidePage'
+]
+
+
 class LiveAnalysisPage:
     def __init__(self, exchange, ta_analyzer, portfolio_manager):
         self.exchange = exchange
