@@ -1225,6 +1225,15 @@ class MicroBudgetTrading:
                         # Calcul des niveaux
                         stop_loss = price * 0.985  # -1.5%
                         target = price * 1.03      # +3%
+
+                        # Préparation des raisons
+                        reasons = []
+                        if volume >= 50000:
+                            reasons.append("Volume suffisant")
+                        if -2 <= change <= 2:
+                            reasons.append("Volatilité modérée")
+                        if change > 0:
+                            reasons.append("Tendance positive")
                         
                         opportunities.append({
                             'symbol': symbol.replace('/USDT', ''),
@@ -1241,13 +1250,21 @@ class MicroBudgetTrading:
                                 'volume': '✅' if volume >= 50000 else '❌',
                                 'volatilité': '✅' if abs(change) <= 3 else '❌'
                             },
-                            'risk_reward': (target - price) / (price - stop_loss)
+                            'risk_reward': (target - price) / (price - stop_loss),
+                            'reasons': reasons  # Ajout des raisons
                         })
                 
                 except Exception as e:
                     continue
 
-            return sorted(opportunities, key=lambda x: x['volume_24h'], reverse=True)[:10]
+            # Trier par volume et limiter à 10 résultats
+            opportunities = sorted(opportunities, key=lambda x: x['volume_24h'], reverse=True)[:10]
+            
+            print(f"Nombre d'opportunités trouvées : {len(opportunities)}")  # Debug
+            for opp in opportunities:
+                print(f"Symbol: {opp['symbol']}, Price: {opp['price']}, Volume: {opp['volume_24h']}")  # Debug
+            
+            return opportunities
             
         except Exception as e:
             print(f"Erreur détaillée: {str(e)}")
@@ -1266,7 +1283,9 @@ class MicroBudgetTrading:
             'score': opp['score'],
             'rsi': opp['rsi'],
             'conditions': opp['conditions'],
-            'risk_reward': opp['risk_reward']
+            'risk_reward': opp['risk_reward'],
+            'reasons': opp['reasons']
+        }
         }
 def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de symbol comme paramètre
     try:
