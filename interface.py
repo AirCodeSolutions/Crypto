@@ -1199,10 +1199,6 @@ class MicroBudgetTrading:
     def __init__(self, exchange):
         self.exchange = exchange
 
-    class MicroBudgetTrading:
-    def __init__(self, exchange):
-        self.exchange = exchange
-
     def find_opportunities(self):
         try:
             markets = {k: v for k, v in self.exchange.load_markets().items() 
