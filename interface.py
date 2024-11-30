@@ -1199,72 +1199,103 @@ class MicroBudgetTrading:
     def __init__(self, exchange):
         self.exchange = exchange
 
+    class MicroBudgetTrading:
+    def __init__(self, exchange):
+        self.exchange = exchange
+
     def find_opportunities(self):
         try:
-            # 1. Récupérer uniquement les paires USDT principales
             markets = {k: v for k, v in self.exchange.load_markets().items() 
-                      if k.endswith('/USDT') and 'USDT' in k}
+                      if k.endswith('/USDT')}
             
             opportunities = []
-            
-            # 2. Récupérer les tickers en une seule fois
             all_tickers = self.exchange.fetch_tickers(list(markets.keys()))
             
-            # 3. Analyse simple
             for symbol, ticker in all_tickers.items():
                 try:
                     price = ticker['last']
                     volume = ticker['quoteVolume']
-                    change = ticker['percentage']
                     
-                    # Filtres basiques
-                    if (price <= 5 and 
-                        volume >= 10000 and
-                        -5 <= change <= 5):
+                    # Filtres de base
+                    if not (0.01 <= price <= 5 and volume >= 10000):
+                        continue
                         
-                        # Calcul des niveaux
-                        stop_loss = price * 0.985  # -1.5%
-                        target = price * 1.03      # +3%
-
-                        # Préparation des raisons
-                        reasons = []
-                        if volume >= 50000:
-                            reasons.append("Volume suffisant")
-                        if -2 <= change <= 2:
-                            reasons.append("Volatilité modérée")
-                        if change > 0:
-                            reasons.append("Tendance positive")
+                    # Analyse technique détaillée
+                    df = calculate_timeframe_data(self.exchange, symbol, '1h', 24)
+                    if df is None or df.empty:
+                        continue
+                    
+                    # Calculs techniques
+                    rsi = ta.momentum.rsi(df['close']).iloc[-1]
+                    ema9 = ta.trend.ema_indicator(df['close'], window=9).iloc[-1]
+                    ema20 = ta.trend.ema_indicator(df['close'], window=20).iloc[-1]
+                    macd = ta.trend.macd_diff(df['close']).iloc[-1]
+                    macd_prev = ta.trend.macd_diff(df['close']).iloc[-2]
+                    
+                    # Comptage des bougies vertes
+                    last_candles = df.tail(5)
+                    green_candles = sum(last_candles['close'] > last_candles['open'])
+                    consecutive_green = 0
+                    for i in reversed(range(len(last_candles))):
+                        if last_candles.iloc[i]['close'] > last_candles.iloc[i]['open']:
+                            consecutive_green += 1
+                        else:
+                            break
+                    
+                    # Conditions strictes pour un bon trade
+                    if not (30 <= rsi <= 45 and        # RSI en zone d'achat
+                          ema9 > ema20 and             # Tendance haussière
+                          macd > macd_prev and         # MACD en hausse
+                          green_candles >= 3 and       # Majorité de bougies vertes
+                          consecutive_green >= 2):      # Au moins 2 vertes consécutives
+                        continue
                         
-                        opportunities.append({
-                            'symbol': symbol.replace('/USDT', ''),
-                            'price': price,
-                            'volume_24h': volume,
-                            'change_24h': change,
-                            'stop_loss': stop_loss,
-                            'target': target,
-                            'suggested_position': 30,  # Position fixe de 30 USDT
-                            'score': 1.0 if -2 <= change <= 2 else 0.5,
-                            'rsi': 0,  # Valeur par défaut
-                            'conditions': {
-                                'tendance': '✅' if change > 0 else '❌',
-                                'volume': '✅' if volume >= 50000 else '❌',
-                                'volatilité': '✅' if abs(change) <= 3 else '❌'
-                            },
-                            'risk_reward': (target - price) / (price - stop_loss),
-                            'reasons': reasons  # Ajout des raisons
-                        })
+                    # Calcul des niveaux
+                    stop_loss = price * 0.985
+                    target = price * 1.03
+                    
+                    # Calcul du score
+                    score = (
+                        (1 if 35 <= rsi <= 40 else 0.5) +  # RSI idéal
+                        (1 if consecutive_green >= 3 else 0.5) +  # Momentum
+                        (1 if volume >= 50000 else 0.5)  # Volume
+                    ) / 3
+                    
+                    reasons = [
+                        f"RSI optimal: {rsi:.1f}",
+                        f"{consecutive_green} bougies vertes consécutives",
+                        f"Volume 24h: ${volume/1e6:.1f}M",
+                        "MACD haussier",
+                        "Tendance EMA positive"
+                    ]
+                    
+                    opportunities.append({
+                        'symbol': symbol.replace('/USDT', ''),
+                        'price': price,
+                        'volume_24h': volume,
+                        'change_24h': ticker['percentage'],
+                        'stop_loss': stop_loss,
+                        'target': target,
+                        'suggested_position': 30,
+                        'score': score,
+                        'rsi': rsi,
+                        'conditions': {
+                            'tendance': '✅',
+                            'volume': '✅' if volume >= 50000 else '❌',
+                            'momentum': '✅'
+                        },
+                        'risk_reward': (target - price) / (price - stop_loss),
+                        'reasons': reasons,
+                        'green_candles': green_candles,
+                        'consecutive_green': consecutive_green
+                    })
                 
                 except Exception as e:
                     continue
-
-            # Trier par volume et limiter à 10 résultats
-            opportunities = sorted(opportunities, key=lambda x: x['volume_24h'], reverse=True)[:10]
+                    
+                time.sleep(0.1)  # Respecter les limites de l'API
             
-            print(f"Nombre d'opportunités trouvées : {len(opportunities)}")  # Debug
-            for opp in opportunities:
-                print(f"Symbol: {opp['symbol']}, Price: {opp['price']}, Volume: {opp['volume_24h']}")  # Debug
-            
-            return opportunities
+            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
             
         except Exception as e:
             print(f"Erreur détaillée: {str(e)}")
