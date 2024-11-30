@@ -1374,6 +1374,11 @@ def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de sym
     except Exception as e:
         return {'score': 0, 'reasons': [f'Erreur: {str(e)}']}
 
+class GuidePage:
+    def render(self):
+        st.title("📚 Guide de Trading Crypto Avancé")
+        # [Code du guide]
+        pass
 
 class MicroTradingPage:
     def __init__(self, exchange, portfolio_manager, ai_predictor):
