@@ -1157,14 +1157,16 @@ class GuidePage:
         pass
     
 class MicroBudgetTrading:
-    def __init__(self, exchange):
+    def __init__(self, exchange, ai_predictor=None):
         self.exchange = exchange
         self.max_position_size = 35  # Maximum 35 USDT par position
         self.min_volume = 100000     # Augmenté pour plus de liquidité
         self.max_price = 5          
         self.min_price = 0.1
-        # Initialisation de l'AI
-        self.ai_predictor = AIPredictor()
+        self.ai_predictor = ai_predictor or AIPredictor()
+
+    
+
     def render(self):
         st.title("🎯 Trading Micro-Budget")
         
@@ -1306,11 +1308,12 @@ def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de sym
 
 
 class MicroTradingPage:
-    def __init__(self, exchange, portfolio_manager):
+    def __init__(self, exchange, portfolio_manager, ai_predictor):
         self.exchange = exchange
         self.portfolio = portfolio_manager
         self.micro_trader = MicroBudgetTrading(exchange)
-        self.ai_tester = AITester(exchange, self.micro_trader.ai_predictor)
+        self.ai_predictor = ai_predictor
+        self.ai_tester = AITester(exchange, self.ai_predictor)
         
     def render(self):
         st.title("🎯 Trading Micro-Budget")
@@ -1323,6 +1326,36 @@ class MicroTradingPage:
             
         with tab2:
             self._render_testing_interface()
+    
+    def _render_trading_interface(self):
+        # Guide rapide
+        with st.expander("📚 Guide Micro-Budget", expanded=True):
+            st.markdown("""
+            ### Règles pour trader avec 100€:
+            1. **Position size**: 30-35€ maximum par position
+            2. **Objectif**: +3% par trade
+            3. **Stop loss**: -1.5% systématique
+            4. **Cryptos cibles**: Entre 0.1$ et 5$
+            5. **Positions**: 2-3 maximum en même temps
+            
+            ### ⚠️ Points importants:
+            - Ne jamais acheter sans stop loss
+            - Prendre ses profits à +3%
+            - Ne pas garder une position plus de 24h
+            """)
+            
+        # Recherche d'opportunités
+        if st.button("🔍 Rechercher des opportunités"):
+            with st.spinner("Analyse en cours..."):
+                opportunities = self.micro_trader.find_opportunities()
+                if isinstance(opportunities, list):
+                    if opportunities:
+                        for opp in opportunities:
+                            self._display_opportunity(opp)
+                    else:
+                        st.info("Aucune opportunité trouvée pour le moment")
+                else:
+                    st.error(f"Erreur lors de la recherche: {opportunities}")
     
     def _render_testing_interface(self):
         st.subheader("🧪 Test des Prédictions")
@@ -1368,6 +1401,7 @@ class MicroTradingPage:
                         """)
                 else:
                     st.error("Erreur lors du test")
+    
     def _display_opportunity(self, opp):
         with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
             col1, col2, col3 = st.columns(3)
@@ -1404,5 +1438,3 @@ class MicroTradingPage:
                     'score': opp['score']
                 }
                 st.success(f"✅ Trade préparé! Allez dans Portfolio pour finaliser.")
-
-# Main App
