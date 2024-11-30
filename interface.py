@@ -1196,119 +1196,48 @@ class GuidePage:
         pass
     
 class MicroBudgetTrading:
-    def __init__(self, exchange, ai_predictor=None):
+    def __init__(self, exchange):
         self.exchange = exchange
-        self.max_position_size = 35  
-        self.min_volume = 30000     # Réduit de 50000 à 30000
-        self.max_price = 5          
-        self.min_price = 0.001      # Réduit pour inclure plus de cryptos
-        self.max_symbols = 30       # Augmenté de 20 à 30
-
-        self.ai_predictor = ai_predictor or AIPredictor()
-
-    
-
-    def render(self):
-        st.title("🎯 Trading Micro-Budget")
-        
-        # Guide rapide
-        with st.expander("📚 Guide Micro-Budget", expanded=True):
-            st.markdown("""
-            ### Règles pour trader avec 100€:
-            1. **Position size**: 30-35€ maximum par position
-            2. **Objectif**: +3% par trade
-            3. **Stop loss**: -1.5% systématique
-            4. **Cryptos cibles**: Entre 0.1$ et 5$
-            5. **Positions**: 2-3 maximum en même temps
-            
-            ### ⚠️ Points importants:
-            - Ne jamais acheter sans stop loss
-            - Prendre ses profits à +3%
-            - Ne pas garder une position plus de 24h
-            """)
 
     def find_opportunities(self):
         try:
+            # 1. Récupérer uniquement les paires USDT principales
             markets = {k: v for k, v in self.exchange.load_markets().items() 
-                      if k.endswith('/USDT')}
+                      if k.endswith('/USDT') and 'USDT' in k}
             
+            opportunities = []
+            
+            # 2. Récupérer les tickers en une seule fois
             all_tickers = self.exchange.fetch_tickers(list(markets.keys()))
-            time.sleep(1)
             
-            potential_symbols = []
+            # 3. Analyse simple sans calculs techniques
             for symbol, ticker in all_tickers.items():
                 try:
                     price = ticker['last']
                     volume = ticker['quoteVolume']
+                    change = ticker['percentage']
                     
-                    if (self.min_price <= price <= self.max_price and 
-                        volume >= self.min_volume and 
-                        abs(ticker['percentage']) <= 20):  # Augmenté de 15 à 20%
-                        potential_symbols.append({
-                            'symbol': symbol,
-                            'price': price,
-                            'volume': volume,
-                            'change': ticker['percentage']
-                        })
-                except:
-                    continue
-            
-            potential_symbols.sort(key=lambda x: x['volume'], reverse=True)
-            potential_symbols = potential_symbols[:self.max_symbols]
-            
-            opportunities = []
-            
-            for symbol_data in potential_symbols:
-                try:
-                    symbol = symbol_data['symbol']
-                    price = symbol_data['price']
-                    
-                    df = calculate_timeframe_data(self.exchange, symbol, '1h', 24)
-                    if df is None or df.empty:
-                        continue
-                        
-                    time.sleep(0.5)
-                    
-                    rsi = ta.momentum.rsi(df['close'], window=14).iloc[-1]
-                    ema9 = ta.trend.ema_indicator(df['close'], window=9).iloc[-1]
-                    ema20 = ta.trend.ema_indicator(df['close'], window=20).iloc[-1]
-                    
-                    # Conditions assouplies
-                    trend_up = ema9 >= ema20  # Changé de strictement supérieur à supérieur ou égal
-                    good_rsi = 25 <= rsi <= 45  # Élargi la plage RSI de 30-45 à 25-45
-                    volume_ok = df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1] * 0.8  # Réduit le seuil de volume
-                    
-                    score = sum([trend_up, good_rsi, volume_ok]) / 3
-                    
-                    if score >= 0.5:  # Réduit de 0.67 à 0.5 (au moins une condition sur trois)
-                        stop_loss = price * 0.985
-                        target = price * 1.03
+                    # Filtres très basiques
+                    if (price <= 5 and                  # Prix max 5 USDT
+                        volume >= 10000 and             # Volume minimum très réduit
+                        -5 <= change <= 5):            # Variation modérée
                         
                         opportunities.append({
                             'symbol': symbol.replace('/USDT', ''),
                             'price': price,
-                            'volume_24h': symbol_data['volume'],
-                            'change_24h': symbol_data['change'],
-                            'rsi': rsi,
-                            'stop_loss': stop_loss,
-                            'target': target,
-                            'suggested_position': 30,
-                            'score': score,
-                            'risk_reward': (target - price) / (price - stop_loss),
-                            'conditions': {
-                                'tendance': '✅' if trend_up else '❌',
-                                'rsi': '✅' if good_rsi else '❌',
-                                'volume': '✅' if volume_ok else '❌'
-                            }
+                            'volume_24h': volume,
+                            'change_24h': change,
+                            'score': 1.0 if -2 <= change <= 2 else 0.5
                         })
                 
                 except Exception as e:
                     continue
-            
-            return sorted(opportunities, key=lambda x: (x['score'], -abs(35-x['rsi'])), reverse=True)
+
+            return sorted(opportunities, key=lambda x: x['volume_24h'], reverse=True)[:10]
             
         except Exception as e:
-            return f"Erreur globale: {str(e)}"
+            print(f"Erreur détaillée: {str(e)}")
+            return []
 def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de symbol comme paramètre
     try:
         score = 0
