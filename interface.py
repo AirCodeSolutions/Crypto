@@ -1377,8 +1377,276 @@ def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de sym
 class GuidePage:
     def render(self):
         st.title("📚 Guide de Trading Crypto Avancé")
-        # [Code du guide]
-        pass
+        
+        guide_section = st.selectbox(
+            "Choisir une section",
+            ["Démarrage Rapide", "Système de Scoring", "Trading Court Terme", 
+             "Gestion de Position", "Signaux de Trading", "Indicateurs Techniques", 
+             "Analyse Multi-Timeframes", "Gestion des Risques", "Analyse des Bougies",
+             "Recommandations pour Trader"]
+        )
+        
+        if guide_section == "Démarrage Rapide":
+            self._quick_start_guide()
+        elif guide_section == "Système de Scoring":
+            self._scoring_system_guide()
+        elif guide_section == "Trading Court Terme":
+            self._short_term_trading_guide()
+        elif guide_section == "Gestion de Position":
+            self._position_management_guide()
+        elif guide_section == "Signaux de Trading":
+            self._trading_signals_guide()
+        elif guide_section == "Indicateurs Techniques":
+            self._technical_indicators_guide()
+        elif guide_section == "Analyse Multi-Timeframes":
+            self._multi_timeframe_guide()
+        elif guide_section == "Gestion des Risques":
+            self._risk_management_guide()
+        elif guide_section == "Analyse des Bougies":
+            self._candle_analysis_guide()
+        elif guide_section == "Recommandations pour Trader":
+            self._trading_recommendations_guide()
+
+    def _quick_start_guide(self):
+        st.markdown("""
+        ## 🚀 Guide de Démarrage Rapide
+        
+        ### 1. Configuration Initiale
+        1. Définissez votre capital initial (100€ maximum pour commencer)
+        2. Ne risquez jamais plus de 1.5% par trade
+        3. Commencez par suivre 2-3 cryptos principales
+        
+        ### 2. Critères de Sélection
+        ✅ **Conditions idéales pour un trade:**
+        - Prix entre 0.01 et 5 USDT
+        - RSI entre 30-45
+        - Volume > 50,000 USDT
+        - Au moins 3/5 bougies vertes
+        - MACD haussier
+        
+        ### 3. Validation d'une Entrée
+        1. Score technique > 0.7
+        2. Volume confirmant
+        3. Plusieurs timeframes alignés
+        
+        ### 4. Gestion des Positions
+        - Stop loss systématique à -1.5%
+        - Take profit à +3%
+        - Maximum 2 positions simultanées
+        """)
+
+    def _scoring_system_guide(self):
+        st.markdown("""
+        ## 🎯 Système de Scoring
+        
+        ### Score Global (0-1)
+        
+        #### 1. RSI (40%)
+        - 0.4: RSI 35-40
+        - 0.3: RSI 30-35 ou 40-45
+        - 0.0: RSI hors zones
+        
+        #### 2. Volume (30%)
+        - 0.3: Volume > 150% moyenne
+        - 0.2: Volume > 100% moyenne
+        - 0.0: Volume < moyenne
+        
+        #### 3. Tendance (30%)
+        - 0.3: EMA9 > EMA20, MACD haussier
+        - 0.2: EMA9 > EMA20
+        - 0.0: Pas de tendance claire
+        
+        ### Interprétation
+        - Score > 0.8: Configuration idéale
+        - Score > 0.7: Bon setup
+        - Score < 0.7: Attendre mieux
+        """)
+
+    def _trading_signals_guide(self):
+        st.markdown("""
+        ## 🎯 Signaux de Trading
+        
+        ### 1. Signaux d'Achat
+        #### Conditions Requises
+        - RSI: 30-45
+        - MACD: Croisement haussier
+        - Volume: > moyenne 20 périodes
+        - Bougies: 3/5 vertes minimum
+        
+        ### 2. Confirmation du Signal
+        #### Points à Vérifier
+        1. Support proche (-1-2%)
+        2. Pas de résistance proche
+        3. Tendance générale haussière
+        
+        ### 3. Meilleurs Moments
+        #### Timing optimal
+        - 2-4h UTC: Session Asie
+        - 8-11h UTC: Session Europe
+        - 13-16h UTC: Session USA
+        """)
+
+    def _risk_management_guide(self):
+        st.markdown("""
+        ## ⚠️ Gestion des Risques
+        
+        ### 1. Règles de Base
+        #### Capital et Position
+        - Maximum 100€ pour débuter
+        - 30-35€ par position maximum
+        - Stop loss systématique -1.5%
+        - Take profit +3%
+        
+        ### 2. Diversification
+        - Maximum 2 positions simultanées
+        - Cryptos différentes uniquement
+        - Pas plus de 60% du capital engagé
+        
+        ### 3. Protection du Capital
+        #### Règles Essentielles
+        1. Jamais de martingale
+        2. Pas d'émotions
+        3. Stop loss obligatoire
+        4. Prendre ses profits
+        """)
+
+    def _candle_analysis_guide(self):
+        st.markdown("""
+        ## 🕯️ Analyse des Bougies
+        
+        ### 1. Configuration Idéale
+        ```
+        - Minimum 3/5 bougies vertes
+        - 2 bougies vertes consécutives
+        - Corps > mèches
+        - Volume croissant
+        ```
+        
+        ### 2. Signaux d'Alerte
+        ```
+        - Longues mèches hautes
+        - Volume décroissant
+        - Dojis après hausse
+        - Corps très petits
+        ```
+        
+        ### 3. Points d'Entrée
+        ```
+        - Après une bougie verte forte
+        - Support testé 2-3 fois
+        - Volume confirmant
+        - Pas de résistance proche
+        ```
+        """)
+
+    def _trading_recommendations_guide(self):
+        st.markdown("""
+        ## 💡 Recommandations Essentielles
+        
+        ### 1. Pour Débuter
+        - Commencer avec des cryptos < 1 USDT
+        - Trades de 30€ maximum
+        - Toujours utiliser des stops
+        - Noter tous ses trades
+        
+        ### 2. À Éviter
+        - FOMO sur les pumps
+        - Trading sans stop loss
+        - Trop de positions simultanées
+        - Modifier ses stops
+        
+        ### 3. Bonnes Pratiques
+        - Vérifier plusieurs timeframes
+        - Attendre les configurations idéales
+        - Respecter son plan de trading
+        - Prendre ses profits partiels
+        """)
+
+    def _multi_timeframe_guide(self):
+        st.markdown("""
+        ## 📊 Analyse Multi-Timeframes
+        
+        ### Configuration Idéale
+        1. Tendance 4h haussière
+        2. Signaux 1h confirmant
+        3. Entrée sur 15m
+        
+        ### Vérifications
+        - EMA alignées sur 4h
+        - RSI cohérent sur 1h
+        - Volume confirmant sur 15m
+        
+        ### Points d'Attention
+        - Résistances sur TF supérieurs
+        - Divergences sur plusieurs TF
+        - Confluence des signaux
+        """)
+
+    def _technical_indicators_guide(self):
+        st.markdown("""
+        ## 📈 Indicateurs Techniques
+        
+        ### RSI (Relative Strength Index)
+        - Zone achat: 30-45
+        - Zone neutre: 45-60
+        - Zone vente: > 60
+        
+        ### EMA (Moyennes Mobiles)
+        - EMA9 > EMA20: Tendance haussière
+        - Croisements: Signaux de changement
+        - Support/Résistance dynamique
+        
+        ### MACD
+        - Croisement haussier: Signal d'achat
+        - Histogramme croissant: Momentum
+        - Divergences: Retournements possibles
+        
+        ### Volume
+        - Confirme les mouvements
+        - Précède souvent les breakouts
+        - Valide les supports/résistances
+        """)
+
+    def _position_management_guide(self):
+        st.markdown("""
+        ## 💼 Gestion de Position
+        
+        ### 1. Entrée en Position
+        - 30€ maximum par trade
+        - Stop loss immédiat -1.5%
+        - Take profit +3%
+        
+        ### 2. Pendant le Trade
+        - Ne pas modifier les stops
+        - Surveiller le volume
+        - Noter les niveaux clés
+        
+        ### 3. Sortie de Position
+        - Respecter ses niveaux
+        - Sortie partielle possible
+        - Ne pas regretter
+        """)
+
+    def _short_term_trading_guide(self):
+        st.markdown("""
+        ## ⚡ Trading Court Terme
+        
+        ### 1. Sélection des Trades
+        - Prix < 5 USDT
+        - Volume > 50K USDT
+        - RSI 30-45
+        - 3/5 bougies vertes
+        
+        ### 2. Timing
+        - Éviter l'ouverture des marchés
+        - Préférer les heures calmes
+        - Surveiller les annonces
+        
+        ### 3. Durée
+        - 15 minutes minimum
+        - 24 heures maximum
+        - Sortie sur objectif
+        """)
 
 class MicroTradingPage:
     def __init__(self, exchange, portfolio_manager, ai_predictor):
