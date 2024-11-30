@@ -17,8 +17,7 @@ st.set_page_config(
 from utils import SessionState, format_number, get_exchange, get_valid_symbol  
 from technical_analysis import TechnicalAnalysis, SignalGenerator
 from portfolio_management import PortfolioManager
-from interface import (LiveAnalysisPage, PortfolioPage, OpportunitiesPage,
-                     HistoricalAnalysisPage, TopPerformancePage, MicroTradingPage, CryptoAnalyzerApp)
+from interface import (LiveAnalysisPage, PortfolioPage, OpportunitiesPage, HistoricalAnalysisPage, TopPerformancePage, MicroTradingPage, CryptoAnalyzerApp)
 from ai_predictor import AIPredictor, AITester  # Ajout de cet import
 
 
