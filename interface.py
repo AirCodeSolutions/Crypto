@@ -1199,10 +1199,11 @@ class MicroBudgetTrading:
     def __init__(self, exchange, ai_predictor=None):
         self.exchange = exchange
         self.max_position_size = 35  
-        self.min_volume = 50000     
+        self.min_volume = 30000     # Réduit de 50000 à 30000
         self.max_price = 5          
-        self.min_price = 0.01
-        self.max_symbols = 20  # Limite le nombre de symboles analysés
+        self.min_price = 0.001      # Réduit pour inclure plus de cryptos
+        self.max_symbols = 30       # Augmenté de 20 à 30
+
         self.ai_predictor = ai_predictor or AIPredictor()
 
     
@@ -1228,15 +1229,12 @@ class MicroBudgetTrading:
 
     def find_opportunities(self):
         try:
-            # Pré-filtrage des marchés USDT
             markets = {k: v for k, v in self.exchange.load_markets().items() 
                       if k.endswith('/USDT')}
             
-            # Obtenir les tickers en une seule requête
             all_tickers = self.exchange.fetch_tickers(list(markets.keys()))
-            time.sleep(1)  # Pause pour respecter la limite de requêtes
+            time.sleep(1)
             
-            # Pré-filtrage basé sur les tickers
             potential_symbols = []
             for symbol, ticker in all_tickers.items():
                 try:
@@ -1245,7 +1243,7 @@ class MicroBudgetTrading:
                     
                     if (self.min_price <= price <= self.max_price and 
                         volume >= self.min_volume and 
-                        abs(ticker['percentage']) <= 15):
+                        abs(ticker['percentage']) <= 20):  # Augmenté de 15 à 20%
                         potential_symbols.append({
                             'symbol': symbol,
                             'price': price,
@@ -1255,7 +1253,6 @@ class MicroBudgetTrading:
                 except:
                     continue
             
-            # Prendre les 20 meilleurs par volume
             potential_symbols.sort(key=lambda x: x['volume'], reverse=True)
             potential_symbols = potential_symbols[:self.max_symbols]
             
@@ -1266,26 +1263,24 @@ class MicroBudgetTrading:
                     symbol = symbol_data['symbol']
                     price = symbol_data['price']
                     
-                    # Récupérer les données avec un délai
-                    df = calculate_timeframe_data(self.exchange, symbol, '1h', 24)  # Changé en 1h
+                    df = calculate_timeframe_data(self.exchange, symbol, '1h', 24)
                     if df is None or df.empty:
                         continue
                         
-                    time.sleep(0.5)  # Pause entre chaque analyse
+                    time.sleep(0.5)
                     
-                    # Calculs techniques
                     rsi = ta.momentum.rsi(df['close'], window=14).iloc[-1]
                     ema9 = ta.trend.ema_indicator(df['close'], window=9).iloc[-1]
                     ema20 = ta.trend.ema_indicator(df['close'], window=20).iloc[-1]
                     
-                    # Conditions
-                    trend_up = ema9 > ema20
-                    good_rsi = 30 <= rsi <= 45
-                    volume_ok = df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1]
+                    # Conditions assouplies
+                    trend_up = ema9 >= ema20  # Changé de strictement supérieur à supérieur ou égal
+                    good_rsi = 25 <= rsi <= 45  # Élargi la plage RSI de 30-45 à 25-45
+                    volume_ok = df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1] * 0.8  # Réduit le seuil de volume
                     
                     score = sum([trend_up, good_rsi, volume_ok]) / 3
                     
-                    if score >= 0.67:  # Au moins 2 conditions sur 3
+                    if score >= 0.5:  # Réduit de 0.67 à 0.5 (au moins une condition sur trois)
                         stop_loss = price * 0.985
                         target = price * 1.03
                         
@@ -1310,11 +1305,10 @@ class MicroBudgetTrading:
                 except Exception as e:
                     continue
             
-            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
+            return sorted(opportunities, key=lambda x: (x['score'], -abs(35-x['rsi'])), reverse=True)
             
         except Exception as e:
             return f"Erreur globale: {str(e)}"
-
 def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de symbol comme paramètre
     try:
         score = 0
