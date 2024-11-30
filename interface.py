@@ -1160,7 +1160,7 @@ class MicroBudgetTrading:
     def __init__(self, exchange, ai_predictor=None):
         self.exchange = exchange
         self.max_position_size = 35  # Maximum 35 USDT par position
-        self.min_volume = 100000     # Augmenté pour plus de liquidité
+        self.min_volume = 50000     # Augmenté pour plus de liquidité
         self.max_price = 5          
         self.min_price = 0.1
         self.ai_predictor = ai_predictor or AIPredictor()
@@ -1188,63 +1188,71 @@ class MicroBudgetTrading:
 
     def find_opportunities(self):
         try:
-            markets = self.exchange.load_markets()
+            # Ne chercher que les paires USDT
+            markets = {k: v for k, v in self.exchange.load_markets().items() 
+                      if k.endswith('/USDT')}
+            
             opportunities = []
-        
+            
             for symbol in markets:
                 try:
+                    # Vérification basique du ticker
                     ticker = self.exchange.fetch_ticker(symbol)
-                    price = ticker.get('last')
-                    volume = ticker.get('quoteVolume')
-                
-                    # Vérification supplémentaire
-                    if price is None or volume is None:
-                        continue
+                    price = ticker['last']
+                    volume = ticker['quoteVolume']
                     
-                    # Critères de rejet stricts
-                    if ticker['percentage'] > 10:  # Éviter les pompes
+                    # Filtres de base
+                    if not (self.min_price <= price <= self.max_price):
                         continue
-                    
-                    if price <= self.min_price or price >= self.max_price:
-                        continue
-                    
                     if volume < self.min_volume:
                         continue
-                
-                    # Double vérification avec timeframes différents
-                    df_15m = calculate_timeframe_data(self.exchange, symbol, '15m', 100)
-                    df_1h = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
-                
-                    if df_15m is None or df_1h is None:
+                    if abs(ticker['percentage']) > 15:  # Éviter les cryptos trop volatiles
                         continue
+                        
+                    # Analyse technique
+                    df = calculate_timeframe_data(self.exchange, symbol, '15m', 96)  # 24h de données
+                    if df is None or df.empty:
+                        continue
+                        
+                    # Calculs techniques simplifiés
+                    rsi = ta.momentum.rsi(df['close'], window=14).iloc[-1]
+                    ema9 = ta.trend.ema_indicator(df['close'], window=9).iloc[-1]
+                    ema20 = ta.trend.ema_indicator(df['close'], window=20).iloc[-1]
                     
-                    # Analyse des deux timeframes
-                    signal_15m = self._analyze_micro_opportunity(df_15m, price, symbol)  # Ajout de symbol
-                    signal_1h = self._analyze_micro_opportunity(df_1h, price, symbol)  # Ajout de symbol
-                
-                    # Ne garder que les opportunités validées sur les deux timeframes
-                    if signal_15m['score'] >= 0.7 and signal_1h['score'] >= 0.6:
+                    # Vérification des conditions
+                    trend_up = ema9 > ema20
+                    good_rsi = 30 <= rsi <= 45
+                    volume_ok = df['volume'].iloc[-1] > df['volume'].rolling(20).mean().iloc[-1]
+                    
+                    if trend_up and good_rsi and volume_ok:
+                        stop_loss = price * 0.985  # -1.5%
+                        target = price * 1.03      # +3%
+                        
                         opportunities.append({
                             'symbol': symbol.replace('/USDT', ''),
                             'price': price,
-                            'score': min(signal_15m['score'], signal_1h['score']),
-                            'volume': volume,
-                            'suggested_position': min(
-                                self.max_position_size,
-                                self.max_position_size * signal_15m['score']
-                            ),
-                            'target': price * 1.02,  # Target plus conservateur
-                            'stop_loss': price * 0.985,
-                            'reasons': signal_15m['reasons'] + [" (15m)"] + signal_1h['reasons'] + [" (1h)"]
+                            'volume_24h': volume,
+                            'change_24h': ticker['percentage'],
+                            'rsi': rsi,
+                            'stop_loss': stop_loss,
+                            'target': target,
+                            'suggested_position': 30,  # Position fixe de 30 USDT pour commencer
+                            'risk_reward': (target - price) / (price - stop_loss),
+                            'conditions': {
+                                'tendance': '✅' if trend_up else '❌',
+                                'rsi': '✅' if good_rsi else '❌',
+                                'volume': '✅' if volume_ok else '❌'
+                            }
                         })
-                    
+                
                 except Exception as e:
                     continue
-                
-            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
-        
+            
+            # Trier par RSI optimal (plus proche de 40)
+            return sorted(opportunities, key=lambda x: abs(40 - x['rsi']))
+            
         except Exception as e:
-            return f"Erreur: {str(e)}"
+            return f"Erreur globale: {str(e)}"
 
 def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de symbol comme paramètre
     try:

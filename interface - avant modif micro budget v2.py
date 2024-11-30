@@ -12,6 +12,7 @@ from utils import (
 )
 from technical_analysis import SignalGenerator, TechnicalAnalysis  # Ajout de TechnicalAnalysis
 from portfolio_management import PortfolioManager  # Ajout de cet import
+from ai_predictor import AIPredictor, AITester  # Ajout de ces imports
 
 
 class LiveAnalysisPage:
@@ -1156,13 +1157,17 @@ class GuidePage:
         pass
     
 class MicroBudgetTrading:
-    def __init__(self, exchange):
+    def __init__(self, exchange, ai_predictor=None):
         self.exchange = exchange
         self.max_position_size = 35  # Maximum 35 USDT par position
         self.min_volume = 100000     # Augmenté pour plus de liquidité
         self.max_price = 5          
         self.min_price = 0.1
-     def render(self):
+        self.ai_predictor = ai_predictor or AIPredictor()
+
+    
+
+    def render(self):
         st.title("🎯 Trading Micro-Budget")
         
         # Guide rapide
@@ -1301,15 +1306,28 @@ def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de sym
     except Exception as e:
         return {'score': 0, 'reasons': [f'Erreur: {str(e)}']}
 
+
 class MicroTradingPage:
-    def __init__(self, exchange, portfolio_manager):
+    def __init__(self, exchange, portfolio_manager, ai_predictor):
         self.exchange = exchange
         self.portfolio = portfolio_manager
         self.micro_trader = MicroBudgetTrading(exchange)
+        self.ai_predictor = ai_predictor
+        self.ai_tester = AITester(exchange, self.ai_predictor)
         
     def render(self):
         st.title("🎯 Trading Micro-Budget")
         
+        # Onglets
+        tab1, tab2 = st.tabs(["Trading", "Test & Optimisation"])
+        
+        with tab1:
+            self._render_trading_interface()
+            
+        with tab2:
+            self._render_testing_interface()
+    
+    def _render_trading_interface(self):
         # Guide rapide
         with st.expander("📚 Guide Micro-Budget", expanded=True):
             st.markdown("""
@@ -1325,90 +1343,98 @@ class MicroTradingPage:
             - Prendre ses profits à +3%
             - Ne pas garder une position plus de 24h
             """)
-        
-        if st.button("🔍 Chercher des opportunités micro-budget"):
-            with st.spinner("Recherche en cours..."):
+            
+        # Recherche d'opportunités
+        if st.button("🔍 Rechercher des opportunités"):
+            with st.spinner("Analyse en cours..."):
                 opportunities = self.micro_trader.find_opportunities()
-                
-                if isinstance(opportunities, str):  # En cas d'erreur
-                    st.error(opportunities)
-                elif opportunities:
-                    for opp in opportunities[:5]:  # Top 5 seulement
-                        with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                st.metric("Prix", f"${opp['price']:.4f}")
-                            with col2:
-                                st.metric("Position suggérée", f"${opp['suggested_position']:.2f}")
-                            with col3:
-                                profit = (opp['target'] - opp['price']) / opp['price'] * 100
-                                st.metric("Profit potentiel", f"+{profit:.1f}%")
-                            
-                            st.markdown("### Niveaux suggérés:")
-                            levels_col1, levels_col2, levels_col3 = st.columns(3)
-                            with levels_col1:
-                                st.write("🔴 Stop Loss:", f"${opp['stop_loss']:.4f}")
-                            with levels_col2:
-                                st.write("🎯 Target:", f"${opp['target']:.4f}")
-                            with levels_col3:
-                                risk = (opp['price'] - opp['stop_loss']) * (opp['suggested_position'] / opp['price'])
-                                st.write("💰 Risque:", f"${risk:.2f}")
-                            
-                            st.markdown("### Raisons du signal:")
-                            for reason in opp['reasons']:
-                                st.write(f"✅ {reason}")
-                            
-                            if st.button("📝 Préparer l'ordre", key=f"prep_{opp['symbol']}"):
-                                st.session_state['prepared_trade'] = {
-                                    'symbol': opp['symbol'],
-                                    'price': opp['price'],
-                                    'stop_loss': opp['stop_loss'],
-                                    'target_1': opp['target'],
-                                    'target_2': opp['target'] * 1.02,
-                                    'suggested_amount': opp['suggested_position'],
-                                    'score': opp['score']
-                                }
-                                st.success(f"✅ Trade préparé! Allez dans Portfolio pour finaliser.")
+                if isinstance(opportunities, list):
+                    if opportunities:
+                        for opp in opportunities:
+                            self._display_opportunity(opp)
+                    else:
+                        st.info("Aucune opportunité trouvée pour le moment")
                 else:
-                    st.info("Aucune opportunité trouvée pour le moment. Réessayez plus tard.")
-
-
-# Main App
-class CryptoAnalyzerApp:
-    def __init__(self):
-        self.exchange = get_exchange()
-        self.ta = TechnicalAnalysis()
-        self.portfolio = PortfolioManager(self.exchange)
+                    st.error(f"Erreur lors de la recherche: {opportunities}")
+    
+    def _render_testing_interface(self):
+        st.subheader("🧪 Test des Prédictions")
         
-        self.pages = {
-            "Analyse en Direct": LiveAnalysisPage(self.exchange, self.ta, self.portfolio),
-            "Portefeuille": PortfolioPage(self.portfolio),
-            "Trading Micro-Budget": MicroTradingPage(self.exchange, self.portfolio), 
-            "Top Performances": TopPerformancePage(self.exchange, self.ta),
-            "Opportunités Court Terme": OpportunitiesPage(self.exchange, self.ta),
-            "Analyse Historique": HistoricalAnalysisPage(self.exchange, self.ta),
-            "Guide & Explications": GuidePage()
-        }
-
-    def run(self):
-        from utils import format_number  # Ajout ici aussi pour être sûr
-        
-        st.sidebar.title("Navigation")
-        page_name = st.sidebar.selectbox("Choisir une page", list(self.pages.keys()))
-        
-        # Informations générales dans le sidebar
-        if st.session_state.portfolio['capital'] > 0:
-            st.sidebar.markdown("---")
-            st.sidebar.markdown("### 💰 Portfolio")
-            st.sidebar.metric(
-                "Capital actuel",
-                f"{format_number(st.session_state.portfolio['current_capital'])} USDT",
-                f"{((st.session_state.portfolio['current_capital'] / st.session_state.portfolio['capital']) - 1) * 100:.2f}%"
-            )
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            symbol = st.text_input("Crypto à tester (ex: BTC)", "").upper()
+        with col2:
+            days = st.number_input("Jours d'historique", min_value=7, value=30)
             
-        # Rendu de la page sélectionnée
-        try:
-            self.pages[page_name].render()
-        except Exception as e:
-            st.error(f"Erreur lors du chargement de la page: {str(e)}")
-            
+        if st.button("🔬 Lancer le test"):
+            with st.spinner("Test en cours..."):
+                results = self.ai_tester.backtest_predictions(f"{symbol}/USDT", days)
+                
+                if results:
+                    # Affichage des métriques
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Précision", f"{results['metrics']['accuracy']:.1%}")
+                    with col2:
+                        st.metric("Prédictions correctes", 
+                                f"{results['metrics']['precision']:.1%}")
+                    with col3:
+                        st.metric("Détection hausses", 
+                                f"{results['metrics']['recall']:.1%}")
+                    
+                    # Visualisation
+                    fig = self.ai_tester.visualize_results(results, symbol)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                    # Recommandations
+                    st.subheader("💡 Analyse")
+                    if results['metrics']['accuracy'] > 0.7:
+                        st.success("""
+                            ✅ Les prédictions sont fiables pour cette crypto.
+                            Recommandation: Vous pouvez suivre les signaux d'achat.
+                        """)
+                    else:
+                        st.warning("""
+                            ⚠️ Les prédictions manquent de fiabilité.
+                            Recommandation: Attendez des signaux plus forts.
+                        """)
+                else:
+                    st.error("Erreur lors du test")
+    
+    def _display_opportunity(self, opp):
+        with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Prix", f"${opp['price']:.4f}")
+            with col2:
+                st.metric("Position suggérée", f"${opp['suggested_position']:.2f}")
+            with col3:
+                profit = (opp['target'] - opp['price']) / opp['price'] * 100
+                st.metric("Profit potentiel", f"+{profit:.1f}%")
+        
+            st.markdown("### Niveaux suggérés:")
+            levels_col1, levels_col2, levels_col3 = st.columns(3)
+            with levels_col1:
+                st.write("🔴 Stop Loss:", f"${opp['stop_loss']:.4f}")
+            with levels_col2:
+                st.write("🎯 Target:", f"${opp['target']:.4f}")
+            with levels_col3:
+                risk = (opp['price'] - opp['stop_loss']) * (opp['suggested_position'] / opp['price'])
+                st.write("💰 Risque:", f"${risk:.2f}")
+        
+            st.markdown("### Raisons du signal:")
+            for reason in opp['reasons']:
+                st.write(f"✅ {reason}")
+        
+            if st.button("📝 Préparer l'ordre", key=f"prep_{opp['symbol']}"):
+                st.session_state['prepared_trade'] = {
+                    'symbol': opp['symbol'],
+                    'price': opp['price'],
+                    'stop_loss': opp['stop_loss'],
+                    'target_1': opp['target'],
+                    'target_2': opp['target'] * 1.02,
+                    'suggested_amount': opp['suggested_position'],
+                    'score': opp['score']
+                }
+                st.success(f"✅ Trade préparé! Allez dans Portfolio pour finaliser.")
