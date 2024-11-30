@@ -126,4 +126,4 @@ class AITester:
         )
         
         return fig
-```
+
