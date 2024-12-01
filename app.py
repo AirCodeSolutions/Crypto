@@ -16,8 +16,10 @@ class CryptoAnalyzerApp:
         self.ta = TechnicalAnalysis()
         self.portfolio = PortfolioManager(self.exchange)
         self.ai = AIPredictor()
-         # Récupération de la version depuis les secrets
-        self.version = st.secrets.get("app_version", "local")
+        try:
+            self.version = st.secrets["app_version"]
+        except:
+            self.version = "local"
         self.pages = {
             "Analyse en Direct": LiveAnalysisPage(self.exchange, self.ta, self.portfolio),
             "Trading Micro-Budget": MicroTradingPage(self.exchange, self.portfolio, self.ai),

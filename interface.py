@@ -24,8 +24,11 @@ class LiveAnalysisPage:
         self.portfolio = portfolio_manager
         
     def render(self):
-        # Utilisation des secrets pour la version
-        version = st.secrets.get("app_version", "local")
+        # Correction de l'accès aux secrets
+        try:
+            version = st.secrets["app_version"]
+        except:
+            version = "local"
         st.title(f"📈 Analyse en Direct - {version}")
        
         # Ajout d'un marqueur visible
