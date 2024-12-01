@@ -33,37 +33,67 @@ def main():
     )
 
     # Styles CSS personnalisés pour l'affichage mobile
+    # Modifions la section CSS dans app.py
     st.markdown("""
         <style>
-        /* Réduction de la taille des titres sur mobile */
-        @media (max-width: 640px) {
-            .main h1 {
-                font-size: 1.5rem !important;
-            }
-            .main h2 {
-                font-size: 1.2rem !important;
-            }
-            .main h3 {
-                font-size: 1rem !important;
-            }
-            /* Ajustement des marges */
-            .element-container {
-                padding: 0.5rem 0 !important;
-            }
-            /* Amélioration de la lisibilité des graphiques */
-            .plotly-graph-div {
-                min-height: 300px !important;
-            }
+        /* Styles spécifiques pour les titres */
+        .main h1 {
+            font-size: 1.2rem !important;
+            margin-bottom: 0.5rem !important;
         }
-        /* Styles généraux pour améliorer la lisibilité */
-        .stButton button {
-            width: 100%;
-            padding: 0.5rem;
-            font-size: 0.9rem;
+        .main h3 {
+            font-size: 0.9rem !important;
+            color: #555;
+            margin-bottom: 0.3rem !important;
         }
+        /* Autres styles existants... */
         </style>
     """, unsafe_allow_html=True)
+    # Ajout d'un sélecteur de crypto
+    crypto_options = {
+        "BTC": "Bitcoin",
+        "ETH": "Ethereum",
+        "SOL": "Solana",
+        "BNB": "Binance Coin",
+        "XRP": "Ripple"
+    }
+    
+    col1, col2 = st.columns([2, 3])
+    with col1:
+        selected_crypto = st.selectbox(
+            "Sélectionner une crypto",
+            options=list(crypto_options.keys()),
+            format_func=lambda x: f"{x} - {crypto_options[x]}"
+        )
 
+    # Simulation de données différentes selon la crypto
+    def get_crypto_data(symbol: str) -> pd.DataFrame:
+        """Génère des données simulées différentes selon la crypto"""
+        df = create_sample_data()
+        
+        # Ajustons les prix selon la crypto
+        multipliers = {
+            "BTC": 40000,
+            "ETH": 2000,
+            "SOL": 100,
+            "BNB": 300,
+            "XRP": 1
+        }
+        
+        multiplier = multipliers.get(symbol, 1)
+        for col in ['open', 'high', 'low', 'close']:
+            df[col] = df[col] * multiplier
+            
+        return df
+
+    # Utilisation des données simulées pour la crypto sélectionnée
+    df = get_crypto_data(selected_crypto)
+    
+    with main_chart_container:
+        st.markdown(f"### {crypto_options[selected_crypto]} ({selected_crypto}/USDT)")
+        config = ChartConfig(height=chart_height)
+        chart = TradingChart(config)
+        chart.render(df, f"{selected_crypto}/USDT")
     # Titre principal plus compact
     st.markdown("# 📱 Crypto Analyzer")
 
