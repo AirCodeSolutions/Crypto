@@ -1,89 +1,113 @@
 # app.py
 import streamlit as st
-import ccxt
-import os 
-from datetime import datetime
-from core.utils import SessionState, format_number, get_exchange
-from portfolio_management import PortfolioManager
-from interface import (LiveAnalysisPage, PortfolioPage, OpportunitiesPage, 
-                      HistoricalAnalysisPage, TopPerformancePage, MicroTradingPage, GuidePage)
-from ai_predictor import AIPredictor
-from core.analysis import TechnicalAnalysis
+from interface.components.alerts import AlertSystem
+from interface.components.chart_components import TradingChart, ChartConfig
+from interface.components.filter_section import FilterSection
+from interface.components.trade_card import TradeCard, TradeCardData
+from interface.components.widgets import StyledButton, StatusIndicator, TimeSelector, FormattedInput
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
 
-# Initialisation
-analyzer = TechnicalAnalysis()
-
-class CryptoAnalyzerApp:
-    def __init__(self):
-        self.exchange = get_exchange()
-        self.ta = TechnicalAnalysis()
-        self.portfolio = PortfolioManager(self.exchange)
-        self.ai = AIPredictor()
-       
-        self.pages = {
-            "Analyse en Direct": LiveAnalysisPage(self.exchange, self.ta, self.portfolio),
-            "Trading Micro-Budget": MicroTradingPage(self.exchange, self.portfolio, self.ai),
-            "Portefeuille": PortfolioPage(self.portfolio),
-            "Top Performances": TopPerformancePage(self.exchange, self.ta),
-            "Opportunités Court Terme": OpportunitiesPage(self.exchange, self.ta),
-            "Analyse Historique": HistoricalAnalysisPage(self.exchange, self.ta),
-            "Guide & Explications": GuidePage()
-        }
-
-    def run(self):
-        st.sidebar.title("Navigation")
-        page_name = st.sidebar.selectbox("Choisir une page", list(self.pages.keys()))
-        
-        if st.session_state.portfolio['capital'] > 0:
-            st.sidebar.markdown("---")
-            st.sidebar.markdown("### 💰 Portfolio")
-            st.sidebar.metric(
-                "Capital actuel",
-                f"{format_number(st.session_state.portfolio['current_capital'])} USDT",
-                f"{((st.session_state.portfolio['current_capital'] / st.session_state.portfolio['capital']) - 1) * 100:.2f}%"
-            )
-            
-        try:
-            self.pages[page_name].render()
-        except Exception as e:
-            st.error(f"Erreur lors du chargement de la page: {str(e)}")
+def create_sample_data():
+    """
+    Crée des données factices pour tester les composants.
+    Cette fonction génère un DataFrame simulant des données de trading.
+    """
+    dates = pd.date_range(start='2024-01-01', end='2024-02-01', freq='1H')
+    df = pd.DataFrame(index=dates)
+    
+    # Génération de prix simulés
+    df['close'] = 100 + np.random.randn(len(df)).cumsum()
+    df['open'] = df['close'] + np.random.randn(len(df))
+    df['high'] = np.maximum(df['open'], df['close']) + np.random.rand(len(df))
+    df['low'] = np.minimum(df['open'], df['close']) - np.random.rand(len(df))
+    df['volume'] = np.random.rand(len(df)) * 1000000
+    
+    return df
 
 def main():
-    try:
-        # Configuration des styles CSS
-        st.set_page_config(
-            page_title="Analyseur Crypto par AirCodeSolutions",
-            page_icon="📊",
-            layout="wide"
+    """
+    Point d'entrée principal de l'application.
+    Configure la page et gère la navigation entre les différentes sections.
+    """
+    st.set_page_config(
+        page_title="Test des Composants Crypto",
+        page_icon="📊",
+        layout="wide"
+    )
+
+    st.title("🧪 Page de Test des Composants")
+
+    # Création des données de test
+    df = create_sample_data()
+    
+    # Section 1: Test des Widgets de Base
+    st.header("1. Test des Widgets de Base")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        StyledButton.render("Bouton Principal", "main_btn", "primary")
+        StyledButton.render("Bouton Attention", "warn_btn", "warning")
+        StyledButton.render("Bouton Danger", "danger_btn", "danger")
+    
+    with col2:
+        StatusIndicator.render("loading", "Chargement en cours...")
+        StatusIndicator.render("success", "Opération réussie")
+        StatusIndicator.render("error", "Erreur détectée")
+
+    # Section 2: Test des Entrées Formatées
+    st.header("2. Test des Entrées Formatées")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        price = FormattedInput.price_input("Prix d'entrée", "test_price")
+    with col2:
+        percent = FormattedInput.percentage_input("Stop Loss (%)", "test_percent")
+    with col3:
+        amount = FormattedInput.amount_input("Montant", "test_amount")
+
+    # Section 3: Test du Graphique
+    st.header("3. Test du Graphique")
+    
+    period = TimeSelector.render("chart_period")
+    chart = TradingChart(ChartConfig(height=500))
+    chart.render(df, "BTC/USDT", show_signals=True)
+
+    # Section 4: Test des Filtres
+    st.header("4. Test des Filtres")
+    filter_section = FilterSection()
+    filters = filter_section.render()
+    
+    # Section 5: Test des Alertes
+    st.header("5. Test des Alertes")
+    alert_system = AlertSystem()
+    
+    if st.button("Ajouter une alerte de test"):
+        alert_system.add_notification(
+            "Test de notification",
+            "success",
+            {"Prix": "$50,000", "Volume": "$1.2M"}
         )
-        st.markdown("""
-            <style>
-            .stButton>button {
-                width: 100%;
-            }
-            .trade-card {
-                border: 1px solid #ddd;
-                padding: 10px;
-                border-radius: 5px;
-                margin: 10px 0;
-            }
-            </style>
-        """, unsafe_allow_html=True)
+    
+    alert_system.render()
 
-        # Initialisation de l'état de session
-        session_state = SessionState()
-        
-        # Initialisation et lancement de l'application
-        app = CryptoAnalyzerApp()
-        app.run()
-
-    except Exception as e:
-        st.error(f"""
-        ⚠️ Une erreur s'est produite lors du démarrage de l'application:
-        {str(e)}
-        
-        Veuillez rafraîchir la page ou contacter le support si l'erreur persiste.
-        """)
+    # Section 6: Test de la Carte de Trading
+    st.header("6. Test de la Carte de Trading")
+    trade_data = TradeCardData(
+        symbol="BTC/USDT",
+        price=50000.0,
+        score=0.85,
+        volume=1200000.0,
+        change_24h=2.5,
+        stop_loss=49000.0,
+        target_1=51000.0,
+        target_2=52000.0,
+        reasons=["RSI en zone optimale", "Volume croissant", "Tendance haussière"]
+    )
+    
+    trade_card = TradeCard(trade_data)
+    trade_card.render()
 
 if __name__ == "__main__":
     main()
