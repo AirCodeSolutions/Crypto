@@ -23,7 +23,11 @@ class LiveAnalysisPage:
         self.portfolio = portfolio_manager
         
     def render(self):
-        st.title("📈 Analyse en Direct VERSION DEV")
+        #st.title("📈 Analyse en Direct VERSION DEV")
+        st.title(f"📈 Analyse en Direct - {time.strftime('%H:%M:%S')}")
+    
+        # Ajout d'un marqueur visible
+        st.markdown("*Environnement de développement*" if os.environ.get('BRANCH') == 'dev' else "*Production*")
         
         # Input pour ajouter une crypto
         col1, col2 = st.columns([3, 1])

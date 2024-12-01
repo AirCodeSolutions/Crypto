@@ -52,7 +52,10 @@ def main():
             page_icon="📊",
             layout="wide"
         )
-        
+        # Ajoutons un indicateur de branche
+        import os
+        branch = os.environ.get('BRANCH', 'unknown')
+        st.sidebar.markdown(f"Version: {branch}")
         st.markdown("""
             <style>
             .stButton>button {
