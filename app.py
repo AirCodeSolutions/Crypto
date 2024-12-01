@@ -3,12 +3,15 @@ import streamlit as st
 import ccxt
 import os 
 from datetime import datetime
-from utils import SessionState, format_number, get_exchange
-from technical_analysis import TechnicalAnalysis
+from core.utils import SessionState, format_number, get_exchange
 from portfolio_management import PortfolioManager
 from interface import (LiveAnalysisPage, PortfolioPage, OpportunitiesPage, 
                       HistoricalAnalysisPage, TopPerformancePage, MicroTradingPage, GuidePage)
 from ai_predictor import AIPredictor
+from core.analysis import TechnicalAnalysis
+
+# Initialisation
+analyzer = TechnicalAnalysis()
 
 class CryptoAnalyzerApp:
     def __init__(self):

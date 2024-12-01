@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 import pandas as pd
 import ta
 import os
-from utils import (
+from core.utils import (
     get_valid_symbol, 
     calculate_timeframe_data, 
     format_number,

@@ -6,7 +6,7 @@ import ta
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from sklearn.metrics import accuracy_score, precision_score, recall_score
-from utils import calculate_timeframe_data
+from core.utils import calculate_timeframe_data
 
 class AIPredictor:
     def __init__(self):
