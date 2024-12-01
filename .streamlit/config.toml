@@ -1,2 +1,8 @@
-[server]
-fileWatcherType = "poll"
+[browser]
+gatherUsageStats = false
+
+[theme]
+base="dark"
+
+[env]
+BRANCH = "dev"
