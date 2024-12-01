@@ -24,9 +24,9 @@ class LiveAnalysisPage:
         self.portfolio = portfolio_manager
         
     def render(self):
-        # Récupération de la version depuis la config
-        version = st.get_option("deploy.version", "local")
-        st.title(f"📈 Analyse en Direct - {version.upper()}")
+        # Utilisation des secrets pour la version
+        version = st.secrets.get("app_version", "local")
+        st.title(f"📈 Analyse en Direct - {version}")
        
         # Ajout d'un marqueur visible
         st.markdown("*Environnement de développement*" if os.environ.get('BRANCH') == 'dev' else "*Production*")
