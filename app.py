@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-# Version simplifiée des imports
 from interface import (
     TradingChart, 
     ChartConfig,
@@ -25,46 +24,93 @@ def create_sample_data():
     return df
 
 def main():
-    st.set_page_config(page_title="Crypto Analyzer - Test", layout="wide")
-    st.title("🚀 Test de l'Interface Crypto")
+    # Configuration de la page avec des paramètres adaptés au mobile
+    st.set_page_config(
+        page_title="Crypto Analyzer",
+        page_icon="📊",
+        layout="wide",
+        initial_sidebar_state="collapsed"  # Cache la barre latérale sur mobile
+    )
 
-    # Initialisation des composants
-    alert_system = AlertSystem()
-    
-    # Création des colonnes principales
-    col1, col2 = st.columns([2, 1])
-    
-    with col1:
-        # Section Graphique
-        st.header("📊 Analyse Technique")
-        df = create_sample_data()
-        config = ChartConfig(height=400)
-        chart = TradingChart(config)
-        chart.render(df, "BTC/USDT")
-        
-    with col2:
-        # Section Alertes et Actions
-        st.header("🔔 Actions & Alertes")
-        
-        # Boutons de test
-        if StyledButton.render("Analyser", "analyze_btn", "primary"):
-            StatusIndicator.render("loading", "Analyse en cours...")
-            alert_system.add_notification(
-                "Analyse technique terminée",
-                "success",
-                {"Score": "0.85", "Signal": "Achat"}
-            )
-        
-        if StyledButton.render("Simuler Alerte", "alert_btn", "warning"):
-            alert_system.add_notification(
-                "Niveau de prix atteint !",
-                "warning",
-                {"Prix": "$50,000", "Type": "Résistance"}
-            )
+    # Styles CSS personnalisés pour l'affichage mobile
+    st.markdown("""
+        <style>
+        /* Réduction de la taille des titres sur mobile */
+        @media (max-width: 640px) {
+            .main h1 {
+                font-size: 1.5rem !important;
+            }
+            .main h2 {
+                font-size: 1.2rem !important;
+            }
+            .main h3 {
+                font-size: 1rem !important;
+            }
+            /* Ajustement des marges */
+            .element-container {
+                padding: 0.5rem 0 !important;
+            }
+            /* Amélioration de la lisibilité des graphiques */
+            .plotly-graph-div {
+                min-height: 300px !important;
+            }
+        }
+        /* Styles généraux pour améliorer la lisibilité */
+        .stButton button {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 0.9rem;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Titre principal plus compact
+    st.markdown("# 📱 Crypto Analyzer")
+
+    # Utilisation de conteneurs pour une meilleure organisation
+    with st.container():
+        # Sur mobile, les colonnes se transformeront en lignes
+        if st.session_state.get('mobile_view', True):
+            main_chart_container = st
+            alerts_container = st
+        else:
+            main_chart_container, alerts_container = st.columns([2, 1])
+
+        with main_chart_container:
+            st.markdown("### 📊 Analyse Technique")
+            df = create_sample_data()
             
-        # Affichage des alertes
-        st.markdown("### Dernières Notifications")
-        alert_system.render()
+            # Configuration adaptative du graphique
+            chart_height = 300 if st.session_state.get('mobile_view', True) else 400
+            config = ChartConfig(height=chart_height)
+            chart = TradingChart(config)
+            chart.render(df, "BTC/USDT")
+
+        with alerts_container:
+            alert_system = AlertSystem()
+            
+            # Boutons plus compacts sur mobile
+            col1, col2 = st.columns(2)
+            with col1:
+                if StyledButton.render("Analyser", "analyze_btn", "primary"):
+                    StatusIndicator.render("loading", "Analyse...")
+                    alert_system.add_notification(
+                        "Analyse terminée",
+                        "success",
+                        {"Score": "0.85"}
+                    )
+            
+            with col2:
+                if StyledButton.render("Alertes", "alert_btn", "warning"):
+                    alert_system.add_notification(
+                        "Prix cible atteint",
+                        "warning",
+                        {"Prix": "50K"}
+                    )
+
+            # Section alertes plus compacte
+            st.markdown("### 🔔 Notifications")
+            alert_system.render()
 
 if __name__ == "__main__":
     main()
