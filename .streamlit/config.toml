@@ -1,2 +1,8 @@
-# .streamlit/secrets.toml
-app_version = "DEV"
+[browser]
+gatherUsageStats = false
+
+[theme]
+base="dark"
+
+[deploy]
+version = "dev"
