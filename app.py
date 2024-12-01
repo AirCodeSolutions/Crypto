@@ -1,6 +1,7 @@
 # app.py
 import streamlit as st
 import ccxt
+import os 
 from datetime import datetime
 from utils import SessionState, format_number, get_exchange
 from technical_analysis import TechnicalAnalysis
@@ -15,7 +16,9 @@ class CryptoAnalyzerApp:
         self.ta = TechnicalAnalysis()
         self.portfolio = PortfolioManager(self.exchange)
         self.ai = AIPredictor()
-        
+         # Ajout de l'indicateur de version
+        self.branch = os.environ.get('BRANCH', 'local')
+
         self.pages = {
             "Analyse en Direct": LiveAnalysisPage(self.exchange, self.ta, self.portfolio),
             "Trading Micro-Budget": MicroTradingPage(self.exchange, self.portfolio, self.ai),
@@ -28,6 +31,8 @@ class CryptoAnalyzerApp:
 
     def run(self):
         st.sidebar.title("Navigation")
+        # Ajout de l'indicateur de version dans la sidebar
+        st.sidebar.markdown(f"**Version**: {self.branch}")
         page_name = st.sidebar.selectbox("Choisir une page", list(self.pages.keys()))
         
         if st.session_state.portfolio['capital'] > 0:

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import pandas as pd
 import ta
+import os
 from utils import (
     get_valid_symbol, 
     calculate_timeframe_data, 
@@ -24,8 +25,9 @@ class LiveAnalysisPage:
         
     def render(self):
         #st.title("📈 Analyse en Direct VERSION DEV")
-        st.title(f"📈 Analyse en Direct - {time.strftime('%H:%M:%S')}")
-    
+        version = "DEV" if os.environ.get('BRANCH') == 'dev' else "PROD"
+        st.title(f"📈 Analyse en Direct - {version}")
+       
         # Ajout d'un marqueur visible
         st.markdown("*Environnement de développement*" if os.environ.get('BRANCH') == 'dev' else "*Production*")
         
