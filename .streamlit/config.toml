@@ -4,5 +4,5 @@ gatherUsageStats = false
 [theme]
 base="dark"
 
-[env]
-BRANCH = "dev"
+[deploy]
+version = "dev"

@@ -24,9 +24,9 @@ class LiveAnalysisPage:
         self.portfolio = portfolio_manager
         
     def render(self):
-        #st.title("📈 Analyse en Direct VERSION DEV")
-        version = "DEV" if os.environ.get('BRANCH') == 'dev' else "PROD"
-        st.title(f"📈 Analyse en Direct - {version}")
+        # Récupération de la version depuis la config
+        version = st.get_option("deploy.version", "local")
+        st.title(f"📈 Analyse en Direct - {version.upper()}")
        
         # Ajout d'un marqueur visible
         st.markdown("*Environnement de développement*" if os.environ.get('BRANCH') == 'dev' else "*Production*")

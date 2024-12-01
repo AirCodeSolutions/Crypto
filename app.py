@@ -16,9 +16,8 @@ class CryptoAnalyzerApp:
         self.ta = TechnicalAnalysis()
         self.portfolio = PortfolioManager(self.exchange)
         self.ai = AIPredictor()
-         # Ajout de l'indicateur de version
-        self.branch = os.environ.get('BRANCH', 'local')
-
+        # Récupération de la version depuis la config
+        self.version = st.get_option("deploy.version", "local")
         self.pages = {
             "Analyse en Direct": LiveAnalysisPage(self.exchange, self.ta, self.portfolio),
             "Trading Micro-Budget": MicroTradingPage(self.exchange, self.portfolio, self.ai),
@@ -31,8 +30,8 @@ class CryptoAnalyzerApp:
 
     def run(self):
         st.sidebar.title("Navigation")
-        # Ajout de l'indicateur de version dans la sidebar
-        st.sidebar.markdown(f"**Version**: {self.branch}")
+        # Affichage de la version dans la sidebar
+        st.sidebar.markdown(f"**Version**: {self.version}")
         page_name = st.sidebar.selectbox("Choisir une page", list(self.pages.keys()))
         
         if st.session_state.portfolio['capital'] > 0:
