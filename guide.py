@@ -18,7 +18,7 @@ class TradingGuide:
         """Initialise les sections du guide avec leur contenu"""
         self.sections = {
             "quick_start": self.Section(
-                title="Guide de Démarrage Rapide",
+                title="Guide de Démarrage Rapide TEST",
                 content=self._get_quick_start_content(),
                 subsections={
                     "setup": "Configuration Initiale",
