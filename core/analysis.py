@@ -1,29 +1,23 @@
-# exceptions.py
-class TechnicalAnalysisException(Exception):
-    """Exception de base pour les erreurs d'analyse technique"""
-    pass
-
-class InvalidDataException(TechnicalAnalysisException):
-    """Exception pour les données invalides ou manquantes"""
-    pass
-
-class CalculationException(TechnicalAnalysisException):
-    """Exception pour les erreurs de calcul d'indicateurs"""
-    pass
-
-# analysis.py
 import pandas as pd
 import numpy as np
 import ta
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+import logging
 
-class Config:
+logger = logging.getLogger(__name__)
+
+@dataclass
+class AnalysisConfig:
     """Configuration pour l'analyse technique"""
-    RSI_PERIOD = 14
-    EMA_PERIODS = [9, 20, 50]
-    VOLUME_THRESHOLD = 1.5
-    SCORE_THRESHOLD = 0.7
+    rsi_period: int = 14
+    ema_periods: List[int] = field(default_factory=lambda: [9, 20, 50])
+    volume_threshold: float = 1.5
+    score_threshold: float = 0.7
+    support_window: int = 20
+    macd_fast: int = 12
+    macd_slow: int = 26
+    macd_signal: int = 9
 
 @dataclass
 class TradingSignal:
@@ -36,174 +30,188 @@ class TradingSignal:
     target_2: Optional[float] = None
     reasons: List[str] = field(default_factory=list)
 
-class TechnicalAnalysis:
-    """Classe pour l'analyse technique des cryptomonnaies"""
-    
-    class TechnicalAnalysisException(Exception):
-        """Exception de base pour les erreurs d'analyse technique"""
-        pass
+class TechnicalAnalyzer:
+    """
+    Analyseur technique pour les cryptomonnaies
+    Fournit des analyses avancées et des signaux de trading
+    """
 
-    class InvalidDataException(TechnicalAnalysisException):
-        """Exception pour les données invalides ou manquantes"""
-        pass
+    def __init__(self, config: Optional[AnalysisConfig] = None):
+        """
+        Initialise l'analyseur technique
+        
+        Args:
+            config: Configuration personnalisée (optionnelle)
+        """
+        self.config = config or AnalysisConfig()
+        self._validate_config()
+        logger.info("Analyseur technique initialisé")
 
-    class CalculationException(TechnicalAnalysisException):
-        """Exception pour les erreurs de calcul d'indicateurs"""
-        pass
-    
-    @staticmethod
-    def calculate_rsi(df: pd.DataFrame, periods: int = Config.RSI_PERIOD) -> pd.Series:
-        """Calcule le RSI"""
-        try:
-            if df is None or df.empty:
-                raise TechnicalAnalysis.InvalidDataException("DataFrame vide ou invalide")
-                
-            if 'close' not in df.columns:
-                raise TechnicalAnalysis.InvalidDataException("Colonne 'close' manquante dans les données")
-                
-            delta = df['close'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=periods).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=periods).mean()
+    def _validate_config(self):
+        """Valide la configuration de l'analyseur"""
+        if not self.config.ema_periods:
+            raise ValueError("Les périodes EMA ne peuvent pas être vides")
+        if self.config.rsi_period <= 0:
+            raise ValueError("La période RSI doit être positive")
+
+    def analyze_crypto(self, df: pd.DataFrame, current_price: float) -> Dict:
+        """
+        Réalise une analyse complète d'une crypto
+        
+        Args:
+            df: DataFrame avec les données OHLCV
+            current_price: Prix actuel
             
-            if (loss == 0).all():
-                raise TechnicalAnalysis.CalculationException("Division par zéro lors du calcul du RSI")
-                
+        Returns:
+            Dict: Résultats de l'analyse
+        """
+        try:
+            if df.empty:
+                raise ValueError("DataFrame vide")
+
+            # Calcul des indicateurs
+            rsi = self.calculate_rsi(df)
+            support, resistance = self.calculate_support_resistance(df)
+            momentum_score = self.calculate_momentum_score(df)
+            market_sentiment = self.get_market_sentiment(df)
+            volume_profile = self.analyze_volume_profile(df)
+
+            # Génération du signal
+            signal = self.generate_trading_signal(
+                df, current_price, rsi.iloc[-1],
+                support, resistance, momentum_score
+            )
+
+            return {
+                'rsi': rsi.iloc[-1],
+                'support': support,
+                'resistance': resistance,
+                'momentum_score': momentum_score,
+                'market_sentiment': market_sentiment,
+                'volume_profile': volume_profile,
+                'signal': signal
+            }
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'analyse: {e}")
+            raise
+
+    def calculate_rsi(self, df: pd.DataFrame) -> pd.Series:
+        """
+        Calcule le RSI (Relative Strength Index)
+        
+        Args:
+            df: DataFrame avec les données OHLCV
+            
+        Returns:
+            pd.Series: Valeurs du RSI
+        """
+        try:
+            close_delta = df['close'].diff()
+
+            # Calcul des gains et pertes
+            gain = (close_delta.where(close_delta > 0, 0)).rolling(
+                window=self.config.rsi_period
+            ).mean()
+            loss = (-close_delta.where(close_delta < 0, 0)).rolling(
+                window=self.config.rsi_period
+            ).mean()
+
             rs = gain / loss
             return 100 - (100 / (1 + rs))
-            
-        except Exception as e:
-            if isinstance(e, TechnicalAnalysis.TechnicalAnalysisException):
-                raise
-            raise TechnicalAnalysis.TechnicalAnalysisException(f"Erreur calcul RSI: {str(e)}")
 
-    @staticmethod
-    def calculate_support_resistance(df: pd.DataFrame, window: int = 20) -> Tuple[float, float]:
+        except Exception as e:
+            logger.error(f"Erreur calcul RSI: {e}")
+            raise
+
+    def calculate_support_resistance(df, window=20):
         """Calcule les niveaux de support et résistance"""
-        try:
-            if df is None or df.empty:
-                raise TechnicalAnalysis.InvalidDataException("DataFrame vide ou invalide")
-                
-            if 'low' not in df.columns or 'high' not in df.columns:
-                raise TechnicalAnalysis.InvalidDataException("Colonnes 'low' ou 'high' manquantes")
-                
-            rolling_min = df['low'].rolling(window=window).min()
-            rolling_max = df['high'].rolling(window=window).max()
-            
-            if rolling_min.iloc[-1] is None or rolling_max.iloc[-1] is None:
-                raise TechnicalAnalysis.CalculationException("Impossible de calculer les niveaux")
-                
-            return rolling_min.iloc[-1], rolling_max.iloc[-1]
-            
-        except Exception as e:
-            if isinstance(e, TechnicalAnalysis.TechnicalAnalysisException):
-                raise
-            raise TechnicalAnalysis.TechnicalAnalysisException(f"Erreur calcul support/résistance: {str(e)}")
-
-    @staticmethod
-    def calculate_momentum_score(df: pd.DataFrame) -> float:
+        rolling_min = df['low'].rolling(window=window).min()
+        rolling_max = df['high'].rolling(window=window).max()
+        return rolling_min.iloc[-1], rolling_max.iloc[-1]
+    
+    def calculate_momentum_score(df):
         """Calcule un score de momentum global"""
-        try:
-            if df is None or df.empty:
-                raise TechnicalAnalysis.InvalidDataException("DataFrame vide ou invalide")
-
-            required_columns = ['close', 'high', 'low']
-            if not all(col in df.columns for col in required_columns):
-                raise TechnicalAnalysis.InvalidDataException("Colonnes requises manquantes")
-
-            df['macd'] = ta.trend.macd_diff(df['close'])
-            df['rsi'] = ta.momentum.rsi(df['close'])
-            df['stoch'] = ta.momentum.stoch(df['high'], df['low'], df['close'])
-            df['adx'] = ta.trend.adx(df['high'], df['low'], df['close'])
-            
-            if df['macd'].isna().all() or df['rsi'].isna().all():
-                raise TechnicalAnalysis.CalculationException("Échec du calcul des indicateurs techniques")
-            
-            score = 0.0
-            if df['macd'].iloc[-1] > 0: score += 0.25
-            if 40 < df['rsi'].iloc[-1] < 60: score += 0.25
-            if df['stoch'].iloc[-1] > df['stoch'].iloc[-2]: score += 0.25
-            if df['adx'].iloc[-1] > 25: score += 0.25
-            
-            return score
-            
-        except Exception as e:
-            if isinstance(e, TechnicalAnalysis.TechnicalAnalysisException):
-                raise
-            raise TechnicalAnalysis.TechnicalAnalysisException(f"Erreur calcul momentum: {str(e)}")
-
-    @staticmethod
-    def get_market_sentiment(df: pd.DataFrame) -> float:
+        # Calcul des indicateurs
+        df['macd'] = ta.trend.macd_diff(df['close'])
+        df['rsi'] = ta.momentum.rsi(df['close'])
+        df['stoch'] = ta.momentum.stoch(df['high'], df['low'], df['close'])
+        df['adx'] = ta.trend.adx(df['high'], df['low'], df['close'])
+        
+        score = 0
+        # Scoring des différents indicateurs
+        if df['macd'].iloc[-1] > 0: score += 1
+        if 40 < df['rsi'].iloc[-1] < 60: score += 1
+        if df['stoch'].iloc[-1] > df['stoch'].iloc[-2]: score += 1
+        if df['adx'].iloc[-1] > 25: score += 1
+        
+        return score / 4
+    
+    def get_market_sentiment(df):
         """Analyse le sentiment du marché"""
-        try:
-            if df is None or df.empty:
-                raise TechnicalAnalysis.InvalidDataException("DataFrame vide ou invalide")
-
-            if 'close' not in df.columns:
-                raise TechnicalAnalysis.InvalidDataException("Colonne 'close' manquante")
-
-            sentiment_score = 0.0
-            
-            df['ema9'] = ta.trend.ema_indicator(df['close'], window=9)
-            df['ema20'] = ta.trend.ema_indicator(df['close'], window=20)
-            df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
-            
-            if df['ema9'].isna().all() or df['ema20'].isna().all():
-                raise TechnicalAnalysis.CalculationException("Échec du calcul des EMAs")
-            
-            if df['ema9'].iloc[-1] > df['ema20'].iloc[-1]: sentiment_score += 0.33
-            if df['ema20'].iloc[-1] > df['ema50'].iloc[-1]: sentiment_score += 0.33
-            if df['close'].iloc[-1] > df['ema20'].iloc[-1]: sentiment_score += 0.34
-            
-            return sentiment_score
-            
-        except Exception as e:
-            if isinstance(e, TechnicalAnalysis.TechnicalAnalysisException):
-                raise
-            raise TechnicalAnalysis.TechnicalAnalysisException(f"Erreur analyse sentiment: {str(e)}")
-
-    @staticmethod
-    def analyze_volume_profile(df: pd.DataFrame) -> float:
-        """Analyse le profil volumétrique"""
-        try:
-            if df is None or df.empty:
-                raise TechnicalAnalysis.InvalidDataException("DataFrame vide ou invalide")
-
-            if 'volume' not in df.columns:
-                raise TechnicalAnalysis.InvalidDataException("Colonne 'volume' manquante")
-
+        sentiment_score = 0
+        
+        # Analyse des EMA
+        df['ema9'] = ta.trend.ema_indicator(df['close'], window=9)
+        df['ema20'] = ta.trend.ema_indicator(df['close'], window=20)
+        df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
+        
+        if df['ema9'].iloc[-1] > df['ema20'].iloc[-1]: sentiment_score += 1
+        if df['ema20'].iloc[-1] > df['ema50'].iloc[-1]: sentiment_score += 1
+        if df['close'].iloc[-1] > df['ema20'].iloc[-1]: sentiment_score += 1
+        
+        return sentiment_score / 3
+    
+    def analyze_volume_profile(df):
+            """Analyse le profil volumétrique"""
             volume_mean = df['volume'].mean()
-            if volume_mean == 0:
-                raise TechnicalAnalysis.CalculationException("Volume moyen nul")
-
             recent_volume = df['volume'].iloc[-5:].mean()
             return recent_volume / volume_mean
-            
-        except Exception as e:
-            if isinstance(e, TechnicalAnalysis.TechnicalAnalysisException):
-                raise
-            raise TechnicalAnalysis.TechnicalAnalysisException(f"Erreur analyse volume: {str(e)}")
 
-# Utilisation
-if __name__ == "__main__":
-    # Exemple d'utilisation
-    analyzer = TechnicalAnalysis()
-    try:
-        # Création d'un DataFrame de test
-        df = pd.DataFrame({
-            'close': [100, 101, 102, 101, 103],
-            'high': [102, 103, 104, 103, 105],
-            'low': [99, 100, 101, 100, 102],
-            'volume': [1000, 1100, 1200, 900, 1300]
-        })
+    def generate_trading_signal(
+        self, df: pd.DataFrame, current_price: float,
+        rsi: float, support: float, resistance: float,
+        momentum_score: float
+    ) -> TradingSignal:
+        """
+        Génère un signal de trading basé sur l'analyse
         
-        rsi = analyzer.calculate_rsi(df)
-        print(f"RSI: {rsi.iloc[-1]:.2f}")
-        
-        support, resistance = analyzer.calculate_support_resistance(df)
-        print(f"Support: {support:.2f}, Resistance: {resistance:.2f}")
-        
-        momentum = analyzer.calculate_momentum_score(df)
-        print(f"Momentum Score: {momentum:.2f}")
-        
-    except TechnicalAnalysis.TechnicalAnalysisException as e:
-        print(f"Erreur d'analyse technique: {e}")
+        Args:
+            df: DataFrame des données
+            current_price: Prix actuel
+            rsi: Valeur RSI actuelle
+            support: Niveau de support
+            resistance: Niveau de résistance
+            momentum_score: Score de momentum
+            
+        Returns:
+            TradingSignal: Signal de trading généré
+        """
+        try:
+            signal = TradingSignal()
+
+            # Conditions d'achat
+            buy_conditions = (
+                30 <= rsi <= 45 and
+                current_price > support * 1.01 and
+                current_price < resistance * 0.95 and
+                momentum_score >= self.config.score_threshold
+            )
+
+            # Construction du signal
+            if buy_conditions:
+                signal.action = 'BUY'
+                signal.strength = momentum_score
+                signal.entry_price = current_price
+                signal.stop_loss = support * 0.99
+                signal.target_1 = current_price * 1.02
+                signal.target_2 = current_price * 1.03
+                signal.reasons = self._generate_signal_reasons(
+                    rsi, momentum_score, current_price, support, resistance
+                )
+
+            return signal
+
+        except Exception as e:
+            logger.error(f"Erreur génération signal: {e}")
+            raise
