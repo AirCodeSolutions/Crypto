@@ -23,7 +23,7 @@ class LiveAnalysisPage:
         self.portfolio = portfolio_manager
         
     def render(self):
-        st.title("📈 Analyse en Direct")
+        st.title("📈 Analyse en Direct VERSION DEV")
         
         # Input pour ajouter une crypto
         col1, col2 = st.columns([3, 1])
