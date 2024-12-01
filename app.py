@@ -4,10 +4,14 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-# Imports des composants
-from interface.components.chart_components import TradingChart, ChartConfig
-from interface.components.alerts import AlertSystem
-from interface.components.widgets import StyledButton, StatusIndicator
+# Version simplifiée des imports
+from interface import (
+    TradingChart, 
+    ChartConfig,
+    AlertSystem,
+    StyledButton,
+    StatusIndicator
+)
 
 def create_sample_data():
     """Crée des données de test pour le graphique"""

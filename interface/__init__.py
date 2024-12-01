@@ -1,26 +1,12 @@
 # interface/__init__.py
-from .components import (
-    AlertSystem,
-    TradingChart,
-    ChartConfig,  # Ajout ici
-    FilterSection,
-    TradeCard,
-    TradeCardData,  # Ajout ici
-    StyledButton, 
-    StatusIndicator,
-    TimeSelector,
-    FormattedInput
-)
+from .components.chart_components import TradingChart, ChartConfig
+from .components.alerts import AlertSystem
+from .components.widgets import StyledButton, StatusIndicator
 
 __all__ = [
-    'AlertSystem',
     'TradingChart',
-    'ChartConfig',  # Ajout ici
-    'FilterSection',
-    'TradeCard',
-    'TradeCardData',  # Ajout ici
+    'ChartConfig',
+    'AlertSystem',
     'StyledButton',
-    'StatusIndicator',
-    'TimeSelector',
-    'FormattedInput'
+    'StatusIndicator'
 ]
