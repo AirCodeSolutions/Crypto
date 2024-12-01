@@ -1,10 +1,5 @@
 # app.py
 import streamlit as st
-from interface.components.alerts import AlertSystem
-from interface.components.chart_components import TradingChart, ChartConfig
-from interface.components.filter_section import FilterSection
-from interface.components.trade_card import TradeCard, TradeCardData
-from interface.components.widgets import StyledButton, StatusIndicator, TimeSelector, FormattedInput
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
