@@ -8,5 +8,6 @@ __all__ = [
     'ChartConfig',
     'AlertSystem',
     'StyledButton',
-    'StatusIndicator'
+    'StatusIndicator',
+    'TimeSelector' 
 ]
