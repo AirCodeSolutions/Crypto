@@ -3,7 +3,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-
+from services.exchange import ExchangeService
 from interface import (
     TradingChart, 
     ChartConfig,
@@ -22,6 +22,7 @@ def create_sample_data():
     df['low'] = np.minimum(df['open'], df['close']) - np.random.rand(len(df))
     df['volume'] = np.random.rand(len(df)) * 1000000
     return df
+
 def main():
     # Configuration de la page
     st.set_page_config(
@@ -30,6 +31,18 @@ def main():
         layout="wide",
         initial_sidebar_state="collapsed"
     )
+    exchange = ExchangeService()
+    
+    with chart_container:
+        try:
+            ohlcv = exchange.get_ohlcv(selected_crypto)
+            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            df.set_index('timestamp', inplace=True)
+            
+            chart.render(df, f"{selected_crypto}/USDT")
+        except Exception as e:
+            st.error(f"Erreur lors de la récupération des données: {str(e)}")
 
     # Styles CSS pour optimisation mobile
     st.markdown("""
