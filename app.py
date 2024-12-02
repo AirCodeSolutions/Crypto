@@ -134,25 +134,25 @@ class CryptoAnalyzerApp:
         st.title("Crypto Analyzer Pro")
         
         try:
-        # Récupération de tous les symboles disponibles
-        available_symbols = self.exchange.get_available_symbols()
-        
-        # Ajout d'un champ de recherche pour filtrer les cryptos
-        search_term = st.text_input("🔍 Rechercher une crypto", "").upper()
-        
-        # Filtrer les symboles selon la recherche
-        filtered_symbols = [
-            symbol for symbol in available_symbols 
-            if search_term in symbol
-        ] if search_term else available_symbols[:30]  # Limite aux 30 premiers si pas de recherche
-        
-        # Sélection de la crypto avec prix en temps réel
-        selected_symbol = st.selectbox(
-            "Sélectionner une crypto",
-            filtered_symbols,
-            format_func=lambda x: f"{x} - {self.exchange.get_ticker(x)['last']:,.2f} USDT",
-            key="symbol_selector"
-        )
+            # Récupération de tous les symboles disponibles
+            available_symbols = self.exchange.get_available_symbols()
+            
+            # Ajout d'un champ de recherche pour filtrer les cryptos
+            search_term = st.text_input("🔍 Rechercher une crypto", "").upper()
+            
+            # Filtrer les symboles selon la recherche
+            filtered_symbols = [
+                symbol for symbol in available_symbols 
+                if search_term in symbol
+            ] if search_term else available_symbols[:30]  # Limite aux 30 premiers si pas de recherche
+            
+            # Sélection de la crypto avec prix en temps réel
+            selected_symbol = st.selectbox(
+                "Sélectionner une crypto",
+                filtered_symbols,
+                format_func=lambda x: f"{x} - {self.exchange.get_ticker(x)['last']:,.2f} USDT",
+                key="symbol_selector"
+            )
         
         # Création du layout principal
         chart_col, analysis_col = st.columns([2, 1])
