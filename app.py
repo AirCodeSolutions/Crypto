@@ -1,8 +1,7 @@
 # app.py
 import streamlit as st
 import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
+from datetime import datetime
 from services.exchange import ExchangeService
 from interface import (
     TradingChart, 
@@ -12,39 +11,15 @@ from interface import (
     StatusIndicator
 )
 
-def create_sample_data():
-    """Crée des données de test pour le graphique"""
-    dates = pd.date_range(start='2024-01-01', end='2024-02-01', freq='1H')
-    df = pd.DataFrame(index=dates)
-    df['close'] = 100 + np.random.randn(len(df)).cumsum()
-    df['open'] = df['close'] + np.random.randn(len(df))
-    df['high'] = np.maximum(df['open'], df['close']) + np.random.rand(len(df))
-    df['low'] = np.minimum(df['open'], df['close']) - np.random.rand(len(df))
-    df['volume'] = np.random.rand(len(df)) * 1000000
-    return df
-
-def main():
-    exchange = ExchangeService()
-    
-    with chart_container:
-        try:
-            ohlcv = exchange.get_ohlcv(selected_crypto)
-            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
-            df.set_index('timestamp', inplace=True)
-            
-            chart.render(df, f"{selected_crypto}/USDT")
-        except Exception as e:
-            st.error(f"Erreur lors de la récupération des données: {str(e)}")
-    # Configuration de la page
+def setup_page_config():
+    """Configure la page et les styles"""
     st.set_page_config(
         page_title="Crypto Analyzer",
         page_icon="📊",
         layout="wide",
         initial_sidebar_state="collapsed"
     )
-    
-    # Styles CSS pour optimisation mobile
+
     st.markdown("""
         <style>
         .main h1 {
@@ -56,14 +31,6 @@ def main():
             color: #555;
             margin-bottom: 0.3rem !important;
         }
-        @media (max-width: 640px) {
-            .element-container {
-                padding: 0.5rem 0 !important;
-            }
-            .plotly-graph-div {
-                min-height: 300px !important;
-            }
-        }
         .stButton button {
             width: 100%;
             padding: 0.5rem;
@@ -72,9 +39,16 @@ def main():
         </style>
     """, unsafe_allow_html=True)
 
+def main():
+    # Configuration initiale
+    setup_page_config()
     st.markdown("# 📱 Crypto Analyzer")
 
-    # Définition des cryptos disponibles
+    # Initialisation des services
+    exchange = ExchangeService()
+    alert_system = AlertSystem()
+
+    # Sélection de la crypto
     crypto_options = {
         "BTC": "Bitcoin",
         "ETH": "Ethereum",
@@ -83,53 +57,46 @@ def main():
         "XRP": "Ripple"
     }
     
-    # Sélecteur de crypto
     selected_crypto = st.selectbox(
         "Sélectionner une crypto",
         options=list(crypto_options.keys()),
         format_func=lambda x: f"{x} - {crypto_options[x]}"
     )
 
-    # Création des colonnes principales
-    if st.session_state.get('mobile_view', True):
-        # Vue mobile : affichage en colonnes empilées
-        chart_container = st.container()
-        alerts_container = st.container()
+    # Création du layout
+    is_mobile = st.session_state.get('mobile_view', True)
+    if is_mobile:
+        chart_col = st.container()
+        alerts_col = st.container()
     else:
-        # Vue desktop : affichage en colonnes côte à côte
-        chart_container, alerts_container = st.columns([2, 1])
+        chart_col, alerts_col = st.columns([2, 1])
 
-    # Fonction pour générer les données selon la crypto
-    def get_crypto_data(symbol: str) -> pd.DataFrame:
-        df = create_sample_data()
-        
-        multipliers = {
-            "BTC": 40000,
-            "ETH": 2000,
-            "SOL": 100,
-            "BNB": 300,
-            "XRP": 1
-        }
-        
-        multiplier = multipliers.get(symbol, 1)
-        for col in ['open', 'high', 'low', 'close']:
-            df[col] = df[col] * multiplier
-            
-        return df
-
-    # Section graphique
-    with chart_container:
+    # Affichage du graphique
+    with chart_col:
         st.markdown(f"### {crypto_options[selected_crypto]} ({selected_crypto}/USDT)")
-        df = get_crypto_data(selected_crypto)
-        chart_height = 300 if st.session_state.get('mobile_view', True) else 400
-        config = ChartConfig(height=chart_height)
-        chart = TradingChart(config)
-        chart.render(df, f"{selected_crypto}/USDT")
+        try:
+            # Récupération des données réelles
+            ohlcv = exchange.get_ohlcv(selected_crypto)
+            if ohlcv:
+                df = pd.DataFrame(
+                    ohlcv,
+                    columns=['timestamp', 'open', 'high', 'low', 'close', 'volume']
+                )
+                df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+                df.set_index('timestamp', inplace=True)
 
-    # Section alertes
-    with alerts_container:
-        alert_system = AlertSystem()
-        
+                # Affichage du graphique
+                chart_height = 300 if is_mobile else 400
+                config = ChartConfig(height=chart_height)
+                chart = TradingChart(config)
+                chart.render(df, f"{selected_crypto}/USDT")
+            else:
+                st.warning("Aucune donnée disponible pour cette crypto")
+        except Exception as e:
+            st.error(f"Erreur lors de la récupération des données: {str(e)}")
+
+    # Section alertes et actions
+    with alerts_col:
         col1, col2 = st.columns(2)
         with col1:
             if StyledButton.render("Analyser", "analyze_btn", "primary"):
@@ -142,14 +109,25 @@ def main():
         
         with col2:
             if StyledButton.render("Alertes", "alert_btn", "warning"):
-                alert_system.add_notification(
-                    f"Prix cible {selected_crypto} atteint",
-                    "warning",
-                    {"Prix": f"{selected_crypto} 50K"}
-                )
+                try:
+                    ticker = exchange.get_ticker(selected_crypto)
+                    alert_system.add_notification(
+                        f"Prix actuel {selected_crypto}",
+                        "info",
+                        {
+                            "Prix": f"${ticker['last']:.2f}",
+                            "Volume 24h": f"${ticker['quoteVolume']/1e6:.1f}M"
+                        }
+                    )
+                except Exception as e:
+                    alert_system.add_notification(
+                        "Erreur de récupération des prix",
+                        "error",
+                        {"Erreur": str(e)}
+                    )
 
         st.markdown("### 🔔 Notifications")
         alert_system.render()
- 
+
 if __name__ == "__main__":
     main()
