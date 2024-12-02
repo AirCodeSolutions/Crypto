@@ -24,13 +24,6 @@ def create_sample_data():
     return df
 
 def main():
-    # Configuration de la page
-    st.set_page_config(
-        page_title="Crypto Analyzer",
-        page_icon="📊",
-        layout="wide",
-        initial_sidebar_state="collapsed"
-    )
     exchange = ExchangeService()
     
     with chart_container:
@@ -43,7 +36,14 @@ def main():
             chart.render(df, f"{selected_crypto}/USDT")
         except Exception as e:
             st.error(f"Erreur lors de la récupération des données: {str(e)}")
-
+    # Configuration de la page
+    st.set_page_config(
+        page_title="Crypto Analyzer",
+        page_icon="📊",
+        layout="wide",
+        initial_sidebar_state="collapsed"
+    )
+    
     # Styles CSS pour optimisation mobile
     st.markdown("""
         <style>
@@ -150,6 +150,6 @@ def main():
 
         st.markdown("### 🔔 Notifications")
         alert_system.render()
-
+ 
 if __name__ == "__main__":
     main()
