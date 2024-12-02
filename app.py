@@ -1,5 +1,7 @@
 # app.py
 import streamlit as st
+# Import direct pour tester
+from interface.components.widgets import TimeSelector
 import pandas as pd
 from datetime import datetime
 from services.exchange import ExchangeService
