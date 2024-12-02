@@ -106,56 +106,33 @@ class StatusIndicator:
         )
 
 class TimeSelector:
-    """
-    Sélecteur de période personnalisé pour l'analyse technique
-    """
+    """Composant pour sélectionner une période de temps"""
     
-    PERIODS = {
-        "1h": timedelta(hours=1),
-        "4h": timedelta(hours=4),
-        "1d": timedelta(days=1),
-        "1w": timedelta(weeks=1),
-        "1m": timedelta(days=30)
-    }
+    def __init__(self):
+        self.periods = {
+            "1h": "1 heure",
+            "4h": "4 heures",
+            "1d": "1 jour",
+            "1w": "1 semaine",
+            "1m": "1 mois"
+        }
 
     @staticmethod
-    def render(
-        key: str,
-        default: str = "1d",
-        custom: bool = True
-    ) -> timedelta:
-        """
-        Affiche un sélecteur de période
-        
-        Args:
-            key: Identifiant unique
-            default: Période par défaut
-            custom: Autoriser la sélection personnalisée
-            
-        Returns:
-            timedelta: Période sélectionnée
-        """
-        col1, col2 = st.columns([3, 1])
-        
-        with col1:
-            period = st.selectbox(
-                "Période",
-                list(TimeSelector.PERIODS.keys()),
-                index=list(TimeSelector.PERIODS.keys()).index(default),
-                key=f"{key}_period"
-            )
-        
-        if custom:
-            with col2:
-                if st.checkbox("Personnalisé", key=f"{key}_custom"):
-                    return st.number_input(
-                        "Heures",
-                        min_value=1,
-                        value=24,
-                        key=f"{key}_hours"
-                    )
-        
-        return TimeSelector.PERIODS[period]
+    def render(key: str, default: str = "1h") -> str:
+        """Affiche un sélecteur de période"""
+        return st.selectbox(
+            "Période",
+            options=["1h", "4h", "1d", "1w", "1m"],
+            index=0,
+            key=f"{key}_period",
+            format_func=lambda x: {
+                "1h": "1 heure",
+                "4h": "4 heures",
+                "1d": "1 jour",
+                "1w": "1 semaine",
+                "1m": "1 mois"
+            }[x]
+        )
 
 class FormattedInput:
     """

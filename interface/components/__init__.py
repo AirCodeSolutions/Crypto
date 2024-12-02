@@ -1,7 +1,7 @@
 # interface/components/__init__.py
 from .chart_components import TradingChart, ChartConfig
 from .alerts import AlertSystem
-from .widgets import StyledButton, StatusIndicator
+from .widgets import TimeSelector, StyledButton, StatusIndicator
 
 __all__ = [
     'TradingChart',
@@ -9,5 +9,5 @@ __all__ = [
     'AlertSystem',
     'StyledButton',
     'StatusIndicator',
-    'TimeSelector' 
+    'TimeSelector'
 ]
