@@ -143,6 +143,28 @@ class TradingSignalAnalyzer:
     Système d'analyse avancé qui combine tous nos indicateurs techniques
     pour générer des signaux de trading plus précis.
     """
+    def _evaluate_patterns(self, patterns: List[str]) -> float:
+        """
+        Évalue et attribue un score aux patterns détectés
+        """
+        try:
+            if not patterns:  # Si aucun pattern n'est détecté
+                return 0.5    # Score neutre
+                
+            pattern_scores = {
+                "Doji": 0.5,         # Pattern neutre/indécision
+                "Hammer": 0.8,       # Pattern haussier fort
+                "Shooting Star": 0.2  # Pattern baissier fort
+            }
+            
+            # Calculer le score moyen des patterns détectés
+            scores = [pattern_scores.get(pattern, 0.5) for pattern in patterns]
+            return sum(scores) / len(scores)
+            
+        except Exception as e:
+            logger.error(f"Erreur évaluation patterns: {e}")
+            return 0.5  # Score neutre en cas d'erreur
+    
     def _calculate_volatility_score(self, bb_data: Dict) -> float:
         """
         Calcule le score de volatilité basé sur les Bandes de Bollinger
