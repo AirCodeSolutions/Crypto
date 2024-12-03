@@ -314,6 +314,24 @@ class TradingSignalAnalyzer:
         elif final_score <= 0.4 and trend_score < 0.5:
             return "SELL"
         return "NEUTRAL"
+    def _get_trend_analysis(self, trend_score: float) -> str:
+        """
+        Convertit le score de tendance en analyse textuelle.
+        """
+        try:
+            if trend_score >= 0.8:
+                return "Tendance fortement haussière"
+            elif trend_score >= 0.6:
+                return "Tendance haussière"
+            elif trend_score >= 0.4:
+                return "Tendance neutre"
+            elif trend_score >= 0.2:
+                return "Tendance baissière"
+            else:
+                return "Tendance fortement baissière"
+        except Exception as e:
+            logger.error(f"Erreur analyse tendance: {e}")
+            return "Tendance indéterminée"
 
 class MarketAnalyzer:
     """

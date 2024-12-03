@@ -129,54 +129,63 @@ class CryptoAnalyzerApp:
             st.error("Impossible d'afficher le graphique")
 
     def _display_analysis(self, symbol: str):
-        """Affiche l'analyse avec une meilleure gestion des erreurs"""
-        try:
-            analysis = self.analyzer.analyze_symbol(symbol)
-            if analysis:
-                # Métriques principales avec colonnes redimensionnées
-                cols = st.columns([2, 2, 2, 3])  # Distribution plus équilibrée
-                
-                with cols[0]:
-                    st.metric(
-                        "Prix",
-                        f"${analysis['price']:,.2f}",
-                        f"{analysis['change_24h']:+.2f}%"
-                    )
-                with cols[1]:
-                    st.metric(
-                        "RSI",
-                        f"{analysis['rsi']:.1f}",
-                        help="RSI > 70: Surachat, RSI < 30: Survente"
-                    )
-                with cols[2]:
-                    st.metric(
-                        "Score",
-                        f"{analysis['score']:.2f}",
-                        help="Score > 0.7: Signal fort"
-                    )
-                with cols[3]:
-                    signal_style = {
-                        "STRONG_BUY": "color: #00ff00; font-weight: bold;",
-                        "BUY": "color: #008000;",
-                        "NEUTRAL": "color: #808080;",
-                        "SELL": "color: #ff0000;",
-                        "STRONG_SELL": "color: #8b0000; font-weight: bold;"
-                    }
-                    st.markdown(
-                        f"<div style='{signal_style[analysis['signal']]}'>"
-                        f"Signal: {analysis['signal']}</div>",
-                        unsafe_allow_html=True
-                    )
-                
-                # Affichage des indicateurs techniques supplémentaires
-                if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
-                    with st.expander("📊 Détails de l'analyse"):
-                        for key, value in analysis['analysis'].items():
-                            st.write(f"**{key.title()}:** {value}")
-                
-        except Exception as e:
-            logger.error(f"Erreur affichage analyse: {e}")
-            st.error("Erreur lors de l'affichage de l'analyse. Réessayez plus tard.")
+        """Affiche l'analyse avec indicateur de chargement et validation de saisie"""
+        # Vérifier si une crypto est sélectionnée
+        if not symbol:
+            st.info("📝 Veuillez sélectionner une crypto pour voir l'analyse")
+            return
+            
+        # Afficher le sablier pendant l'analyse
+        with st.spinner('⏳ Analyse en cours...'):
+            try:
+                analysis = self.analyzer.analyze_symbol(symbol)
+                if analysis:
+                    # Métriques principales avec colonnes redimensionnées
+                    cols = st.columns([2, 2, 2, 3])  # Distribution plus équilibrée
+                    
+                    with cols[0]:
+                        st.metric(
+                            "Prix",
+                            f"${analysis['price']:,.2f}",
+                            f"{analysis['change_24h']:+.2f}%"
+                        )
+                    with cols[1]:
+                        st.metric(
+                            "RSI",
+                            f"{analysis['rsi']:.1f}",
+                            help="RSI > 70: Surachat, RSI < 30: Survente"
+                        )
+                    with cols[2]:
+                        st.metric(
+                            "Score",
+                            f"{analysis['score']:.2f}",
+                            help="Score > 0.7: Signal fort"
+                        )
+                    with cols[3]:
+                        signal_style = {
+                            "STRONG_BUY": "color: #00ff00; font-weight: bold;",
+                            "BUY": "color: #008000;",
+                            "NEUTRAL": "color: #808080;",
+                            "SELL": "color: #ff0000;",
+                            "STRONG_SELL": "color: #8b0000; font-weight: bold;"
+                        }
+                        st.markdown(
+                            f"<div style='{signal_style[analysis['signal']]}'>"
+                            f"Signal: {analysis['signal']}</div>",
+                            unsafe_allow_html=True
+                        )
+                    
+                    # Affichage des indicateurs techniques supplémentaires
+                    if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
+                        with st.expander("📊 Détails de l'analyse"):
+                            for key, value in analysis['analysis'].items():
+                                st.write(f"**{key.title()}:** {value}")
+                else:
+                    st.warning("⚠️ Aucune donnée disponible pour cette crypto")
+                    
+            except Exception as e:
+                logger.error(f"Erreur affichage analyse: {e}")
+                st.error("❌ Erreur lors de l'affichage de l'analyse. Réessayez plus tard.")
 
 if __name__ == "__main__":
     app = CryptoAnalyzerApp()
