@@ -202,3 +202,76 @@ class TradingSignalAnalyzer:
         elif final_score <= 0.4 and trend_score < 0.5:
             return "SELL"
         return "NEUTRAL"
+
+class MarketAnalyzer:
+    """
+    Classe principale qui coordonne l'analyse de marché.
+    Elle utilise TechnicalIndicators et TradingSignalAnalyzer pour fournir
+    une analyse complète des opportunités de trading.
+    """
+    
+    def __init__(self, exchange_service):
+        """
+        Initialise l'analyseur de marché avec les services nécessaires.
+        
+        Args:
+            exchange_service: Service permettant d'accéder aux données de l'exchange
+        """
+        self.exchange = exchange_service
+        self.technical_indicators = TechnicalIndicators()
+        self.signal_analyzer = TradingSignalAnalyzer(self.technical_indicators)
+
+    def analyze_symbol(self, symbol: str) -> Dict[str, Any]:
+        """
+        Réalise une analyse complète d'une crypto-monnaie.
+        
+        Args:
+            symbol: Symbole de la crypto à analyser
+            
+        Returns:
+            Dict contenant tous les résultats d'analyse
+        """
+        try:
+            # Récupération des données récentes
+            ticker = self.exchange.get_ticker(symbol)
+            df = self.exchange.get_ohlcv(symbol)
+            
+            if df is None or df.empty:
+                raise ValueError(f"Données non disponibles pour {symbol}")
+
+            # Analyse technique complète
+            market_analysis = self.signal_analyzer.analyze_market_conditions(df)
+            
+            # Construction du résultat final
+            return {
+                'price': ticker['last'],
+                'change_24h': ticker['percentage'],
+                'volume_24h': ticker['quoteVolume'],
+                'rsi': self.technical_indicators.calculate_rsi_divergence(df)['rsi'].iloc[-1],
+                'signal': market_analysis['signal'],
+                'score': market_analysis['score'],
+                'analysis': market_analysis['analysis'],
+                'macd': self.technical_indicators.calculate_macd(df)['histogram'].iloc[-1],
+                'timestamp': pd.Timestamp.now()
+            }
+
+        except Exception as e:
+            logger.error(f"Erreur lors de l'analyse de {symbol}: {e}")
+            raise
+
+    def get_market_sentiment(self, df: pd.DataFrame) -> float:
+        """
+        Calcule le sentiment général du marché basé sur plusieurs indicateurs.
+        
+        Args:
+            df: DataFrame contenant les données OHLCV
+            
+        Returns:
+            float: Score de sentiment entre 0 et 1
+        """
+        try:
+            market_conditions = self.signal_analyzer.analyze_market_conditions(df)
+            return market_conditions['score']
+        except Exception as e:
+            logger.error(f"Erreur calcul sentiment: {e}")
+            return 0.5  # Valeur neutre par défaut
