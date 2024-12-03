@@ -332,7 +332,30 @@ class TradingSignalAnalyzer:
         except Exception as e:
             logger.error(f"Erreur analyse tendance: {e}")
             return "Tendance indéterminée"
-
+    def _get_momentum_analysis(self, momentum_score: float) -> str:
+        """
+        Convertit le score de momentum en analyse textuelle.
+        
+        Args:
+            momentum_score: Score de momentum entre 0 et 1
+            
+        Returns:
+            str: Description textuelle du momentum
+        """
+        try:
+            if momentum_score >= 0.8:
+                return "Momentum très fort, tendance fortement haussière"
+            elif momentum_score >= 0.6:
+                return "Momentum positif, tendance haussière"
+            elif momentum_score >= 0.4:
+                return "Momentum neutre, pas de tendance claire"
+            elif momentum_score >= 0.2:
+                return "Momentum négatif, tendance baissière"
+            else:
+                return "Momentum très faible, tendance fortement baissière"
+        except Exception as e:
+            logger.error(f"Erreur analyse momentum: {e}")
+            return "Momentum indéterminé"
 class MarketAnalyzer:
     """
     Classe principale qui coordonne l'analyse de marché.
