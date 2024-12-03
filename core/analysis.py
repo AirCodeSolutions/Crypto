@@ -101,6 +101,32 @@ class TechnicalIndicators:
         except Exception as e:
             logger.error(f"Erreur détection patterns: {e}")
             return []
+        
+ 
+    def calculate_rsi(self, df: pd.DataFrame, period: int = 14) -> pd.Series:
+        """
+        Calcule l'indicateur RSI (Relative Strength Index)
+        
+        Args:
+            df: DataFrame avec les données OHLCV
+            period: Période pour le calcul du RSI (14 par défaut)
+            
+        Returns:
+            pd.Series: Valeurs du RSI
+        """
+        try:
+            # Utilisation de ta.momentum pour un calcul fiable du RSI
+            rsi = ta.momentum.RSIIndicator(
+                close=df['close'],
+                window=period
+            ).rsi()
+            
+            return rsi
+            
+        except Exception as e:
+            logger.error(f"Erreur calcul RSI: {e}")
+            # Retourner une série avec la dernière valeur à 50 (neutre) en cas d'erreur
+            return pd.Series([50.0], index=[df.index[-1]])
 
 
 class TradingSignalAnalyzer:
@@ -223,41 +249,58 @@ class MarketAnalyzer:
 
     def analyze_symbol(self, symbol: str) -> Dict[str, Any]:
         """
-        Réalise une analyse complète d'une crypto-monnaie.
-        
-        Args:
-            symbol: Symbole de la crypto à analyser
-            
-        Returns:
-            Dict contenant tous les résultats d'analyse
+        Analyse complète d'une crypto avec gestion d'erreurs améliorée
         """
         try:
-            # Récupération des données récentes
+            # Récupération des données
             ticker = self.exchange.get_ticker(symbol)
             df = self.exchange.get_ohlcv(symbol)
             
             if df is None or df.empty:
                 raise ValueError(f"Données non disponibles pour {symbol}")
 
-            # Analyse technique complète
+            # Calcul des indicateurs de base
+            rsi = self.technical_indicators.calculate_rsi(df).iloc[-1]
+            bb_data = self.technical_indicators.calculate_bollinger_bands(df)
+            macd_data = self.technical_indicators.calculate_macd(df)
+            
+            # Analyse des conditions de marché
             market_analysis = self.signal_analyzer.analyze_market_conditions(df)
             
-            # Construction du résultat final
             return {
                 'price': ticker['last'],
                 'change_24h': ticker['percentage'],
                 'volume_24h': ticker['quoteVolume'],
-                'rsi': self.technical_indicators.calculate_rsi_divergence(df)['rsi'].iloc[-1],
+                'rsi': rsi,
                 'signal': market_analysis['signal'],
                 'score': market_analysis['score'],
                 'analysis': market_analysis['analysis'],
-                'macd': self.technical_indicators.calculate_macd(df)['histogram'].iloc[-1],
+                'bb_data': {
+                    'upper': bb_data['bb_upper'].iloc[-1],
+                    'middle': bb_data['bb_middle'].iloc[-1],
+                    'lower': bb_data['bb_lower'].iloc[-1]
+                },
+                'macd': {
+                    'value': macd_data['macd_line'].iloc[-1],
+                    'signal': macd_data['signal_line'].iloc[-1],
+                    'hist': macd_data['histogram'].iloc[-1]
+                },
                 'timestamp': pd.Timestamp.now()
             }
 
         except Exception as e:
             logger.error(f"Erreur lors de l'analyse de {symbol}: {e}")
-            raise
+            # Retourner un dictionnaire avec des valeurs par défaut
+            return {
+                'price': ticker['last'] if 'ticker' in locals() else 0,
+                'change_24h': 0,
+                'volume_24h': 0,
+                'rsi': 50,  # Valeur neutre
+                'signal': 'NEUTRAL',
+                'score': 0.5,
+                'analysis': {'error': str(e)},
+                'timestamp': pd.Timestamp.now()
+            }
 
     def get_market_sentiment(self, df: pd.DataFrame) -> float:
         """
