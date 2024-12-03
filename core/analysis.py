@@ -143,6 +143,34 @@ class TradingSignalAnalyzer:
     Système d'analyse avancé qui combine tous nos indicateurs techniques
     pour générer des signaux de trading plus précis.
     """
+    def _calculate_volatility_score(self, bb_data: Dict) -> float:
+        """
+        Calcule le score de volatilité basé sur les Bandes de Bollinger
+        """
+        try:
+            # Si nous n'avons pas de données BB valides, retourner un score neutre
+            if not bb_data or 'bb_width' not in bb_data:
+                return 0.5
+
+            # Récupérer la largeur des bandes et calculer le score
+            bb_width = bb_data['bb_width'].iloc[-1]
+            bb_width_mean = bb_data['bb_width'].mean()
+            
+            # Normalisation du score
+            if bb_width > bb_width_mean * 2:
+                return 0.2  # Très volatile, risqué
+            elif bb_width > bb_width_mean * 1.5:
+                return 0.3  # Volatilité élevée
+            elif bb_width < bb_width_mean * 0.5:
+                return 0.8  # Faible volatilité, plus sûr
+            elif bb_width < bb_width_mean * 0.75:
+                return 0.7  # Volatilité modérée
+            else:
+                return 0.5  # Volatilité normale
+                
+        except Exception as e:
+            logger.error(f"Erreur calcul score volatilité: {e}")
+            return 0.5
     
     def _calculate_momentum_score(self, df: pd.DataFrame, macd_data: Dict, rsi_div: Dict) -> float:
         """Calcule le score de momentum"""
