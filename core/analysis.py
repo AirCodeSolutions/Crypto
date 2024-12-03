@@ -80,24 +80,33 @@ class TechnicalIndicators:
     def detect_patterns(df: pd.DataFrame) -> List[str]:
         """
         Détecte les patterns de chandeliers japonais.
-        Ces patterns nous donnent des indications sur les retournements potentiels.
         """
         patterns = []
         try:
-            # Doji (indécision)
-            if ta.candlestick.doji(df['open'], df['high'], df['low'], df['close']).iloc[-1]:
-                patterns.append("Doji")
+            # Calcul manuel des patterns de base
+            df['body'] = df['close'] - df['open']
+            df['upper_shadow'] = df['high'] - df[['open', 'close']].max(axis=1)
+            df['lower_shadow'] = df[['open', 'close']].min(axis=1) - df['low']
             
-            # Marteau (potentiel retournement haussier)
-            if ta.candlestick.hammer(df['open'], df['high'], df['low'], df['close']).iloc[-1]:
+            # Dernière bougie
+            last = df.iloc[-1]
+            
+            # Détection Doji
+            if abs(last['body']) <= 0.1 * (last['high'] - last['low']):
+                patterns.append("Doji")
+                
+            # Détection Marteau
+            if (last['lower_shadow'] > 2 * abs(last['body']) and 
+                last['upper_shadow'] < abs(last['body'])):
                 patterns.append("Hammer")
                 
-            # Étoile filante (potentiel retournement baissier)
-            if ta.candlestick.shooting_star(df['open'], df['high'], df['low'], df['close']).iloc[-1]:
+            # Détection Étoile filante
+            if (last['upper_shadow'] > 2 * abs(last['body']) and 
+                last['lower_shadow'] < abs(last['body'])):
                 patterns.append("Shooting Star")
                 
             return patterns
-            
+                
         except Exception as e:
             logger.error(f"Erreur détection patterns: {e}")
             return []
@@ -134,6 +143,33 @@ class TradingSignalAnalyzer:
     Système d'analyse avancé qui combine tous nos indicateurs techniques
     pour générer des signaux de trading plus précis.
     """
+    
+    def _calculate_momentum_score(self, df: pd.DataFrame, macd_data: Dict, rsi_div: Dict) -> float:
+        """Calcule le score de momentum"""
+        try:
+            # Score basé sur le MACD
+            macd_score = 0.5
+            if macd_data and 'histogram' in macd_data:
+                hist = macd_data['histogram'].iloc[-1]
+                if hist > 0:
+                    macd_score = 0.7 if hist > macd_data['histogram'].mean() else 0.6
+                else:
+                    macd_score = 0.3 if hist < macd_data['histogram'].mean() else 0.4
+            
+            # Score basé sur la divergence RSI
+            rsi_score = 0.5
+            if rsi_div:
+                if rsi_div.get('bullish_divergence'):
+                    rsi_score = 0.8
+                elif rsi_div.get('bearish_divergence'):
+                    rsi_score = 0.2
+                    
+            # Moyenne pondérée des scores
+            return (macd_score * 0.6) + (rsi_score * 0.4)
+            
+        except Exception as e:
+            logger.error(f"Erreur calcul score momentum: {e}")
+            return 0.5
     
     def __init__(self, technical_indicators: TechnicalIndicators):
         self.indicators = technical_indicators
@@ -248,54 +284,40 @@ class MarketAnalyzer:
         self.signal_analyzer = TradingSignalAnalyzer(self.technical_indicators)
 
     def analyze_symbol(self, symbol: str) -> Dict[str, Any]:
-        """
-        Analyse complète d'une crypto avec gestion d'erreurs améliorée
-        """
+        """Analyse complète d'une crypto avec meilleure gestion des erreurs"""
         try:
             # Récupération des données
             ticker = self.exchange.get_ticker(symbol)
             df = self.exchange.get_ohlcv(symbol)
             
-            if df is None or df.empty:
-                raise ValueError(f"Données non disponibles pour {symbol}")
+            # Vérification que nous avons bien des données
+            if df is None or df.empty or ticker is None:
+                raise ValueError(f"Données insuffisantes pour {symbol}")
 
-            # Calcul des indicateurs de base
-            rsi = self.technical_indicators.calculate_rsi(df).iloc[-1]
-            bb_data = self.technical_indicators.calculate_bollinger_bands(df)
-            macd_data = self.technical_indicators.calculate_macd(df)
-            
-            # Analyse des conditions de marché
+            # Analyse et retour des résultats seulement si nous avons des données valides
             market_analysis = self.signal_analyzer.analyze_market_conditions(df)
-            
+            if market_analysis is None:
+                raise ValueError(f"Analyse impossible pour {symbol}")
+
             return {
-                'price': ticker['last'],
-                'change_24h': ticker['percentage'],
-                'volume_24h': ticker['quoteVolume'],
-                'rsi': rsi,
-                'signal': market_analysis['signal'],
-                'score': market_analysis['score'],
-                'analysis': market_analysis['analysis'],
-                'bb_data': {
-                    'upper': bb_data['bb_upper'].iloc[-1],
-                    'middle': bb_data['bb_middle'].iloc[-1],
-                    'lower': bb_data['bb_lower'].iloc[-1]
-                },
-                'macd': {
-                    'value': macd_data['macd_line'].iloc[-1],
-                    'signal': macd_data['signal_line'].iloc[-1],
-                    'hist': macd_data['histogram'].iloc[-1]
-                },
+                'price': ticker.get('last', 0),
+                'change_24h': ticker.get('percentage', 0),
+                'volume_24h': ticker.get('quoteVolume', 0),
+                'rsi': self.technical_indicators.calculate_rsi(df).iloc[-1],
+                'signal': market_analysis.get('signal', 'NEUTRAL'),
+                'score': market_analysis.get('score', 0.5),
+                'analysis': market_analysis.get('analysis', {}),
                 'timestamp': pd.Timestamp.now()
             }
 
         except Exception as e:
             logger.error(f"Erreur lors de l'analyse de {symbol}: {e}")
-            # Retourner un dictionnaire avec des valeurs par défaut
+            # Retour de valeurs par défaut en cas d'erreur
             return {
-                'price': ticker['last'] if 'ticker' in locals() else 0,
+                'price': 0,
                 'change_24h': 0,
                 'volume_24h': 0,
-                'rsi': 50,  # Valeur neutre
+                'rsi': 50,
                 'signal': 'NEUTRAL',
                 'score': 0.5,
                 'analysis': {'error': str(e)},
