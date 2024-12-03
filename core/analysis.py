@@ -356,6 +356,23 @@ class TradingSignalAnalyzer:
         except Exception as e:
             logger.error(f"Erreur analyse momentum: {e}")
             return "Momentum indéterminé"
+    def _get_volatility_analysis(self, volatility_score: float) -> str:
+        """Analyse simple de la volatilité"""
+        try:
+            if volatility_score >= 0.8:
+                return "Volatilité très faible"
+            elif volatility_score >= 0.6:
+                return "Volatilité modérée"
+            elif volatility_score >= 0.4:
+                return "Volatilité normale"
+            elif volatility_score >= 0.2:
+                return "Volatilité élevée"
+            else:
+                return "Volatilité très élevée"
+        except Exception as e:
+            logger.error(f"Erreur analyse volatilité: {e}")
+            return "Volatilité indéterminée"
+    
 class MarketAnalyzer:
     """
     Classe principale qui coordonne l'analyse de marché.

@@ -129,12 +129,7 @@ class CryptoAnalyzerApp:
             st.error("Impossible d'afficher le graphique")
 
     def _display_analysis(self, symbol: str):
-        """
-        Affiche l'analyse avec indicateur de chargement.
-        
-        Args:
-            symbol: Symbole de la crypto à analyser
-        """
+        """Affiche l'analyse"""
         if not symbol:
             st.info("📝 Veuillez sélectionner une crypto pour voir l'analyse")
             return
