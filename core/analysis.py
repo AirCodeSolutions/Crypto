@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 import ta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import logging
 
 logger = logging.getLogger(__name__)
@@ -101,3 +101,104 @@ class TechnicalIndicators:
         except Exception as e:
             logger.error(f"Erreur détection patterns: {e}")
             return []
+
+
+class TradingSignalAnalyzer:
+    """
+    Système d'analyse avancé qui combine tous nos indicateurs techniques
+    pour générer des signaux de trading plus précis.
+    """
+    
+    def __init__(self, technical_indicators: TechnicalIndicators):
+        self.indicators = technical_indicators
+        self.score_weights = {
+            'trend': 0.3,      # Poids de l'analyse de tendance
+            'momentum': 0.25,  # Poids des indicateurs de momentum
+            'volatility': 0.2, # Poids de la volatilité
+            'patterns': 0.25   # Poids des patterns techniques
+        }
+
+    def analyze_market_conditions(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """
+        Analyse complète des conditions de marché combinant tous les indicateurs.
+        Cette méthode nous donne une vue d'ensemble de l'état du marché.
+        """
+        try:
+            # Récupération de tous les indicateurs
+            bb_data = self.indicators.calculate_bollinger_bands(df)
+            macd_data = self.indicators.calculate_macd(df)
+            rsi_div = self.indicators.calculate_rsi_divergence(df)
+            patterns = self.indicators.detect_patterns(df)
+            
+            # Calcul du score de tendance
+            trend_score = self._calculate_trend_score(df, bb_data, macd_data)
+            
+            # Calcul du score de momentum
+            momentum_score = self._calculate_momentum_score(df, macd_data, rsi_div)
+            
+            # Calcul du score de volatilité
+            volatility_score = self._calculate_volatility_score(bb_data)
+            
+            # Score des patterns
+            pattern_score = self._evaluate_patterns(patterns)
+            
+            # Score final pondéré
+            final_score = (
+                trend_score * self.score_weights['trend'] +
+                momentum_score * self.score_weights['momentum'] +
+                volatility_score * self.score_weights['volatility'] +
+                pattern_score * self.score_weights['patterns']
+            )
+            
+            return {
+                'score': final_score,
+                'analysis': {
+                    'trend': self._get_trend_analysis(trend_score),
+                    'momentum': self._get_momentum_analysis(momentum_score),
+                    'volatility': self._get_volatility_analysis(volatility_score),
+                    'patterns': patterns
+                },
+                'signal': self._generate_signal(final_score, trend_score, momentum_score)
+            }
+            
+        except Exception as e:
+            logger.error(f"Erreur analyse marché: {e}")
+            return None
+
+    def _calculate_trend_score(self, df: pd.DataFrame, bb_data: Dict, macd_data: Dict) -> float:
+        """
+        Évalue la force de la tendance actuelle.
+        Un score élevé indique une tendance forte et claire.
+        """
+        try:
+            # Position du prix par rapport aux Bandes de Bollinger
+            price = df['close'].iloc[-1]
+            bb_position = (price - bb_data['bb_lower'].iloc[-1]) / (
+                bb_data['bb_upper'].iloc[-1] - bb_data['bb_lower'].iloc[-1]
+            )
+            
+            # Force du MACD
+            macd_strength = macd_data['histogram'].iloc[-1] / df['close'].mean()
+            
+            # Combinaison des scores
+            trend_score = (bb_position * 0.6 + abs(macd_strength) * 0.4)
+            return min(max(trend_score, 0), 1)  # Normalisation entre 0 et 1
+            
+        except Exception as e:
+            logger.error(f"Erreur calcul score tendance: {e}")
+            return 0.5
+
+    def _generate_signal(self, final_score: float, trend_score: float, momentum_score: float) -> str:
+        """
+        Génère un signal de trading basé sur l'analyse globale.
+        Les signaux sont plus nuancés et prennent en compte plusieurs facteurs.
+        """
+        if final_score >= 0.8 and trend_score > 0.7 and momentum_score > 0.7:
+            return "STRONG_BUY"
+        elif final_score >= 0.6 and trend_score > 0.5:
+            return "BUY"
+        elif final_score <= 0.2 and trend_score < 0.3:
+            return "STRONG_SELL"
+        elif final_score <= 0.4 and trend_score < 0.5:
+            return "SELL"
+        return "NEUTRAL"
