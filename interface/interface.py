@@ -13,7 +13,7 @@ from core.utils import (
     get_exchange  # Ajout de cet import
 )
 from technical_analysis import SignalGenerator, TechnicalAnalysis  # Ajout de TechnicalAnalysis
-#from core.portfolio_management import PortfolioManager  # Ajout de cet import
+from core.portfolio_management import PortfolioManager  # Ajout de cet import
 from core.ai_predictor import AIPredictor, AITester  # Ajout de ces imports
 
 
@@ -21,7 +21,7 @@ class LiveAnalysisPage:
     def __init__(self, exchange, ta_analyzer, portfolio_manager):
         self.exchange = exchange
         self.ta = ta_analyzer
-        self.portfolio = portfolio_manager
+        #self.portfolio = portfolio_manager
         
     def render(self):
         st.title(f"📈 Analyse en Direct - DEV")
