@@ -1,6 +1,7 @@
 # services/exchange.py
 import time
 from typing import Optional, Dict, Any, List
+from functools import lru_cache
 import ccxt
 import pandas as pd
 import logging
@@ -11,15 +12,33 @@ logger = logging.getLogger(__name__)
 class ExchangeService:
     def __init__(self):
         self.exchange = ccxt.kucoin({
-            'adjustForTimeDifference': True,
-            'timeout': 30000,
-            'enableRateLimit': True,  # Activer la limitation de taux
-            'rateLimit': 100  # Délai en millisecondes entre les requêtes
+            'enableRateLimit': True,
+            'rateLimit': 50  # Réduit à 50ms entre les requêtes
         })
-        self._cache = {}  # Cache pour les données
-        self._cache_duration = 10  # Durée du cache en secondes
+        self._last_request_time = 0
+        self._min_request_interval = 0.05  # 50ms
 
-    # ... reste du code inchangé ...
+    def _rate_limit(self):
+        """Gestion simple des limites de taux"""
+        current_time = time.time()
+        elapsed = current_time - self._last_request_time
+        if elapsed < self._min_request_interval:
+            time.sleep(self._min_request_interval - elapsed)
+        self._last_request_time = time.time()
+
+    @lru_cache(maxsize=100)
+    def get_ticker(self, symbol: str):
+        """Version optimisée avec cache"""
+        self._rate_limit()
+        return self.exchange.fetch_ticker(f"{symbol}/USDT")
+
+    @lru_cache(maxsize=50)
+    def get_ohlcv(self, symbol: str, timeframe: str = '1h', limit: int = 100):
+        """Version optimisée avec cache"""
+        self._rate_limit()
+        return self.exchange.fetch_ohlcv(f"{symbol}/USDT", timeframe, limit=limit)
+
+   
 
     def _get_cached_data(self, key: str) -> Optional[Dict]:
         """Récupère les données du cache si elles sont valides"""
