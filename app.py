@@ -43,6 +43,19 @@ class CryptoAnalyzerApp:
             layout="wide",
             initial_sidebar_state="collapsed"
         )
+        st.markdown("""
+        <style>
+        /* Styles existants */
+        .main h1 { font-size: 1.2rem !important; }
+        
+        /* Style pour la barre de recherche */
+        [data-testid="stTextInput"] input {
+            max-width: 200px !important;  /* Limite la largeur */
+            font-size: 14px !important;   /* Taille de police appropriée */
+            padding: 8px !important;      /* Padding réduit */
+        }
+        </style>
+    """, unsafe_allow_html=True)
         
         # Styles CSS pour l'interface
         st.markdown("""
@@ -78,7 +91,15 @@ class CryptoAnalyzerApp:
             if page == "Analyse en Direct":
 
                 # Section de recherche et sélection de crypto
-                search_term = st.text_input("🔍 Rechercher une crypto",max_chars=5,value="",key="crypto_search"                ).upper()
+                search_col1, search_col2 = st.columns([1, 3])  # Colonnes pour meilleure organisation
+                with search_col1:
+                    search_term = st.text_input(
+                        "🔍",  # Juste une icône comme label
+                        value="",
+                        max_chars=5,
+                        placeholder="BTC...",  # Exemple de ce qu'on attend
+                        key="crypto_search"
+                    ).upper()
                 available_symbols = self.exchange.get_available_symbols()
                 
                 # Filtrage des cryptos selon la recherche
@@ -141,20 +162,28 @@ class CryptoAnalyzerApp:
             st.error("Impossible d'afficher le graphique")
 
     def _display_analysis(self, symbol: str):
-        """Affiche l'analyse avec indicateur visuel clair"""
         if not symbol:
             st.info("📝 Sélectionnez une crypto pour voir l'analyse")
             return
-        # Indicateur de progression plus visible
-        analysis_status = st.empty()
-        analysis_status.warning("⏳ Analyse en cours...")  # Le warning est plus visible
+
+        # Conteneur pour l'état d'avancement
+        progress_text = "Opération en cours..."
+        progress_bar = st.progress(0)
         
         try:
+            # Mise à jour de la progression
+            progress_bar.progress(25)
+            progress_text = "Récupération des données..."
+            
             analysis = self.analyzer.analyze_symbol(symbol)
-            # On efface le message de statut
-            analysis_status.empty()  # Effacer le message de statut
-                
+            progress_bar.progress(75)
+            progress_text = "Analyse en cours..."
+            
             if analysis:
+                progress_bar.progress(100)
+                progress_bar.empty()  # On efface la barre une fois terminé
+                
+
                     
                 cols = st.columns([2, 2, 2, 3])
                             
