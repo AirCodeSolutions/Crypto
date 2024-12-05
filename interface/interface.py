@@ -21,7 +21,7 @@ class LiveAnalysisPage:
     def __init__(self, exchange, ta_analyzer, portfolio_manager):
         self.exchange = exchange
         self.ta = ta_analyzer
-        #self.portfolio = portfolio_manager
+        self.portfolio = portfolio_manager
         
     def render(self):
         st.title(f"📈 Analyse en Direct - DEV")
