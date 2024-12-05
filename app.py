@@ -1,6 +1,7 @@
 # app.py
 # app.py
 import streamlit as st
+import time
 import pandas as pd
 from datetime import datetime
 import logging
@@ -166,22 +167,20 @@ class CryptoAnalyzerApp:
             st.info("📝 Sélectionnez une crypto pour voir l'analyse")
             return
 
-        # Conteneur pour l'état d'avancement
-        progress_text = "Opération en cours..."
-        progress_bar = st.progress(0)
+        progress_bar = st.progress(0, text="Initialisation...")
         
         try:
-            # Mise à jour de la progression
-            progress_bar.progress(25)
-            progress_text = "Récupération des données..."
-            
+            # Étape 1: Récupération des données
+            progress_bar.progress(30, text="Récupération des données...")
             analysis = self.analyzer.analyze_symbol(symbol)
-            progress_bar.progress(75)
-            progress_text = "Analyse en cours..."
+            
+            # Étape 2: Traitement
+            progress_bar.progress(60, text="Analyse en cours...")
             
             if analysis:
-                progress_bar.progress(100)
-                progress_bar.empty()  # On efface la barre une fois terminé
+                # Étape 3: Affichage
+            
+                progress_bar.progress(90, text="Finalisation...")
                 
 
                     
@@ -218,7 +217,14 @@ class CryptoAnalyzerApp:
                         f"Signal: {analysis['signal']}</div>",
                         unsafe_allow_html=True
                     )
-                            
+                # Une fois terminé
+                progress_bar.progress(100, text="Terminé!")
+                time.sleep(0.5)  # Petit délai pour voir la completion
+                progress_bar.empty()
+                    
+            else:
+                st.warning("Aucune donnée disponible pour cette crypto")
+
                 # Détails de l'analyse
                 if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
                     with st.expander("📊 Détails de l'analyse"):
