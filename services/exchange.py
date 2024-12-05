@@ -15,6 +15,8 @@ class ExchangeService:
             'enableRateLimit': True,
             'rateLimit': 50  # Réduit à 50ms entre les requêtes
         })
+        self._cache = {}
+        self._cache_duration = 10
         self._last_request_time = 0
         self._min_request_interval = 0.05  # 50ms
 
