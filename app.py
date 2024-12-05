@@ -129,25 +129,27 @@ class CryptoAnalyzerApp:
             st.error("Impossible d'afficher le graphique")
 
     def _display_analysis(self, symbol: str):
-        """Affiche l'analyse"""
+        """Affiche l'analyse avec une meilleure gestion du chargement"""
         if not symbol:
-            st.info("📝 Veuillez sélectionner une crypto pour voir l'analyse")
+            st.info("📝 Sélectionnez une crypto pour voir l'analyse")
             return
+        # Création d'un placeholder pour le message de chargement
+        progress_placeholder = st.empty()
 
         # Conteneur pour le spinner
-        with st.spinner("⏳ Analyse en cours..."):
-            try:
-                # Créons d'abord un conteneur pour l'analyse
-                analysis_container = st.container()
-                
-                # Effectuons l'analyse
-                analysis = self.analyzer.analyze_symbol(symbol)
-                
-                if analysis:
-                    with analysis_container:
+        with progress_placeholder:
+            with st.spinner("⏳ Analyse en cours..."):
+                try:
+                    # Étape 1 : Récupération des données du marché
+                    progress_placeholder.text('📊 Récupération des données du marché...')
+                    analysis = self.analyzer.analyze_symbol(symbol)
+                                                          
+                    if analysis:
+                        # Effacer le message de chargement
+                        progress_placeholder.empty()
                         # Métriques principales
                         cols = st.columns([2, 2, 2, 3])
-                        
+                            
                         with cols[0]:
                             st.metric(
                                 "Prix",
@@ -179,18 +181,18 @@ class CryptoAnalyzerApp:
                                 f"Signal: {analysis['signal']}</div>",
                                 unsafe_allow_html=True
                             )
-                        
+                            
                         # Détails techniques
                         if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
                             with st.expander("📊 Détails de l'analyse"):
                                 for key, value in analysis['analysis'].items():
                                     st.write(f"**{key.title()}:** {value}")
-                else:
-                    st.warning("⚠️ Aucune donnée disponible pour cette crypto")
-                    
-            except Exception as e:
-                logger.error(f"Erreur affichage analyse: {e}")
-                st.error("❌ Erreur lors de l'affichage de l'analyse. Réessayez plus tard.")
+                    else:
+                        st.warning("⚠️ Aucune donnée disponible pour cette crypto")
+                        
+                except Exception as e:
+                    logger.error(f"Erreur affichage analyse: {e}")
+                    st.error("❌ Erreur lors de l'affichage de l'analyse. Réessayez plus tard.")
 
 if __name__ == "__main__":
     app = CryptoAnalyzerApp()
