@@ -222,8 +222,7 @@ class CryptoAnalyzerApp:
                 time.sleep(0.5)  # Petit délai pour voir la completion
                 progress_bar.empty()
                     
-            else:
-                st.warning("Aucune donnée disponible pour cette crypto")
+            
 
                 # Détails de l'analyse
                 if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
@@ -254,7 +253,8 @@ class CryptoAnalyzerApp:
                 # Affichage des alertes
                 st.markdown("### 🔔 Notifications")
                 self.alert_system.render()
-
+            else:
+                st.warning("Aucune donnée disponible pour cette crypto")
 
         except Exception as e:
             logger.error(f"Erreur affichage analyse: {e}")
