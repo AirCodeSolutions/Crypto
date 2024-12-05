@@ -145,25 +145,21 @@ class CryptoAnalyzerApp:
         if not symbol:
             st.info("📝 Sélectionnez une crypto pour voir l'analyse")
             return
-        # Création d'un message de progression
-        progress_message = st.empty()
-        progress_message.info("🔍 Récupération des données en cours...")
-
-
-        # Créons des placeholders pour contrôler l'affichage
-        loading_placeholder = st.empty()
-        analysis_placeholder = st.container()
-
-        # Affichage du chargement
-        try:
-            analysis = self.analyzer.analyze_symbol(symbol)
-            # Effacer le message de progression une fois l'analyse terminée
-            progress_message.empty()
+        # Un seul placeholder pour le message de progression
+        status_container = st.empty()
+        
+        # Utilisation correcte du spinner
+        with st.spinner('Analyse en cours...'):
+            status_container.info("🔍 Récupération des données...")
+            try:
+                analysis = self.analyzer.analyze_symbol(symbol)
+                # On efface le message de statut
+                status_container.empty()
                 
-            if analysis:
-                with analysis_placeholder:
+                if analysis:
+                    
                     cols = st.columns([2, 2, 2, 3])
-                        
+                            
                     with cols[0]:
                         st.metric(
                             "Prix",
@@ -195,16 +191,41 @@ class CryptoAnalyzerApp:
                             f"Signal: {analysis['signal']}</div>",
                             unsafe_allow_html=True
                         )
-                        
+                            
                     # Détails de l'analyse
                     if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
                         with st.expander("📊 Détails de l'analyse"):
                             for key, value in analysis['analysis'].items():
                                 st.write(f"**{key.title()}:** {value}")
+                    # Ajout des boutons de notification que nous avions avant
+                    action_cols = st.columns(2)
+                    with action_cols[0]:
+                        if st.button("📈 Analyser", key=f"analyze_{symbol}"):
+                            self.alert_system.add_notification(
+                                f"Analyse de {symbol} terminée",
+                                "success",
+                                {
+                                    "Signal": analysis['signal'],
+                                    "RSI": f"{analysis['rsi']:.1f}"
+                                }
+                            )
+                    
+                    with action_cols[1]:
+                        if st.button("🔔 Configurer Alertes", key=f"alerts_{symbol}"):
+                            self.alert_system.add_notification(
+                                f"Alerte configurée pour {symbol}",
+                                "info",
+                                {"Prix": f"${analysis['price']:,.2f}"}
+                            )
 
-        except Exception as e:
-            logger.error(f"Erreur affichage analyse: {e}")
-            st.error("Erreur lors de l'analyse. Réessayez plus tard.")
+                    # Affichage des alertes
+                    st.markdown("### 🔔 Notifications")
+                    self.alert_system.render()
+
+
+            except Exception as e:
+                logger.error(f"Erreur affichage analyse: {e}")
+                st.error("Erreur lors de l'analyse. Réessayez plus tard.")
 
 if __name__ == "__main__":
     app = CryptoAnalyzerApp()
