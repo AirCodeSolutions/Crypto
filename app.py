@@ -78,7 +78,7 @@ class CryptoAnalyzerApp:
             if page == "Analyse en Direct":
 
                 # Section de recherche et sélection de crypto
-                search_term = st.text_input("🔍 Rechercher une crypto", "").upper()
+                search_term = st.text_input("🔍 Rechercher une crypto",max_chars=5,value="",key="crypto_search"                ).upper()
                 available_symbols = self.exchange.get_available_symbols()
                 
                 # Filtrage des cryptos selon la recherche
@@ -145,87 +145,85 @@ class CryptoAnalyzerApp:
         if not symbol:
             st.info("📝 Sélectionnez une crypto pour voir l'analyse")
             return
-        # Un seul placeholder pour le message de progression
-        status_container = st.empty()
+        # Indicateur de progression plus visible
+        analysis_status = st.empty()
+        analysis_status.warning("⏳ Analyse en cours...")  # Le warning est plus visible
         
-        # Utilisation correcte du spinner
-        with st.spinner('Analyse en cours...'):
-            status_container.info("🔍 Récupération des données...")
-            try:
-                analysis = self.analyzer.analyze_symbol(symbol)
-                # On efface le message de statut
-                status_container.empty()
+        try:
+            analysis = self.analyzer.analyze_symbol(symbol)
+            # On efface le message de statut
+            analysis_status.empty()  # Effacer le message de statut
                 
-                if analysis:
+            if analysis:
                     
-                    cols = st.columns([2, 2, 2, 3])
+                cols = st.columns([2, 2, 2, 3])
                             
-                    with cols[0]:
-                        st.metric(
-                            "Prix",
-                            f"${analysis['price']:,.2f}",
-                            f"{analysis['change_24h']:+.2f}%"
-                        )
-                    with cols[1]:
-                        st.metric(
-                            "RSI",
-                            f"{analysis['rsi']:.1f}",
-                            help="RSI > 70: Surachat, RSI < 30: Survente"
-                        )
-                    with cols[2]:
-                        st.metric(
-                            "Score",
-                            f"{analysis['score']:.2f}",
-                            help="Score > 0.7: Signal fort"
-                        )
-                    with cols[3]:
-                        signal_style = {
-                            "STRONG_BUY": "color: #00ff00; font-weight: bold;",
-                            "BUY": "color: #008000;",
-                            "NEUTRAL": "color: #808080;",
-                            "SELL": "color: #ff0000;",
-                            "STRONG_SELL": "color: #8b0000; font-weight: bold;"
-                        }
-                        st.markdown(
-                            f"<div style='{signal_style[analysis['signal']]}'>"
-                            f"Signal: {analysis['signal']}</div>",
-                            unsafe_allow_html=True
-                        )
+                with cols[0]:
+                    st.metric(
+                        "Prix",
+                        f"${analysis['price']:,.2f}",
+                        f"{analysis['change_24h']:+.2f}%"
+                    )
+                with cols[1]:
+                    st.metric(
+                        "RSI",
+                        f"{analysis['rsi']:.1f}",
+                        help="RSI > 70: Surachat, RSI < 30: Survente"
+                    )
+                with cols[2]:
+                    st.metric(
+                        "Score",
+                        f"{analysis['score']:.2f}",
+                        help="Score > 0.7: Signal fort"
+                    )
+                with cols[3]:
+                    signal_style = {
+                        "STRONG_BUY": "color: #00ff00; font-weight: bold;",
+                        "BUY": "color: #008000;",
+                        "NEUTRAL": "color: #808080;",
+                        "SELL": "color: #ff0000;",
+                        "STRONG_SELL": "color: #8b0000; font-weight: bold;"
+                    }
+                    st.markdown(
+                        f"<div style='{signal_style[analysis['signal']]}'>"
+                        f"Signal: {analysis['signal']}</div>",
+                        unsafe_allow_html=True
+                    )
                             
-                    # Détails de l'analyse
-                    if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
-                        with st.expander("📊 Détails de l'analyse"):
-                            for key, value in analysis['analysis'].items():
-                                st.write(f"**{key.title()}:** {value}")
-                    # Ajout des boutons de notification que nous avions avant
-                    action_cols = st.columns(2)
-                    with action_cols[0]:
-                        if st.button("📈 Analyser", key=f"analyze_{symbol}"):
-                            self.alert_system.add_notification(
-                                f"Analyse de {symbol} terminée",
-                                "success",
-                                {
-                                    "Signal": analysis['signal'],
-                                    "RSI": f"{analysis['rsi']:.1f}"
-                                }
-                            )
+                # Détails de l'analyse
+                if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
+                    with st.expander("📊 Détails de l'analyse"):
+                        for key, value in analysis['analysis'].items():
+                            st.write(f"**{key.title()}:** {value}")
+                # Ajout des boutons de notification que nous avions avant
+                action_cols = st.columns(2)
+                with action_cols[0]:
+                    if st.button("📈 Analyser", key=f"analyze_{symbol}"):
+                        self.alert_system.add_notification(
+                            f"Analyse de {symbol} terminée",
+                            "success",
+                            {
+                                "Signal": analysis['signal'],
+                                "RSI": f"{analysis['rsi']:.1f}"
+                            }
+                        )
                     
-                    with action_cols[1]:
-                        if st.button("🔔 Configurer Alertes", key=f"alerts_{symbol}"):
-                            self.alert_system.add_notification(
-                                f"Alerte configurée pour {symbol}",
-                                "info",
-                                {"Prix": f"${analysis['price']:,.2f}"}
-                            )
+                with action_cols[1]:
+                    if st.button("🔔 Configurer Alertes", key=f"alerts_{symbol}"):
+                        self.alert_system.add_notification(
+                            f"Alerte configurée pour {symbol}",
+                            "info",
+                            {"Prix": f"${analysis['price']:,.2f}"}
+                        )
 
-                    # Affichage des alertes
-                    st.markdown("### 🔔 Notifications")
-                    self.alert_system.render()
+                # Affichage des alertes
+                st.markdown("### 🔔 Notifications")
+                self.alert_system.render()
 
 
-            except Exception as e:
-                logger.error(f"Erreur affichage analyse: {e}")
-                st.error("Erreur lors de l'analyse. Réessayez plus tard.")
+        except Exception as e:
+            logger.error(f"Erreur affichage analyse: {e}")
+            st.error("Erreur lors de l'analyse. Réessayez plus tard.")
 
 if __name__ == "__main__":
     app = CryptoAnalyzerApp()
