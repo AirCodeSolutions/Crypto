@@ -68,39 +68,51 @@ class CryptoAnalyzerApp:
         """
         try:
             self.setup_page()
-            st.title("Crypto Analyzer Pro")
+            st.title("Crypto Analyzer Pro - AirCodeSolutions ❤️")
+            # Navigation
+            page = st.sidebar.selectbox(
+                "Navigation",
+                ["Analyse en Direct", "Top Performances", "Guide"]
+            )
             
-            # Section de recherche et sélection de crypto
-            search_term = st.text_input("🔍 Rechercher une crypto", "").upper()
-            available_symbols = self.exchange.get_available_symbols()
-            
-            # Filtrage des cryptos selon la recherche
-            filtered_symbols = [
-                symbol for symbol in available_symbols 
-                if search_term in symbol
-            ] if search_term else available_symbols[:30]
+            if page == "Analyse en Direct":
 
-            if not filtered_symbols:
-                st.warning("Aucune crypto trouvée pour votre recherche.")
-                return
-
-            # Interface principale divisée en colonnes
-            chart_col, analysis_col = st.columns([2, 1])
-            
-            with chart_col:
-                # Sélection de la crypto et de la période
-                selected_symbol = st.selectbox(
-                    "Sélectionner une crypto",
-                    filtered_symbols,
-                    format_func=self._format_symbol_display
-                )
+                # Section de recherche et sélection de crypto
+                search_term = st.text_input("🔍 Rechercher une crypto", "").upper()
+                available_symbols = self.exchange.get_available_symbols()
                 
-                # Sélecteur de période et affichage du graphique
-                timeframe = TimeSelector.render("timeframe_selector")
-                self._display_chart(selected_symbol, timeframe)
+                # Filtrage des cryptos selon la recherche
+                filtered_symbols = [
+                    symbol for symbol in available_symbols 
+                    if search_term in symbol
+                ] if search_term else available_symbols[:30]
 
-            with analysis_col:
-                self._display_analysis(selected_symbol)
+                if not filtered_symbols:
+                    st.warning("Aucune crypto trouvée pour votre recherche.")
+                    return
+
+                # Interface principale divisée en colonnes
+                chart_col, analysis_col = st.columns([2, 1])
+                
+                with chart_col:
+                    # Sélection de la crypto et de la période
+                    selected_symbol = st.selectbox(
+                        "Sélectionner une crypto",
+                        filtered_symbols,
+                        format_func=self._format_symbol_display
+                    )
+                    
+                    # Sélecteur de période et affichage du graphique
+                    timeframe = TimeSelector.render("timeframe_selector")
+                    self._display_chart(selected_symbol, timeframe)
+
+                with analysis_col:
+                    self._display_analysis(selected_symbol)
+                pass
+            elif page == "Top Performances":
+                from interface.pages.top_performance import TopPerformancePage
+                top_page = TopPerformancePage(self.exchange)
+                top_page.render()
 
         except Exception as e:
             logger.error(f"Erreur dans l'application: {e}", exc_info=True)
