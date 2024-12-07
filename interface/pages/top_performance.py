@@ -20,30 +20,28 @@ class TopPerformancePage:
         GuideHelper.show_indicator_help()
         
         # Configuration des filtres
-        col1, col2 = st.columns(2)
-        with col1:
-            timeframe = st.selectbox(
-                "Période",
-                ["24h", "7j", "30j"],
-                index=0
-            )
-        with col2:
-            min_volume = st.number_input(
-                "Volume minimum (USDT)",
-                value=100000,
-                step=10000
-            )
-        # Section budget et paramètres d'investissement
         with st.expander("💰 Paramètres d'investissement", expanded=True):
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4, col5 = st.columns(5)
             with col1:
+                timeframe = st.selectbox(
+                    "Période",
+                    ["24h", "7j", "30j"],
+                    index=0
+                )
+            with col2:
+                min_volume = st.number_input(
+                    "Volume minimum (USDT)",
+                    value=100000,
+                    step=10000
+                )
+            with col3:
                 budget = st.number_input(
                     "Budget (USDT)",
                     min_value=10.0,
                     value=100.0,
                     help="Votre budget disponible"
                 )
-            with col2:
+            with col4:
                 min_score = st.slider(
                     "Score minimum",
                     min_value=0.0,
@@ -51,7 +49,7 @@ class TopPerformancePage:
                     value=0.7,
                     help="Score technique minimum (0-1)"
                 )
-            with col3:
+            with col5:
                 risk_percent = st.slider(
                     "Risque par position (%)",
                     min_value=1,
@@ -59,7 +57,8 @@ class TopPerformancePage:
                     value=2,
                     help="Pourcentage du budget à risquer"
                 )
-
+            
+        
         # Bouton de recherche
         if st.button("🔍 Rechercher"):
             self._display_top_performers(timeframe, min_volume)
