@@ -33,6 +33,32 @@ class TopPerformancePage:
                 value=100000,
                 step=10000
             )
+        # Section budget et paramètres d'investissement
+        with st.expander("💰 Paramètres d'investissement", expanded=True):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                budget = st.number_input(
+                    "Budget (USDT)",
+                    min_value=10.0,
+                    value=100.0,
+                    help="Votre budget disponible"
+                )
+            with col2:
+                min_score = st.slider(
+                    "Score minimum",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=0.7,
+                    help="Score technique minimum (0-1)"
+                )
+            with col3:
+                risk_percent = st.slider(
+                    "Risque par position (%)",
+                    min_value=1,
+                    max_value=5,
+                    value=2,
+                    help="Pourcentage du budget à risquer"
+                )
 
         # Bouton de recherche
         if st.button("🔍 Rechercher"):
