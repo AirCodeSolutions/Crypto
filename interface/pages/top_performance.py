@@ -21,50 +21,25 @@ class TopPerformancePage:
         GuideHelper.show_pattern_guide()
         GuideHelper.show_quick_guide()
         
-        # Configuration des filtres
-        #with st.expander("💰 Paramètres d'investissement", expanded=True):
-        col1, col2, col3, col4, col5 = st.columns(5)
+        # Configuration des filtres - Simplifiée
+        col1, col2 = st.columns(2)
         with col1:
-            timeframe = st.selectbox(
-                "Période",
-                ["24h", "7j", "30j"],
-                index=0
-            )
-        with col2:
             min_volume = st.number_input(
                 "Volume minimum (USDT)",
-                value=100000,
-                step=10000
+                value=50000.00
             )
-        with col3:
-            budget = st.number_input(
-                "Budget (USDT)",
-                min_value=10.0,
-                value=100.0,
-                help="Votre budget disponible"
-            )
-        with col4:
+        with col2:
             min_score = st.slider(
-                "Score minimum",
+                "Score minimum pour achat",
                 min_value=0.0,
                 max_value=1.0,
-                value=0.7,
-                help="Score technique minimum (0-1)"
-            )
-        with col5:
-            risk_percent = st.slider(
-                "Risque par position (%)",
-                min_value=1,
-                max_value=5,
-                value=2,
-                help="Pourcentage du budget à risquer"
+                value=0.60
             )
             
-        
         # Bouton de recherche
-        if st.button("🔍 Rechercher"):
-            self._display_top_performers(timeframe, min_volume)
-            
+        if st.button("🔄 Actualiser les données"):
+            self._display_top_performers("24h", min_volume)  # timeframe fixé à 24h
+                
     def _analyze_candles(self, df) -> Dict:
         """Analyse des patterns de bougies"""
         last_candles = df.tail(5)
@@ -129,29 +104,34 @@ class TopPerformancePage:
             raise Exception(f"Erreur lors de l'analyse : {str(e)}")
         
     def _render_results(self, performers: List[Dict]):
-        """Affiche les résultats en deux sections: Signaux d'achat et Watch List"""
+        """Affiche les résultats"""
         if not performers:
             st.info("Aucun résultat trouvé")
             return
 
         # Section Signaux d'achat
-        st.subheader("🎯 Signaux d'achat détectés")
-        buy_signals = [p for p in performers if p['score'] >= 0.7]
+        st.markdown("🎯 **Signaux d'achat détectés**")
+        buy_signals = [p for p in performers if p['score'] >= 0.70]
         for signal in buy_signals:
             with st.expander(f"💫 {signal['symbol']} - Score: {signal['score']:.2f}"):
-                self._render_signal_details(signal)
+                st.metric("Prix", f"${signal['price']:.4f}", f"{signal['change']:+.2f}%")
+                st.metric("Volume 24h", f"${signal['volume']/1e6:.1f}M")
 
         # Section Watch List
-        st.subheader("👀 Watch List")
-        watch_list = [p for p in performers if p['score'] < 0.7 and p['price'] <= 20]
-        cols = st.columns(3)
-        for idx, crypto in enumerate(watch_list):
-            with cols[idx % 3]:
-                st.metric(
-                    f"{crypto['symbol']}",
-                    f"${crypto['price']:.4f}",
-                    f"{crypto['change']:+.2f}%"
-                )
+        st.markdown("👀 **Watch List**")
+        watch_list = [p for p in performers if p['score'] < 0.70]
+        
+        # Affichage en grille de 3 colonnes
+        for i in range(0, len(watch_list), 3):
+            cols = st.columns(3)
+            for j in range(3):
+                if i + j < len(watch_list):
+                    crypto = watch_list[i + j]
+                    with cols[j]:
+                        st.write(f"**{crypto['symbol']}**")
+                        st.write(f"${crypto['price']:.4f}")
+                        st.write(f"{crypto['change']:+.2f}%")
+
     def _render_signal_details(self, signal: Dict):
         """Affiche les détails d'un signal d'achat"""
         col1, col2 = st.columns(2)
