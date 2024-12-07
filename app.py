@@ -4,7 +4,7 @@ import time
 import pandas as pd
 from datetime import datetime
 import logging
-from interface import TimeSelector, TradingChart, ChartConfig, AlertSystem
+from interface import TimeSelector, TradingChart, ChartConfig, AlertSystem, GuideHelper
 from services.exchange import ExchangeService
 from core.analysis import MarketAnalyzer
 
@@ -165,24 +165,32 @@ class CryptoAnalyzerApp:
             st.error("Impossible d'afficher le graphique")
 
     def _display_analysis(self, symbol: str):
+        """Affiche l'analyse avec progression et guide"""
         if not symbol:
             st.info("📝 Sélectionnez une crypto pour voir l'analyse")
             return
+        # Conteneur pour le guide
+        with st.container():
+            GuideHelper.show_indicator_help()
 
-        progress_bar = st.progress(0, text="Initialisation...")
+        # Message et barre de progression
+        progress_text = st.empty()
+        progress_bar = st.progress(0)
         
         try:
-            # Étape 1: Récupération des données
-            progress_bar.progress(30, text="Récupération des données...")
+            # Étape 1: Chargement initial
+            progress_text.text("Chargement des données...")
+            progress_bar.progress(25)
+            
+            # Étape 2: Analyse
+            progress_text.text("Analyse en cours...")
             analysis = self.analyzer.analyze_symbol(symbol)
-            
-            # Étape 2: Traitement
-            progress_bar.progress(60, text="Analyse en cours...")
-            
+            progress_bar.progress(75)
+
             if analysis:
-                # Étape 3: Affichage
-            
-                progress_bar.progress(90, text="Finalisation...")
+                # Nettoyage des indicateurs de progression
+                progress_text.empty()
+                progress_bar.empty()        
                 
 
                     
@@ -259,8 +267,11 @@ class CryptoAnalyzerApp:
                 st.warning("Aucune donnée disponible pour cette crypto")
 
         except Exception as e:
+            progress_text.empty()
+            progress_bar.empty()
             logger.error(f"Erreur affichage analyse: {e}")
-            st.error("Erreur lors de l'analyse. Réessayez plus tard.")
+            st.error("Erreur lors de l'analyse")
+
 
 if __name__ == "__main__":
     app = CryptoAnalyzerApp()
