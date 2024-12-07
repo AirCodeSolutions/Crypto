@@ -14,10 +14,17 @@ class LiveAnalysisPage:
     
     def render(self):
         st.title("📈 Analyse en Direct")
-        # Ajouter l'aide en haut
-        GuideHelper.show_indicator_help()
-        GuideHelper.show_quick_guide()
-        GuideHelper.show_pattern_guide()
+         # Section Guides - Tous regroupés au même endroit
+        with st.container():
+            col1, col2 = st.columns(2)
+            with col1:
+                # Guide des indicateurs
+                GuideHelper.show_indicator_help()
+                # Guide des patterns
+                GuideHelper.show_pattern_guide()
+            with col2:
+                # Guide rapide
+                GuideHelper.show_quick_guide()
         
         # Sélection de la crypto
         symbol = st.text_input(

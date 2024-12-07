@@ -64,6 +64,7 @@ class TopPerformancePage:
         # Bouton de recherche
         if st.button("🔍 Rechercher"):
             self._display_top_performers(timeframe, min_volume)
+            
     def _analyze_candles(self, df) -> Dict:
         """Analyse des patterns de bougies"""
         last_candles = df.tail(5)
