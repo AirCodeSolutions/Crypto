@@ -1,4 +1,5 @@
 import streamlit as st
+from typing import List, Dict
 
 def render(self):
     """Page optimisée pour débutants en crypto"""
