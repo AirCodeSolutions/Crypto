@@ -118,20 +118,13 @@ class TimeSelector:
         }
 
     @staticmethod
-    def render(key: str, default: str = "1h") -> str:
+    def render(key: str) -> str:
         """Affiche un sélecteur de période"""
         return st.selectbox(
             "Période",
-            options=["1h", "4h", "1d", "1w", "1m"],
+            ["1h", "4h", "1d", "1w", "1m"],
             index=0,
-            key=f"{key}_period",
-            format_func=lambda x: {
-                "1h": "1 heure",
-                "4h": "4 heures",
-                "1d": "1 jour",
-                "1w": "1 semaine",
-                "1m": "1 mois"
-            }[x]
+            key=f"{key}_period"
         )
 
 class FormattedInput:

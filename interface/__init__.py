@@ -1,16 +1,13 @@
 # interface/__init__.py
-# Réexportons les composants pour les rendre accessibles directement depuis 'interface'
-from .components import (
-    TimeSelector,
-    TradingChart,
-    ChartConfig,
-    AlertSystem
-)
+from .components.widgets import TimeSelector
+from .components.guide_helper import GuideHelper
+from .pages.live_analysis import LiveAnalysisPage
+from .pages.top_performance import TopPerformancePage
 
 # Définissons explicitement ce qui est disponible
 __all__ = [
     'TimeSelector',
-    'TradingChart',
-    'ChartConfig',
-    'AlertSystem'
+    'GuideHelper',
+    'LiveAnalysisPage',
+    'TopPerformancePage'
 ]
