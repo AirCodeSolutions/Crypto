@@ -13,103 +13,111 @@ class TopPerformancePage:
         self.analyzer = analyzer_service
         
     def render(self):
-        """Affiche la page de top performance"""
         st.title("🏆 Top Performances (Prix ≤ 20 USDT)")
         
-        # Affichage du guide
+        # Section Guides
         GuideHelper.show_indicator_help()
         GuideHelper.show_pattern_guide()
         GuideHelper.show_quick_guide()
         
-        # Section paramètres d'investissement
-        st.markdown("### 💰 Vos Paramètres")
-        col1, col2 = st.columns(2)
-        with col1:
-            budget = st.number_input(
-                "Votre budget maximum (USDT)",
-                min_value=10.0,
-                value=100.0,
-                help="Montant total que vous souhaitez investir"
-            )
-        with col2:
-            max_crypto_price = st.number_input(
-                "Prix maximum par crypto (USDT)",
-                min_value=0.1,
-                max_value=20.0,
-                value=5.0,
-                help="Plus le prix est bas, plus vous pourrez acheter de tokens"
-            )
-        # Critères de sécurité
-        st.markdown("### 🛡️ Critères de Sécurité")
-        col1, col2 = st.columns(2)
-        with col1:
-            min_volume = st.number_input(
-                "Volume minimum 24h (USDT)",
-                value=50000.0,
-                help="Plus le volume est élevé, plus la crypto est active"
-            )
-        with col2:
-            min_score = st.slider(
-                "Score minimum",
-                min_value=0.0,
-                max_value=1.0,
-                value=0.6,
-                help="Score technique (plus il est élevé, plus le signal est fort)"
-            )
+        # Section Vos Paramètres
+        st.subheader("💰 Vos Paramètres")
+        
+        # Votre budget maximum
+        budget = st.number_input(
+            "Votre budget maximum (USDT)",
+            value=100.00,
+            min_value=10.00,
+            step=10.0,
+            key="budget_input"
+        )
 
+        # Prix maximum par crypto
+        max_price = st.number_input(
+            "Prix maximum par crypto (USDT)",
+            value=5.00,
+            max_value=20.00,
+            min_value=0.10,
+            step=0.10,
+            key="max_price_input"
+        )
+
+        # Section Critères de Sécurité
+        st.subheader("🛡️ Critères de Sécurité")
+        
+        # Volume minimum
+        min_volume = st.number_input(
+            "Volume minimum 24h (USDT)",
+            value=50000.00,
+            step=10000.0,
+            key="volume_input"
+        )
+
+        # Score minimum
+        min_score = st.slider(
+            "Score minimum",
+            min_value=0.00,
+            max_value=1.00,
+            value=0.60,
+            key="score_slider"
+        )
 
         if st.button("🔍 Rechercher des Opportunités"):
             with st.spinner("Analyse en cours..."):
-                try:
-                    results = self._get_best_opportunities(
-                        max_price=max_crypto_price,
-                        min_volume=min_volume,
-                        min_score=min_score,
-                        budget=budget
-                    )
-                    self._show_opportunities(results, budget)
-                except Exception as e:
-                    st.error(f"Une erreur s'est produite: {str(e)}")
+                st.info(f"Budget: {budget} USDT, Prix max: {max_price} USDT")
+                st.info(f"Volume min: {min_volume} USDT, Score min: {min_score}")
+                
+                results = self._get_best_opportunities(
+                    max_price=max_price,
+                    min_volume=min_volume,
+                    min_score=min_score,
+                    budget=budget
+                )
+                
+                st.write(f"Nombre d'opportunités trouvées: {len(results)}")
+                self._show_opportunities(results, budget)
+            
                 
     def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float):
+        """
+        Version simplifiée mais efficace pour trouver des opportunités réelles
+        """
         try:
             markets = self.exchange.get_available_symbols()
             opportunities = []
             
-            progress_bar = st.progress(0)
-            total = min(len(markets), 50)  # Limite à 50 cryptos pour la rapidité
-            
-            for i, symbol in enumerate(markets[:total]):
+            for symbol in markets:
                 try:
+                    # Récupération du ticker
                     ticker = self.exchange.get_ticker(symbol)
-                    price = ticker['last']
+                    price = float(ticker['last'])
                     
+                    # Filtres de base
                     if price <= max_price and ticker['quoteVolume'] >= min_volume:
                         analysis = self.analyzer.analyze_symbol(symbol)
+                        
                         if analysis and analysis['score'] >= min_score:
-                            tokens_possible = budget / price
                             opportunities.append({
                                 'symbol': symbol,
                                 'price': price,
                                 'volume': ticker['quoteVolume'],
                                 'change': ticker['percentage'],
                                 'score': analysis['score'],
-                                'tokens_possible': tokens_possible,
-                                'investment': tokens_possible * price,
-                                'signal': analysis['signal']
+                                'signal': analysis['signal'],
+                                'investment': min(budget, price * 100)  # Limite l'investissement
                             })
                     
-                    progress_bar.progress((i + 1) / total)
-                    
-                except Exception:
+                except Exception as e:
+                    print(f"Erreur pour {symbol}: {str(e)}")
                     continue
-                    
-            return sorted(opportunities, key=lambda x: x['score'], reverse=True)[:10]
+
+            # Tri par score et changement de prix
+            return sorted(opportunities, key=lambda x: (x['score'], abs(x['change'])), reverse=True)
             
         except Exception as e:
             st.error(f"Erreur lors de la recherche : {str(e)}")
             return []
-
+    
     def _show_opportunities(self, opportunities: List[Dict], budget: float):
         if not opportunities:
             st.info("Aucune opportunité trouvée avec ces critères")
