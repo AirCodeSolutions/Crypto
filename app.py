@@ -132,8 +132,11 @@ class CryptoAnalyzerApp:
                 pass
             elif page == "Top Performances":
                 from interface.pages.top_performance import TopPerformancePage
-                top_page = TopPerformancePage(self.exchange)
-                top_page.render()
+                top_page = TopPerformancePage(
+                exchange_service=self.exchange,
+                analyzer_service=self.analyzer  # Ajout de l'analyzer
+            )
+            top_page.render()
 
         except Exception as e:
             logger.error(f"Erreur dans l'application: {e}", exc_info=True)
