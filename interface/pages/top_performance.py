@@ -158,3 +158,78 @@ class TopPerformancePage:
                     )
                 with cols[3]:
                     st.write(f"Signal: {perf['signal']}")
+
+    def _detect_bullish_patterns(self, candles) -> List[str]:
+        """Détecte les patterns haussiers"""
+        patterns = []
+        
+        # Obtention des données nécessaires
+        closes = candles['close'].values
+        opens = candles['open'].values
+        highs = candles['high'].values
+        lows = candles['low'].values
+        
+        # Détection Marteau
+        for i in range(len(candles)):
+            body = abs(closes[i] - opens[i])
+            lower_shadow = min(opens[i], closes[i]) - lows[i]
+            upper_shadow = highs[i] - max(opens[i], closes[i])
+            
+            # Marteau
+            if lower_shadow > 2 * body and upper_shadow < body:
+                patterns.append("Marteau")
+                
+            # Marteau Inversé
+            if lower_shadow < body and upper_shadow > 2 * body:
+                patterns.append("Marteau Inversé")
+        
+        # Trois bougies vertes consécutives
+        if len(closes) >= 3:
+            if all(closes[i] > opens[i] for i in range(-3, 0)):
+                patterns.append("Triple Bougie Verte")
+        
+        return list(set(patterns))  # Évite les doublons
+
+    def _detect_bearish_patterns(self, candles) -> List[str]:
+        """Détecte les patterns baissiers"""
+        patterns = []
+        
+        closes = candles['close'].values
+        opens = candles['open'].values
+        highs = candles['high'].values
+        lows = candles['low'].values
+        
+        # Étoile filante
+        for i in range(len(candles)):
+            body = abs(closes[i] - opens[i])
+            lower_shadow = min(opens[i], closes[i]) - lows[i]
+            upper_shadow = highs[i] - max(opens[i], closes[i])
+            
+            if upper_shadow > 2 * body and lower_shadow < body:
+                patterns.append("Étoile Filante")
+        
+        # Trois bougies rouges consécutives
+        if len(closes) >= 3:
+            if all(closes[i] < opens[i] for i in range(-3, 0)):
+                patterns.append("Triple Bougie Rouge")
+        
+        return list(set(patterns))
+
+    def _analyze_trend(self, candles) -> str:
+        """Analyse la tendance des bougies"""
+        closes = candles['close'].values
+        opens = candles['open'].values
+        
+        # Calcul tendance
+        up_candles = sum(close > open for close, open in zip(closes, opens))
+        down_candles = len(closes) - up_candles
+        
+        # Tendance des prix
+        price_trend = closes[-1] - closes[0]
+        
+        if up_candles >= 3 and price_trend > 0:
+            return "Tendance Haussière"
+        elif down_candles >= 3 and price_trend < 0:
+            return "Tendance Baissière"
+        else:
+            return "Tendance Neutre"
