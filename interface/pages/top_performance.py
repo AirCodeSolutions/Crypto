@@ -14,7 +14,7 @@ class TopPerformancePage:
         
     def render(self):
         """Affiche la page de top performance"""
-        st.title("🏆 Top Performances")
+        st.title("🏆 Top Performances (Prix ≤ 20 USDT)")
         
         # Affichage du guide
         GuideHelper.show_indicator_help()
@@ -100,7 +100,8 @@ class TopPerformancePage:
                     for symbol in batch:
                         try:
                             ticker = self.exchange.get_ticker(symbol)
-                            if ticker['quoteVolume'] >= min_volume:
+                            # Ajout du filtre de prix <= 20 USDT
+                            if ticker['last'] <= 20 and ticker['quoteVolume'] >= min_volume:
                                 # Analyse rapide
                                 df = self.exchange.get_ohlcv(symbol, timeframe)
                                 analysis = self.analyzer.analyze_symbol(symbol)
@@ -121,43 +122,46 @@ class TopPerformancePage:
                             
                     progress_bar.progress(min((i + batch_size) / 50, 1.0))
                 
-                # Tri final
-                return sorted(
-                    top_markets,
-                    key=lambda x: (x['score'], abs(x['change'])),
-                    reverse=True
-                )[:10]
+                # Tri final avec séparation signaux d'achat et watch list
+                return sorted(top_markets, key=lambda x: (x['score'], abs(x['change'])), reverse=True)
                 
         except Exception as e:
             raise Exception(f"Erreur lors de l'analyse : {str(e)}")
         
     def _render_results(self, performers: List[Dict]):
-        """Affiche les résultats"""
+        """Affiche les résultats en deux sections: Signaux d'achat et Watch List"""
         if not performers:
             st.info("Aucun résultat trouvé")
             return
-            
-        for perf in performers:
-            with st.container():
-                cols = st.columns([2, 2, 2, 2])
-                with cols[0]:
-                    st.metric(
-                        perf['symbol'],
-                        f"${perf['price']:,.2f}",
-                        f"{perf['change']:+.2f}%"
-                    )
-                with cols[1]:
-                    st.metric(
-                        "Volume 24h",
-                        f"${perf['volume']/1e6:.1f}M"
-                    )
-                with cols[2]:
-                    st.metric(
-                        "Score",
-                        f"{perf['score']:.2f}"
-                    )
-                with cols[3]:
-                    st.write(f"Signal: {perf['signal']}")
+
+        # Section Signaux d'achat
+        st.subheader("🎯 Signaux d'achat détectés")
+        buy_signals = [p for p in performers if p['score'] >= 0.7]
+        for signal in buy_signals:
+            with st.expander(f"💫 {signal['symbol']} - Score: {signal['score']:.2f}"):
+                self._render_signal_details(signal)
+
+        # Section Watch List
+        st.subheader("👀 Watch List")
+        watch_list = [p for p in performers if p['score'] < 0.7 and p['price'] <= 20]
+        cols = st.columns(3)
+        for idx, crypto in enumerate(watch_list):
+            with cols[idx % 3]:
+                st.metric(
+                    f"{crypto['symbol']}",
+                    f"${crypto['price']:.4f}",
+                    f"{crypto['change']:+.2f}%"
+                )
+    def _render_signal_details(self, signal: Dict):
+        """Affiche les détails d'un signal d'achat"""
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Prix", f"${signal['price']:.4f}", f"{signal['change']:+.2f}%")
+            st.metric("Volume 24h", f"${signal['volume']/1e6:.1f}M")
+        with col2:
+            st.metric("Score", f"{signal['score']:.2f}")
+            if 'candles' in signal:
+                st.write("Tendance:", signal['candles']['trend'])
 
     def _detect_bullish_patterns(self, candles) -> List[str]:
         """Détecte les patterns haussiers"""
