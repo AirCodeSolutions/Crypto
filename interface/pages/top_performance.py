@@ -2,7 +2,6 @@
 import streamlit as st
 import pandas as pd
 from typing import Dict, List
-# Dans TopPerformancePage et autres pages
 from interface.components.guide_helper import GuideHelper
 
 class TopPerformancePage:
@@ -154,3 +153,47 @@ class TopPerformancePage:
                         
                 except Exception as e:
                     st.error(f"Erreur lors de la recherche : {str(e)}")
+
+    def _get_top_performers(self, timeframe: str, min_volume: float) -> List[Dict]:
+        """Version optimisée pour une recherche plus rapide"""
+        try:
+            # Limitation initiale à 100 cryptos les plus volumineuses
+            markets = self.exchange.get_available_symbols()[:100]
+            
+            # Récupération des données en parallèle
+            top_performers = []
+            total = len(markets)
+            
+            progress_bar = st.progress(0)
+            batch_size = 10  # Traiter par lots de 10
+            
+            for i in range(0, total, batch_size):
+                batch = markets[i:i+batch_size]
+                batch_data = []
+                
+                for symbol in batch:
+                    try:
+                        ticker = self.exchange.get_ticker(symbol)
+                        if ticker['quoteVolume'] >= min_volume:
+                            analysis = self.analyzer.analyze_symbol(symbol)
+                            if analysis:
+                                batch_data.append({
+                                    'symbol': symbol,
+                                    'price': ticker['last'],
+                                    'change': ticker['percentage'],
+                                    'volume': ticker['quoteVolume'],
+                                    'score': analysis['score'],
+                                    'rsi': analysis['rsi'],
+                                    'signal': analysis['signal']
+                                })
+                    except Exception:
+                        continue
+                        
+                top_performers.extend(batch_data)
+                progress_bar.progress(min((i + batch_size) / total, 1.0))
+                
+            return sorted(top_performers, key=lambda x: x['score'], reverse=True)[:10]
+            
+        except Exception as e:
+            st.error(f"Erreur: {str(e)}")
+            return []
