@@ -2,6 +2,9 @@
 import streamlit as st
 import pandas as pd
 from typing import Dict, List
+# Dans TopPerformancePage et autres pages
+from interface.components.guide_helper import GuideHelper
+
 class TopPerformancePage:
     def __init__(self, exchange_service, analyzer_service=None):
         self.exchange = exchange_service
@@ -10,6 +13,9 @@ class TopPerformancePage:
     def render(self):
         st.title("🏆 Top Performances")
 
+        # Ajouter l'aide en haut
+        GuideHelper.show_indicator_help()
+        GuideHelper.show_quick_guide()
         # Section paramètres d'investissement
         with st.expander("💰 Paramètres d'investissement", expanded=True):
             col1, col2 = st.columns(2)

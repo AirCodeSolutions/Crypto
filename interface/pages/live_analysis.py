@@ -1,6 +1,7 @@
 # interface/pages/live_analysis.py
 import streamlit as st
 from ..components.dashboard_manager import DashboardManager
+from interface.components.guide_helper import GuideHelper
 
 class LiveAnalysisPage:
     def __init__(self):
@@ -8,7 +9,9 @@ class LiveAnalysisPage:
     
     def render(self):
         st.title("📈 Analyse en Direct")
-        
+        # Ajouter l'aide en haut
+        GuideHelper.show_indicator_help()
+        GuideHelper.show_quick_guide()
         # Sélection de la crypto
         symbol = st.text_input(
             "Entrez le symbole de la crypto",
