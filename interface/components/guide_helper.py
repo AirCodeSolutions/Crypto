@@ -10,23 +10,18 @@ class GuideHelper:
         with st.expander("❓ Comprendre les indicateurs", expanded=False):
             st.markdown("""
                 ### 📊 Indicateurs Techniques
-                
-                #### Score Technique (0-1)
-                - > 0.8 : Configuration idéale
-                - > 0.7 : Signal favorable
-                - < 0.7 : Attendre meilleure opportunité
-                
-                #### RSI (0-100)
+                                               
+                #### 🐧 RSI (0-100)
                 - < 30 : Survente (opportunité d'achat)
                 - 30-70 : Zone neutre
                 - > 70 : Surachat (risqué pour l'achat)
                 
-                #### Volume
+                #### 📈 Volume
                 Important pour confirmer les mouvements :
                 - Volume > moyenne : Mouvement plus fiable
                 - Volume faible : Prudence conseillée
                 
-                #### Signaux
+                #### 👋 Signaux
                 - STRONG_BUY : Très forte opportunité
                 - BUY : Bonne opportunité
                 - NEUTRAL : Pas de signal clair
