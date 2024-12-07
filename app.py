@@ -4,6 +4,7 @@ import time
 import pandas as pd
 from datetime import datetime
 import logging
+from typing import List, Dict
 from interface import TimeSelector, TradingChart, ChartConfig, AlertSystem, GuideHelper
 from services.exchange import ExchangeService
 from core.analysis import MarketAnalyzer
@@ -291,6 +292,50 @@ class CryptoAnalyzerApp:
 
                 st.markdown(f"**Tendance actuelle:** {candle_analysis['trend']}")       
 
+    def _analyze_candles(self, df) -> Dict:
+        """Analyse des patterns de bougies"""
+        try:
+            last_candles = df.tail(5)  # Analyse des 5 dernières bougies
+            
+            patterns = {
+                'bullish_patterns': [],
+                'bearish_patterns': [],
+                'trend': 'Neutre'
+            }
+            
+            # Analyse tendance
+            closing_prices = last_candles['close'].values
+            opening_prices = last_candles['open'].values
+            highs = last_candles['high'].values
+            lows = last_candles['low'].values
+            
+            # Détection Marteau
+            for i in range(len(last_candles)):
+                body = abs(closing_prices[i] - opening_prices[i])
+                lower_shadow = min(opening_prices[i], closing_prices[i]) - lows[i]
+                upper_shadow = highs[i] - max(opening_prices[i], closing_prices[i])
+                
+                if lower_shadow > 2 * body and upper_shadow < body:
+                    patterns['bullish_patterns'].append("Marteau")
+                
+                if upper_shadow > 2 * body and lower_shadow < body:
+                    patterns['bearish_patterns'].append("Étoile Filante")
+            
+            # Analyse tendance globale
+            if closing_prices[-1] > opening_prices[-1] and closing_prices[-1] > closing_prices[-2]:
+                patterns['trend'] = 'Haussière'
+            elif closing_prices[-1] < opening_prices[-1] and closing_prices[-1] < closing_prices[-2]:
+                patterns['trend'] = 'Baissière'
+                
+            return patterns
+            
+        except Exception as e:
+            logger.error(f"Erreur analyse des bougies: {e}")
+            return {
+                'bullish_patterns': [],
+                'bearish_patterns': [],
+                'trend': 'Indéterminé'
+            }
 
 if __name__ == "__main__":
     app = CryptoAnalyzerApp()

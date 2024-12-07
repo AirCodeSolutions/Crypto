@@ -17,6 +17,8 @@ class LiveAnalysisPage:
         # Ajouter l'aide en haut
         GuideHelper.show_indicator_help()
         GuideHelper.show_quick_guide()
+        GuideHelper.show_pattern_guide()
+        
         # Sélection de la crypto
         symbol = st.text_input(
             "Entrez le symbole de la crypto",

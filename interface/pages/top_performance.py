@@ -18,6 +18,8 @@ class TopPerformancePage:
         
         # Affichage du guide
         GuideHelper.show_indicator_help()
+        GuideHelper.show_pattern_guide()
+        GuideHelper.show_quick_guide()
         
         # Configuration des filtres
         #with st.expander("💰 Paramètres d'investissement", expanded=True):
