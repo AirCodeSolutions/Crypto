@@ -136,7 +136,7 @@ class CryptoAnalyzerApp:
                 exchange_service=self.exchange,
                 analyzer_service=self.analyzer  # Ajout de l'analyzer
             )
-            top_page.render()
+            #top_page.render()
 
         except Exception as e:
             logger.error(f"Erreur dans l'application: {e}", exc_info=True)
