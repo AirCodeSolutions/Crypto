@@ -31,6 +31,19 @@ class GuideHelper:
                 - BUY : Bonne opportunité
                 - NEUTRAL : Pas de signal clair
                 - SELL : Signal de vente
+
+                ### 🎯 Score Technique (0-1)
+                - **0.8-1.0**: Configuration idéale
+                - **0.7-0.8**: Bonne opportunité
+                - **0.6-0.7**: Signal faible
+                - **< 0.6**: Pas de signal
+
+                ### 💰 Paramètres d'Investissement
+                - **Budget**: Capital disponible
+                - **Risque**: 1-2% par position recommandé
+                - **Stop Loss**: -1.5% du prix d'entrée
+                - **Take Profit**: +3% minimum       
+                
             """)
 
     @staticmethod
@@ -61,3 +74,62 @@ class GuideHelper:
                 - Surveiller le volume
                 - Ne pas forcer les trades
             """)
+
+    @staticmethod
+    def show_pattern_guide():
+        """Affiche le guide des patterns de bougies"""
+        with st.expander("📈 Guide des Patterns de Bougies", expanded=False):
+            st.markdown("""
+            ### Comprendre les Patterns de Bougies
+
+            #### Patterns Haussiers
+            1. **Marteau** ⤴️
+            - Longue mèche basse
+            - Petit corps
+            - Signal de retournement haussier
+            ```
+            ex:     ┃
+                    ┃
+                ────┃────
+                    ┃
+                    ┃
+                    ┃
+            ```
+
+            2. **Englobante Haussière** 🟢
+            - Bougie verte englobe précédente rouge
+            - Signal fort de retournement
+            ```
+            ex:   ┃     ┃
+                ───┃── ──┃───
+                    ┃     ┃
+            ```
+
+            #### Patterns Baissiers
+            1. **Étoile Filante** ⤵️
+            - Longue mèche haute
+            - Petit corps
+            - Signal de retournement baissier
+            ```
+            ex:        ┃
+                        ┃
+                    ────┃────
+                        ┃
+            ```
+
+            2. **Avalement Baissier** 🔴
+            - Bougie rouge englobe précédente verte
+            - Signal fort de renversement
+            ```
+            ex:    ┃    ┃
+                ───┃── ──┃───
+                    ┃     ┃
+            ```
+
+            ### Utilisation
+            - Confirmer avec d'autres indicateurs
+            - Observer le volume
+            - Vérifier le contexte de marché
+            """)
+
+    

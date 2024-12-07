@@ -272,6 +272,24 @@ class CryptoAnalyzerApp:
             logger.error(f"Erreur affichage analyse: {e}")
             st.error("Erreur lors de l'analyse")
 
+        if analysis:
+            # Ajout de l'analyse des bougies
+            with st.expander("📊 Analyse des Bougies"):
+                df = self.exchange.get_ohlcv(symbol)
+                candle_analysis = self._analyze_candles(df)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.markdown("### 🟢 Patterns Haussiers")
+                    for pattern in candle_analysis['bullish_patterns']:
+                        st.write(f"✓ {pattern}")
+                with col2:
+                    st.markdown("### 🔴 Patterns Baissiers")
+                    for pattern in candle_analysis['bearish_patterns']:
+                        st.write(f"✓ {pattern}")
+
+                st.markdown(f"**Tendance actuelle:** {candle_analysis['trend']}")       
+
 
 if __name__ == "__main__":
     app = CryptoAnalyzerApp()
