@@ -157,62 +157,102 @@ class TopPerformancePage:
 
     def _show_opportunities(self, opportunities: List[Dict], budget: float):
         for opp in opportunities:
-            with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
-                # Métriques principales - Style 1
+            # Déterminer si c'est un bon moment pour acheter
+            buy_conditions = {
+                'rsi': 30 <= opp['rsi'] <= 45,
+                'score': opp['score'] >= 0.7,
+                'volume': opp.get('volume_trend') == 'croissant',
+                'candles': opp.get('green_candles', 0) >= 3
+            }
+            
+            should_buy = all(buy_conditions.values())
+            
+            header_color = "🟢" if should_buy else "🔴"
+            with st.expander(f"{header_color} {opp['symbol']} - Score: {opp['score']:.2f}"):
+                st.markdown("""---""")
+                
+                # Section 1: Prix et Indicateurs Principaux
+                st.markdown("### 📊 Indicateurs Principaux")
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("Prix", f"${opp['price']:.8f}", f"{opp['change']:+.2f}%")
+                    st.metric(
+                        "Prix", 
+                        f"${opp['price']:.8f}", 
+                        f"{opp['change']:+.2f}%",
+                        delta_color="normal"
+                    )
                 with col2:
-                    st.metric("RSI", f"{opp['rsi']:.1f}")
+                    rsi_color = "green" if buy_conditions['rsi'] else "red"
+                    st.markdown(f"<p style='color: {rsi_color}'>RSI: {opp['rsi']:.1f}</p>", 
+                            unsafe_allow_html=True)
                 with col3:
-                    st.metric("Distance Support", f"{opp.get('distance_to_support', 0):.1f}%")
+                    st.metric("Volume 24h", f"${opp['volume']/1e6:.1f}M")
 
-                # Section Confirmations - Style 1
-                st.markdown("#### ✅ Confirmations")
-                conf_col1, conf_col2 = st.columns(2)
-                with conf_col1:
-                    st.write(f"• {opp.get('green_candles', 0)} bougies vertes consécutives")
-                    st.write(f"• Volume {opp.get('volume_trend', 'N/A')}")
-                with conf_col2:
-                    st.write(f"• Score technique: {opp['score']:.2f}")
-                    st.write(f"• RSI: {opp['rsi']:.1f}")
-
-                # Niveaux suggérés - Style 2
-                st.markdown("### 📊 Position Suggérée")
-                stop_loss = opp['price'] * 0.985
-                target_1 = opp['price'] * 1.03
-                target_2 = opp['price'] * 1.05
+                # Section 2: Analyse Technique
+                st.markdown("""---""")
+                st.markdown("### 🔍 Analyse Technique")
+                tech_col1, tech_col2 = st.columns(2)
+                with tech_col1:
+                    indicators = [
+                        (f"Score technique: {opp['score']:.2f}", buy_conditions['score']),
+                        (f"RSI: {opp['rsi']:.1f}", buy_conditions['rsi']),
+                        (f"Bougies vertes: {opp.get('green_candles', 0)}", buy_conditions['candles']),
+                        (f"Volume: {opp.get('volume_trend', 'N/A')}", buy_conditions['volume'])
+                    ]
+                    
+                    for text, condition in indicators:
+                        color = "green" if condition else "red"
+                        st.markdown(f"<p style='color: {color}'>{'✓' if condition else '✗'} {text}</p>", 
+                                unsafe_allow_html=True)
                 
-                level_col1, level_col2, level_col3 = st.columns(3)
-                with level_col1:
-                    st.write("🛡️ Stop Loss", f"${stop_loss:.8f}")
-                with level_col2:
-                    st.write("🎯 Target 1", f"${target_1:.8f}")
-                with level_col3:
-                    st.write("🎯 Target 2", f"${target_2:.8f}")
+                with tech_col2:
+                    if should_buy:
+                        st.success("✅ Configuration idéale pour l'achat")
+                    else:
+                        st.warning("⚠️ Certains indicateurs ne sont pas optimaux")
 
-                # Informations investissement
-                st.markdown(f"""
-                💰 **Position suggérée:**
-                - Montant: ${opp['investment']:.2f} USDT
-                - Tokens: {opp['tokens_possible']:.2f}
-                - R/R Ratio: {((target_1 - opp['price']) / (opp['price'] - stop_loss)):.2f}
-                """)
+                # Section 3: Niveaux de Trading
+                if should_buy:
+                    st.markdown("""---""")
+                    st.markdown("### 🎯 Niveaux de Trading Suggérés")
+                    
+                    stop_loss = opp['price'] * 0.985
+                    target_1 = opp['price'] * 1.03
+                    target_2 = opp['price'] * 1.05
+                    
+                    level_col1, level_col2, level_col3 = st.columns(3)
+                    with level_col1:
+                        st.markdown("**🛡️ Stop Loss**")
+                        st.markdown(f"${stop_loss:.8f}")
+                    with level_col2:
+                        st.markdown("**🎯 Target 1 (+3%)**")
+                        st.markdown(f"${target_1:.8f}")
+                    with level_col3:
+                        st.markdown("**🎯 Target 2 (+5%)**")
+                        st.markdown(f"${target_2:.8f}")
 
-                # Bouton de préparation trade
-                if st.button("📝 Préparer l'ordre", key=f"prep_{opp['symbol']}"):
-                    st.session_state['prepared_trade'] = {
-                        'symbol': opp['symbol'],
-                        'price': opp['price'],
-                        'stop_loss': stop_loss,
-                        'target_1': target_1,
-                        'target_2': target_2,
-                        'suggested_amount': opp['investment'],
-                        'score': opp['score']
-                    }
-                    st.success(f"✅ Trade préparé pour {opp['symbol']}! Allez dans Portfolio pour finaliser.")
+                    # Position suggérée
+                    st.markdown("""---""")
+                    st.markdown("### 💰 Position Suggérée")
+                    pos_col1, pos_col2 = st.columns(2)
+                    with pos_col1:
+                        st.markdown(f"""
+                        - Investissement: **${opp['investment']:.2f}** USDT
+                        - Nombre de tokens: **{opp['tokens_possible']:.2f}**
+                        """)
+                    with pos_col2:
+                        st.markdown(f"""
+                        - Perte max: **${(opp['investment'] * 0.015):.2f}** USDT
+                        - Gain potentiel: **${(opp['investment'] * 0.05):.2f}** USDT
+                        """)
 
-                st.markdown("---")
+                    # Bouton de préparation
+                    st.button(
+                        "📝 Préparer l'ordre",
+                        key=f"prep_{opp['symbol']}",
+                        on_click=self._prepare_trade,
+                        args=(opp, stop_loss, target_1, target_2)
+                    )
 
     def _show_top_volumes(self, max_price: float):
         """Affiche les cryptos avec les plus gros volumes même si elles ne correspondent pas aux critères"""

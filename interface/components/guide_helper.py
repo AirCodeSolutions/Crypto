@@ -128,7 +128,8 @@ class GuideHelper:
             """)
     # Guide des opportunités
     @staticmethod
-    def show_opportunites_guide():
+
+    def show_opportunities_guide():
         with st.expander("ℹ️ Guide des Opportunités", expanded=True):
             col1, col2 = st.columns(2)
             
@@ -143,20 +144,29 @@ class GuideHelper:
                 """)
                 
                 st.markdown("""
-                ### ⏱️ Horizons de Trading
-                - 5m : Scalping (15-30 min)
-                - 15m : Intraday (1-4 heures)
-                - 1h : Swing court (6-24 heures)
-                - 4h : Swing long (2-5 jours)
+                ### 💰 Gestion des Positions
+                - Position maximale: 30-35$ par trade
+                - Stop Loss: -1.5% du prix d'entrée
+                - Take Profit 1: +3% (sortie partielle)
+                - Take Profit 2: +5% (sortie totale)
+                - Ratio R/R minimum: 1:2
                 """)
             
             with col2:
                 st.markdown("""
-                ### 🚫 À Éviter
-                - RSI > 70 (surachat)
-                - Volume décroissant 
-                - Résistance proche
-                - Bougies rouges
+                ### ⏱️ Timeframes
+                - 5m : Scalping (15-30 min)
+                - 15m : Trading intraday (1-4 heures)
+                - 1h : Swing court (6-24 heures)
+                - 4h : Swing long (2-5 jours)
+                """)
+                
+                st.markdown("""
+                ### ⚠️ Points de Vigilance
+                - RSI > 70 : Ne pas acheter
+                - Volume en baisse : Attendre
+                - Support/Résistance proches : Risqué
+                - Bougies rouges : Signal faible
                 """)
 
         # Note importante
