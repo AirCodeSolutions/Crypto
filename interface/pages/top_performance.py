@@ -95,47 +95,61 @@ class TopPerformancePage:
     def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float, timeframe: str = '1h') -> List[Dict]:
         try:
             # 1. Une seule requête pour tous les tickers
-            tickers = self.exchange.exchange.fetch_tickers()
+            all_tickers = self.exchange.exchange.fetch_tickers()
+
+            # 2. Filtrage rapide et création des opportunités en une passe
             opportunities = []
-            
-            # 2. Filtrage rapide initial
-            filtered_pairs = {
-                symbol: ticker for symbol, ticker in tickers.items()
-                if (symbol.endswith('/USDT') and 
-                    0 < float(ticker['last']) <= max_price and 
-                    float(ticker.get('quoteVolume', 0)) >= min_volume)
-            }
-            
-            # 3. Analyse des paires filtrées
-            for symbol, ticker in filtered_pairs.items():
+            for symbol, ticker in all_tickers.items():
                 try:
+                    # Vérifier si c'est une paire USDT valide
+                    if not symbol.endswith('/USDT'):
+                        continue
+
                     price = float(ticker['last'])
                     volume = float(ticker.get('quoteVolume', 0))
                     change = float(ticker.get('percentage', 0))
-                    
-                    analysis = self.analyzer.analyze_symbol(symbol.split('/')[0])
-                    if analysis:  # Analyse même si score < min_score
-                        tokens_possible = budget/price
-                        gain_potentiel = tokens_possible * (price * 0.03)  # 3% de gain potentiel
-                        
-                        opportunities.append({
-                            'symbol': symbol.split('/')[0],
-                            'price': price,
-                            'volume': volume,
-                            'change': change,
-                            'score': analysis['score'],
-                            'rsi': analysis.get('rsi', 50),
-                            'signal': analysis['signal'],
-                            'tokens_possible': tokens_possible,
-                            'investment': min(budget, tokens_possible * price),
-                            'gain_potentiel': gain_potentiel
-                        })
-                        
+
+                    # Filtres de base rapides
+                    if not (0 < price <= max_price and volume >= min_volume):
+                        continue
+
+                    # Calculs simples sans appels API
+                    tokens_possible = budget/price
+                    gain_potentiel = tokens_possible * (price * 0.03)
+
+                    opportunities.append({
+                        'symbol': symbol.split('/')[0],
+                        'price': price,
+                        'volume': volume,
+                        'change': change,
+                        'tokens_possible': tokens_possible,
+                        'investment': min(budget, tokens_possible * price),
+                        'gain_potentiel': gain_potentiel
+                    })
+
                 except Exception as e:
                     continue
-            
-            # 4. Tri par score
-            return sorted(opportunities, key=lambda x: x['score'], reverse=True)[:10]  # Top 10
+
+            # 3. Tri par volume et limitation aux 10 meilleurs
+            opportunities.sort(key=lambda x: x['volume'], reverse=True)
+            top_opportunities = opportunities[:10]
+
+            # 4. Analyse technique uniquement sur le top 10
+            final_opportunities = []
+            for opp in top_opportunities:
+                try:
+                    analysis = self.analyzer.analyze_symbol(opp['symbol'])
+                    if analysis:
+                        opp.update({
+                            'score': analysis['score'],
+                            'rsi': analysis.get('rsi', 50),
+                            'signal': analysis['signal']
+                        })
+                        final_opportunities.append(opp)
+                except:
+                    continue
+
+            return final_opportunities
 
         except Exception as e:
             st.error(f"Erreur lors de la recherche : {str(e)}")
