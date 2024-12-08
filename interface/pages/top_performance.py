@@ -44,6 +44,21 @@ class TopPerformancePage:
                 value=st.session_state['user_preferences']['max_price']
             )
 
+            # Ajout de la sélection du timeframe
+            col1, col2 = st.columns(2)
+            with col1:
+                timeframe = st.selectbox(
+                    "Timeframe",
+                    options=["5m", "15m", "1h", "4h"],
+                    index=2,  # 1h par défaut
+                    help="""
+                    5m : Trading ultra court terme (très risqué)
+                    15m : Trading intraday
+                    1h : Recommandé pour débutants
+                    4h : Trades plus sûrs mais moins fréquents
+                    """
+                )
+
         with col2:
             st.subheader("🛡️ Critères de Sécurité")
             min_volume = st.number_input(
@@ -71,19 +86,19 @@ class TopPerformancePage:
             })
 
         # Ajout de la sélection du timeframe
-        col1, col2 = st.columns(2)
-        with col1:
-            timeframe = st.selectbox(
-                "Timeframe",
-                options=["5m", "15m", "1h", "4h"],
-                index=2,  # 1h par défaut
-                help="""
-                5m : Trading ultra court terme (très risqué)
-                15m : Trading intraday
-                1h : Recommandé pour débutants
-                4h : Trades plus sûrs mais moins fréquents
-                """
-            )
+        #col1, col2 = st.columns(2)
+        #with col1:
+        #    timeframe = st.selectbox(
+        #        "Timeframe",
+        #        options=["5m", "15m", "1h", "4h"],
+        #        index=2,  # 1h par défaut
+        #        help="""
+        #        5m : Trading ultra court terme (très risqué)
+        #        15m : Trading intraday
+        #        1h : Recommandé pour débutants
+        #        4h : Trades plus sûrs mais moins fréquents
+        #        """
+        #    )
 
         if st.button("🔍 Rechercher des Opportunités"):
             with st.spinner("Analyse du marché en cours..."):
