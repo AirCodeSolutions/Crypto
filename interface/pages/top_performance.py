@@ -119,10 +119,10 @@ class TopPerformancePage:
                     volume = float(ticker.get('quoteVolume', 0))
                     change = float(ticker.get('percentage', 0))
                     
-                    # Filtres de base
+                    # Filtres plus souples
                     if (0 < price <= max_price and 
                         volume >= min_volume and 
-                        -5 <= change <= 15):  # Éviter les pumps trop importants
+                        -10 <= change <= 20):  # Plage de variation plus large
                         
                         candidates.append({
                             'symbol': symbol.split('/')[0],
@@ -141,25 +141,41 @@ class TopPerformancePage:
             # Seconde passe : analyse technique uniquement sur les meilleurs candidats
             for candidate in candidates:
                 try:
-                    analysis = self.analyzer.analyze_symbol(candidate['symbol'])
-                    if analysis and analysis['score'] >= min_score:
-                        tokens_possible = min(
-                            budget/candidate['price'], 
-                            candidate['volume']/(candidate['price']*10)
+                    # Vérifier la tendance rapide d'abord
+                    if self._analyze_quick_trend(candidate['symbol']):
+                        analysis = self.analyzer.analyze_symbol(candidate['symbol'])
+                        
+                        # Critères plus détaillés
+                        good_opportunity = (
+                            analysis['score'] >= min_score and
+                            30 <= analysis.get('rsi', 50) <= 70 and  # RSI dans une zone saine
+                            analysis['signal'] in ['BUY', 'STRONG_BUY']
                         )
                         
-                        opportunities.append({
-                            **candidate,
-                            'score': analysis['score'],
-                            'rsi': analysis.get('rsi', 50),
-                            'signal': analysis['signal'],
-                            'tokens_possible': tokens_possible,
-                            'investment': min(budget, tokens_possible * candidate['price'])
-                        })
-                        
-                        # S'arrêter si on a assez d'opportunités
-                        if len(opportunities) >= 10:
-                            break
+                        if good_opportunity:
+                            # Calcul des niveaux suggérés
+                            price = candidate['price']
+                            support_level = price * 0.985  # -1.5% pour stop loss
+                            target_1 = price * 1.03   # +3% premier objectif
+                            target_2 = price * 1.05   # +5% second objectif
+                            
+                            # Calcul du ratio risque/récompense
+                            risk = price - support_level
+                            reward = target_1 - price
+                            risk_reward = reward / risk
+                            
+                            # N'ajouter que si le ratio est favorable
+                            if risk_reward >= 2:
+                                opportunities.append({
+                                    **candidate,
+                                    'score': analysis['score'],
+                                    'rsi': analysis.get('rsi', 50),
+                                    'signal': analysis['signal'],
+                                    'support_level': support_level,
+                                    'target_1': target_1,
+                                    'target_2': target_2,
+                                    'risk_reward': risk_reward
+                                })
                             
                 except Exception as e:
                     continue
@@ -172,7 +188,39 @@ class TopPerformancePage:
         except Exception as e:
             st.error(f"Erreur lors de la recherche : {str(e)}")
             return []
+    def _analyze_quick_trend(self, symbol: str) -> bool:
+        """Analyse rapide de la tendance sur les dernières bougies"""
+        try:
+            df = self.exchange.get_ohlcv(symbol, timeframe='15m', limit=12)  # 3 dernières heures
+            if df is not None and not df.empty:
+                # Compter les bougies vertes récentes
+                recent_candles = df.tail(4)  # Dernière heure
+                green_candles = sum(recent_candles['close'] > recent_candles['open'])
+                
+                # Vérifier la tendance des volumes
+                volume_increasing = df['volume'].tail(4).is_monotonic_increasing
+                
+                return green_candles >= 3 and volume_increasing
+                
+        except:
+            pass
+        return False
+    
+  
     def _show_opportunities(self, opportunities: List[Dict], budget: float):
+        if not opportunities:
+            st.warning("🔍 Aucune opportunité ne correspond aux critères stricts de sécurité actuellement.")
+            st.info("""
+            Suggestions :
+            - Augmentez légèrement le prix maximum
+            - Réduisez le volume minimum requis
+            - Diminuez le score technique minimum
+            - Revenez dans quelques minutes
+            """)
+            return
+
+        st.success(f"🎯 {len(opportunities)} opportunités trouvées !")
+        
         for opp in opportunities:
             with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
                 col1, col2, col3 = st.columns(3)
