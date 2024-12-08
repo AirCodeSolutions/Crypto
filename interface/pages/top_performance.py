@@ -14,9 +14,9 @@ class TopPerformancePage:
     def render(self):
         st.title("🏆 Top Performances ")
         # Section Guides
-        GuideHelper.show_indicator_help()
-        GuideHelper.show_pattern_guide()
-        GuideHelper.show_quick_guide()
+        #GuideHelper.show_indicator_help()
+        #GuideHelper.show_pattern_guide()
+        #GuideHelper.show_quick_guide()
         GuideHelper.show_opportunites_guide()
 
         col1, col2 = st.columns(2)
