@@ -12,7 +12,7 @@ class TopPerformancePage:
         self.analyzer = analyzer_service
         
     def render(self):
-        st.title("🏆 Top Performances ")
+        st.title("🏆 Opportunités ")
         # Section Guides
         #GuideHelper.show_indicator_help()
         #GuideHelper.show_pattern_guide()
@@ -235,6 +235,25 @@ class TopPerformancePage:
                         f"<span style='color: {color}'>{symbol} {ind['name']}: {value}</span>", 
                         unsafe_allow_html=True
                     )
+                
+                # Dans la section après les indicateurs
+                if opp['score'] >= 0.5:  # Montrer seulement si le score n'est pas trop mauvais
+                    st.markdown("### 💰 Position Suggérée")
+                    pos_col1, pos_col2 = st.columns(2)
+                    with pos_col1:
+                        st.metric(
+                            "Investissement suggéré", 
+                            f"${opp['investment']:.2f}",
+                            f"{opp['tokens_possible']:.2f} tokens"
+                        )
+                    with pos_col2:
+                        perte_max = opp['investment'] * 0.015  # Stop loss à -1.5%
+                        gain_max = opp['investment'] * 0.05   # Target à +5%
+                        st.metric(
+                            "Gain potentiel",
+                            f"+${gain_max:.2f}",
+                            f"Perte max: -${perte_max:.2f}"
+                        )
 
                 # Message d'avertissement si nécessaire
                 if not all(ind['condition'] for ind in indicators):
