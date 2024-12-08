@@ -51,6 +51,16 @@ class TopPerformancePage:
                 max_value=1.0,
                 value=0.6
             )
+
+        # Mise à jour des préférences quand elles changent
+        st.session_state.user_preferences.update({
+            'budget': budget,
+            'max_price': max_price,
+            'min_volume': min_volume,
+            'min_score': min_score,
+            'timeframe': timeframe
+        })
+
         # Ajout de la sélection du timeframe
         col1, col2 = st.columns(2)
         with col1:
@@ -78,7 +88,25 @@ class TopPerformancePage:
                 
                 if results:
                     st.success(f"🎯 {len(results)} opportunités trouvées !")
-                    self._show_opportunities(results, budget)
+                    # Ajout du filtre ici, juste après l'obtention des résultats
+                    sort_by = st.selectbox(
+                        "Trier par",
+                        ["Score", "Volume", "RSI"],
+                        key="sort_opportunities"
+                    )
+                    
+                    # Tri des résultats selon le critère choisi
+                    if sort_by == "Score":
+                        results.sort(key=lambda x: x['score'], reverse=True)
+                    elif sort_by == "Volume":
+                        results.sort(key=lambda x: x['volume'], reverse=True)
+                    elif sort_by == "RSI":
+                        results.sort(key=lambda x: abs(x['rsi'] - 40))  # Plus proche de 40 = meilleur
+                    
+                    # Affichage des résultats triés
+                    st.success(f"🎯 {len(results)} opportunités trouvées !")
+                    self._show_opportunities(results, budget)            
+
                 else:
                     st.warning("🔍 Aucune opportunité ne correspond aux critères actuels.")
                     st.info("""
