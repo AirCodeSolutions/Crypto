@@ -92,16 +92,15 @@ class TopPerformancePage:
                     # Afficher les meilleurs volumes même s'ils ne correspondent pas aux critères
                     self._show_top_volumes(max_price)
 
-    def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float, timeframe: str = '1h') -> List[Dict]:
+    def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float) -> List[Dict]:
         try:
             status_text = st.empty()
             status_text.text("Récupération des données du marché...")
             
             tickers = self.exchange.exchange.fetch_tickers()
-            opportunities = []
-            strict_opportunities = []  # Pour les opportunités respectant tous les critères
+            candidates = []
             
-            # Première passe pour trouver toutes les opportunités potentielles
+            status_text.text("Analyse des pairs...")
             for symbol, ticker in tickers.items():
                 if not symbol.endswith('/USDT'):
                     continue
@@ -111,57 +110,46 @@ class TopPerformancePage:
                     volume = float(ticker.get('quoteVolume', 0))
                     change = float(ticker.get('percentage', 0))
                     
-                    # Filtres de base plus souples
-                    if (0 < price <= max_price and volume >= min_volume):
-                        df = self.exchange.get_ohlcv(symbol, timeframe=timeframe, limit=20)
-                        if df is not None and not df.empty:
-                            analysis = self.analyzer.analyze_symbol(symbol.split('/')[0])
-                            
-                            if analysis:
-                                last_candles = df.tail(5)
-                                green_candles = sum(last_candles['close'] > last_candles['open'])
-                                volume_trend = 'croissant' if df['volume'].tail(3).is_monotonic_increasing else 'décroissant'
-                                
-                                opp = {
-                                    'symbol': symbol.split('/')[0],
-                                    'price': price,
-                                    'volume': volume,
-                                    'change': change,
-                                    'score': analysis['score'],
-                                    'rsi': analysis.get('rsi', 50),
-                                    'signal': analysis['signal'],
-                                    'green_candles': green_candles,
-                                    'volume_trend': volume_trend,
-                                    'tokens_possible': budget/price,
-                                    'investment': min(budget, (budget/price) * price)
-                                }
-                                
-                                # Vérification des critères stricts
-                                if (analysis['score'] >= min_score and 
-                                    30 <= analysis.get('rsi', 50) <= 45 and
-                                    green_candles >= 3 and
-                                    volume_trend == 'croissant'):
-                                    strict_opportunities.append(opp)
-                                else:
-                                    opportunities.append(opp)
+                    if (0 < price <= max_price and 
+                        volume >= min_volume and 
+                        -10 <= change <= 20):
+                        
+                        candidates.append({
+                            'symbol': symbol.split('/')[0],
+                            'price': price,
+                            'volume': volume,
+                            'change': change
+                        })
+                        
+                except:
+                    continue
+            
+            candidates.sort(key=lambda x: x['volume'], reverse=True)
+            candidates = candidates[:20]
+            
+            opportunities = []
+            status_text.text("Analyse technique des meilleures pairs...")
+            
+            for candidate in candidates:
+                try:
+                    analysis = self.analyzer.analyze_symbol(candidate['symbol'])
+                    if analysis and analysis['score'] >= min_score:
+                        tokens_possible = budget/candidate['price']
+                        
+                        opportunities.append({
+                            **candidate,
+                            'score': analysis['score'],
+                            'rsi': analysis.get('rsi', 50),
+                            'signal': analysis['signal'],
+                            'tokens_possible': tokens_possible,
+                            'investment': min(budget, tokens_possible * candidate['price'])
+                        })
                         
                 except Exception as e:
                     continue
-            
+                    
             status_text.empty()
-            
-            # Affichage du contexte si pas d'opportunités strictes
-            if not strict_opportunities:
-                st.warning("🔍 Aucune opportunité ne respecte tous les critères stricts")
-                st.info("""
-                Voici quelques opportunités intéressantes à surveiller, 
-                même si elles ne respectent pas tous les critères:
-                """)
-                
-                # Retourner les meilleures opportunités alternatives triées par score
-                return sorted(opportunities, key=lambda x: x['score'], reverse=True)[:10]
-                
-            return sorted(strict_opportunities, key=lambda x: x['score'], reverse=True)
+            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
 
         except Exception as e:
             st.error(f"Erreur lors de la recherche : {str(e)}")
