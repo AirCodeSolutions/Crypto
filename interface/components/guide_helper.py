@@ -168,11 +168,3 @@ class GuideHelper:
                 - Bougies rouges : Signal faible
                 """)
 
-        # Note importante
-        st.info("""
-        ℹ️ **Note importante :**
-        - Plus le timeframe est petit, plus le risque est élevé
-        - Commencez par le timeframe 1h si vous débutez
-        - Attendez toujours la confirmation des 3 bougies vertes
-        - Vérifiez toujours la tendance sur le timeframe supérieur
-        """)

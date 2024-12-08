@@ -1,7 +1,7 @@
 # interface/pages/top_performance.py
 import streamlit as st
 import time
-from typing import List, Dict
+from typing import List, Dict, timeframe
 from ..components.guide_helper import GuideHelper
 import logging
 
@@ -58,7 +58,8 @@ class TopPerformancePage:
                     max_price=max_price,
                     min_volume=min_volume,
                     min_score=min_score,
-                    budget=budget
+                    budget=budget,
+                    timeframe=timeframe
                 )
                 
                 if results:
@@ -77,15 +78,16 @@ class TopPerformancePage:
                     # Afficher les meilleurs volumes même s'ils ne correspondent pas aux critères
                     self._show_top_volumes(max_price)
 
-    def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float) -> List[Dict]:
+    def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float, timeframe: str = '1h') -> List[Dict]:
         try:
             status_text = st.empty()
             status_text.text("Récupération des données du marché...")
             
+            # 1. Récupération groupée de tous les tickers
             tickers = self.exchange.exchange.fetch_tickers()
-            candidates = []
             
-            status_text.text("Analyse des pairs...")
+            # 2. Pré-filtrage des paires USDT
+            candidates = []
             for symbol, ticker in tickers.items():
                 if not symbol.endswith('/USDT'):
                     continue
@@ -95,27 +97,33 @@ class TopPerformancePage:
                     volume = float(ticker.get('quoteVolume', 0))
                     change = float(ticker.get('percentage', 0))
                     
+                    # Premiers filtres
                     if (0 < price <= max_price and 
                         volume >= min_volume and 
                         -10 <= change <= 20):
                         
-                        candidates.append({
-                            'symbol': symbol.split('/')[0],
-                            'price': price,
-                            'volume': volume,
-                            'change': change
-                        })
-                        
+                        # Analyse sur le timeframe spécifié
+                        df = self.exchange.get_ohlcv(symbol, timeframe=timeframe, limit=20)
+                        if df is not None and not df.empty:
+                            # Comptage des bougies vertes
+                            last_candles = df.tail(5)
+                            green_candles = sum(last_candles['close'] > last_candles['open'])
+                            volume_trend = 'croissant' if df['volume'].tail(3).is_monotonic_increasing else 'décroissant'
+                            
+                            candidates.append({
+                                'symbol': symbol.split('/')[0],
+                                'price': price,
+                                'volume': volume,
+                                'change': change,
+                                'green_candles': green_candles,
+                                'volume_trend': volume_trend
+                            })
                 except:
                     continue
             
-            candidates.sort(key=lambda x: x['volume'], reverse=True)
-            candidates = candidates[:20]
-            
+            # 3. Analyse technique sur les candidats
             opportunities = []
-            status_text.text("Analyse technique des meilleures pairs...")
-            
-            for candidate in candidates:
+            for candidate in candidates[:20]:  # Limiter aux 20 meilleurs volumes
                 try:
                     analysis = self.analyzer.analyze_symbol(candidate['symbol'])
                     if analysis and analysis['score'] >= min_score:
@@ -132,24 +140,9 @@ class TopPerformancePage:
                         
                 except Exception as e:
                     continue
-                    
+            
             status_text.empty()
             return sorted(opportunities, key=lambda x: x['score'], reverse=True)
-            def _analyze_candles(self, df):
-                """Analyse les bougies et retourne le nombre de vertes consécutives"""
-                try:
-                    last_candles = df.tail(5)
-                    green_count = 0
-                    
-                    for _, candle in last_candles.iterrows():
-                        if candle['close'] > candle['open']:
-                            green_count += 1
-                        else:
-                            break
-                            
-                    return green_count
-                except Exception as e:
-                    return 0
 
         except Exception as e:
             st.error(f"Erreur lors de la recherche : {str(e)}")
