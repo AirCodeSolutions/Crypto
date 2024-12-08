@@ -159,43 +159,6 @@ class GuideHelper:
                 - Bougies rouges
                 """)
 
-        # Filtres de recherche
-        st.markdown("### 🔍 Filtres de Recherche")
-        
-        # Variation et volume
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            min_var = st.number_input("Variation minimum (%)", value=1.0)
-        with col2:
-            min_vol = st.number_input("Volume minimum (USDT)", value=50000.0)
-        with col3:
-            min_score = st.slider(
-                "Score minimum",
-                min_value=0.0,
-                max_value=1.0,
-                value=0.7
-            )
-
-        # Timeframe et prix maximum
-        col1, col2 = st.columns(2)
-        with col1:
-            timeframe = st.selectbox(
-                "Timeframe",
-                ["5m", "15m", "1h", "4h"],
-                index=2,
-                help="""
-                5m : Trading ultra court terme (très risqué)
-                15m : Trading intraday
-                1h : Recommandé pour débutants
-                4h : Trades plus sûrs mais moins fréquents
-                """
-            )
-        with col2:
-            max_price = st.number_input(
-                "Prix maximum (USDT)", 
-                value=20.0
-            )
-
         # Note importante
         st.info("""
         ℹ️ **Note importante :**
