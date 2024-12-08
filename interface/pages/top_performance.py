@@ -1,7 +1,7 @@
 # interface/pages/top_performance.py
 import streamlit as st
 import time
-from typing import List, Dict, timeframe
+from typing import List, Dict
 from ..components.guide_helper import GuideHelper
 import logging
 
@@ -14,9 +14,9 @@ class TopPerformancePage:
     def render(self):
         st.title("🏆 Top Performances ")
         # Section Guides
-       # GuideHelper.show_indicator_help()
-       # GuideHelper.show_pattern_guide()
-       # GuideHelper.show_quick_guide()
+        GuideHelper.show_indicator_help()
+        GuideHelper.show_pattern_guide()
+        GuideHelper.show_quick_guide()
         GuideHelper.show_opportunites_guide()
 
         col1, col2 = st.columns(2)
@@ -50,6 +50,20 @@ class TopPerformancePage:
                 min_value=0.0,
                 max_value=1.0,
                 value=0.6
+            )
+        # Ajout de la sélection du timeframe
+        col1, col2 = st.columns(2)
+        with col1:
+            timeframe = st.selectbox(
+                "Timeframe",
+                options=["5m", "15m", "1h", "4h"],
+                index=2,  # 1h par défaut
+                help="""
+                5m : Trading ultra court terme (très risqué)
+                15m : Trading intraday
+                1h : Recommandé pour débutants
+                4h : Trades plus sûrs mais moins fréquents
+                """
             )
 
         if st.button("🔍 Rechercher des Opportunités"):
