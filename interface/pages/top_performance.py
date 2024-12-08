@@ -184,22 +184,46 @@ class TopPerformancePage:
                 if not symbol.endswith('/USDT'):
                     continue
                     
-                price = float(ticker['last'])
-                if price <= max_price:
-                    volumes.append({
-                        'symbol': symbol.split('/')[0],
-                        'price': price,
-                        'volume': float(ticker.get('quoteVolume', 0)),
-                        'change': float(ticker.get('percentage', 0))
-                    })
+                try:
+                    # Vérification et conversion sécurisée des valeurs
+                    price = ticker.get('last')
+                    volume = ticker.get('quoteVolume')
+                    change = ticker.get('percentage')
+                    
+                    if price is not None and volume is not None and change is not None:
+                        price = float(price)
+                        if price <= max_price:
+                            volumes.append({
+                                'symbol': symbol.split('/')[0],
+                                'price': price,
+                                'volume': float(volume),
+                                'change': float(change)
+                            })
+                except (TypeError, ValueError):
+                    continue
             
             volumes.sort(key=lambda x: x['volume'], reverse=True)
             
             if volumes:
+                col1, col2 = st.columns([2, 3])
+                with col1:
+                    st.markdown("**Symbole**")
+                with col2:
+                    st.markdown("**Informations**")
+                
                 for v in volumes[:5]:  # Afficher les 5 plus gros volumes
-                    st.markdown(f"""
-                    **{v['symbol']}**: ${v['price']:.4f} | Volume: ${v['volume']/1e6:.1f}M | {v['change']:+.2f}%
-                    """)
-                    
+                    col1, col2 = st.columns([2, 3])
+                    with col1:
+                        st.markdown(f"**{v['symbol']}**")
+                    with col2:
+                        st.markdown(
+                            f"Prix: ${v['price']:.4f} | "
+                            f"Vol: ${v['volume']/1e6:.1f}M | "
+                            f"Var: {v['change']:+.2f}%"
+                        )
+                        
+            else:
+                st.info("Aucune crypto ne correspond aux critères de prix actuels")
+                        
         except Exception as e:
-            st.error(f"Erreur lors de la récupération des volumes: {str(e)}")
+            st.warning(f"Note: Certaines données de volume peuvent être incomplètes")
