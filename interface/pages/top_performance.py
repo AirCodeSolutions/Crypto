@@ -12,7 +12,7 @@ class TopPerformancePage:
         self.analyzer = analyzer_service
         
     def render(self):
-        st.title("🏆 Top Performances (Prix ≤ 20 USDT)")
+        st.title("🏆 Top Performances ")
         # Section Guides
        # GuideHelper.show_indicator_help()
        # GuideHelper.show_pattern_guide()
@@ -158,29 +158,48 @@ class TopPerformancePage:
     def _show_opportunities(self, opportunities: List[Dict], budget: float):
         for opp in opportunities:
             with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
+                # Métriques principales - Style 1
                 col1, col2, col3 = st.columns(3)
-                
                 with col1:
-                    st.metric("Prix", f"${opp['price']:.4f}", f"{opp['change']:+.2f}%")
+                    st.metric("Prix", f"${opp['price']:.8f}", f"{opp['change']:+.2f}%")
                 with col2:
-                    st.metric("Volume 24h", f"${opp['volume']/1e6:.1f}M")
-                with col3:
                     st.metric("RSI", f"{opp['rsi']:.1f}")
-                
-                # Niveaux suggérés
+                with col3:
+                    st.metric("Distance Support", f"{opp.get('distance_to_support', 0):.1f}%")
+
+                # Section Confirmations - Style 1
+                st.markdown("#### ✅ Confirmations")
+                conf_col1, conf_col2 = st.columns(2)
+                with conf_col1:
+                    st.write(f"• {opp.get('green_candles', 0)} bougies vertes consécutives")
+                    st.write(f"• Volume {opp.get('volume_trend', 'N/A')}")
+                with conf_col2:
+                    st.write(f"• Score technique: {opp['score']:.2f}")
+                    st.write(f"• RSI: {opp['rsi']:.1f}")
+
+                # Niveaux suggérés - Style 2
+                st.markdown("### 📊 Position Suggérée")
                 stop_loss = opp['price'] * 0.985
                 target_1 = opp['price'] * 1.03
                 target_2 = opp['price'] * 1.05
                 
-                st.markdown("### 📊 Position Suggérée")
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.write("Stop Loss", f"${stop_loss:.4f}")
-                with col2:
-                    st.write("Target 1", f"${target_1:.4f}")
-                with col3:
-                    st.write("Target 2", f"${target_2:.4f}")
-                
+                level_col1, level_col2, level_col3 = st.columns(3)
+                with level_col1:
+                    st.write("🛡️ Stop Loss", f"${stop_loss:.8f}")
+                with level_col2:
+                    st.write("🎯 Target 1", f"${target_1:.8f}")
+                with level_col3:
+                    st.write("🎯 Target 2", f"${target_2:.8f}")
+
+                # Informations investissement
+                st.markdown(f"""
+                💰 **Position suggérée:**
+                - Montant: ${opp['investment']:.2f} USDT
+                - Tokens: {opp['tokens_possible']:.2f}
+                - R/R Ratio: {((target_1 - opp['price']) / (opp['price'] - stop_loss)):.2f}
+                """)
+
+                # Bouton de préparation trade
                 if st.button("📝 Préparer l'ordre", key=f"prep_{opp['symbol']}"):
                     st.session_state['prepared_trade'] = {
                         'symbol': opp['symbol'],
@@ -192,6 +211,8 @@ class TopPerformancePage:
                         'score': opp['score']
                     }
                     st.success(f"✅ Trade préparé pour {opp['symbol']}! Allez dans Portfolio pour finaliser.")
+
+                st.markdown("---")
 
     def _show_top_volumes(self, max_price: float):
         """Affiche les cryptos avec les plus gros volumes même si elles ne correspondent pas aux critères"""
