@@ -128,8 +128,7 @@ class GuideHelper:
             """)
     # Guide des opportunités
     @staticmethod
-
-    def show_opportunities_guide():
+    def show_opportunites_guide():
         with st.expander("ℹ️ Guide des Opportunités", expanded=True):
             col1, col2 = st.columns(2)
             
