@@ -73,7 +73,7 @@ class TopPerformancePage:
                     min_volume=min_volume,
                     min_score=min_score,
                     budget=budget,
-                    timeframe=timeframe
+                   # timeframe=timeframe
                 )
                 
                 if results:
