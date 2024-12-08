@@ -135,6 +135,21 @@ class TopPerformancePage:
                     
             status_text.empty()
             return sorted(opportunities, key=lambda x: x['score'], reverse=True)
+            def _analyze_candles(self, df):
+                """Analyse les bougies et retourne le nombre de vertes consécutives"""
+                try:
+                    last_candles = df.tail(5)
+                    green_count = 0
+                    
+                    for _, candle in last_candles.iterrows():
+                        if candle['close'] > candle['open']:
+                            green_count += 1
+                        else:
+                            break
+                            
+                    return green_count
+                except Exception as e:
+                    return 0
 
         except Exception as e:
             st.error(f"Erreur lors de la recherche : {str(e)}")
