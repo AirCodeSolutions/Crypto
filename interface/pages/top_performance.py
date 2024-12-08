@@ -182,7 +182,8 @@ class TopPerformancePage:
                         delta_color="normal"
                     )
                 with col2:
-                    rsi_color = "green" if buy_conditions['rsi'] else "red"
+                    rsi_ok = 30 <= opp['rsi'] <= 70  # RSI dans une zone saine
+                    rsi_color = "green" if rsi_ok else "red"
                     st.markdown(f"<p style='color: {rsi_color}'>RSI: {opp['rsi']:.1f}</p>", 
                             unsafe_allow_html=True)
                 with col3:
@@ -245,6 +246,18 @@ class TopPerformancePage:
                         - Perte max: **${(opp['investment'] * 0.015):.2f}** USDT
                         - Gain potentiel: **${(opp['investment'] * 0.05):.2f}** USDT
                         """)
+                    # Dans une section dédiée pour les gains potentiels
+                    if opp['price'] > 0:  # Vérification de sécurité
+                        investment = opp['investment']
+                        gain_3 = investment * 0.03  # Gain à +3%
+                        gain_5 = investment * 0.05  # Gain à +5%
+                                
+                        st.markdown("#### 💰 Gains Potentiels")
+                        gain_col1, gain_col2 = st.columns(2)
+                        with gain_col1:
+                            st.metric("À +3%", f"${gain_3:.2f}", f"{((gain_3/investment)*100):.1f}%")
+                        with gain_col2:
+                            st.metric("À +5%", f"${gain_5:.2f}", f"{((gain_5/investment)*100):.1f}%")
 
                     # Bouton de préparation
                     st.button(
