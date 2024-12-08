@@ -98,84 +98,80 @@ class TopPerformancePage:
 
     def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float) -> List[Dict]:
         try:
-            # 1. Récupération groupée de tous les tickers USDT
-            all_tickers = self.exchange.exchange.fetch_tickers()
-            
-            # 2. Pré-filtrage initial des paires USDT qui respectent les critères de base
-            filtered_pairs = {
-                symbol: ticker for symbol, ticker in all_tickers.items()
-                if (symbol.endswith('/USDT') and 
-                    0 < float(ticker['last']) <= max_price and 
-                    float(ticker.get('quoteVolume', 0)) >= min_volume)
-            }
-
-            # 3. Traitement par lots de 10 paires
-            batch_size = 10
-            opportunities = []
-            total_batches = len(filtered_pairs) // batch_size + 1
-            
-            progress_bar = st.progress(0)
             status_text = st.empty()
+            status_text.text("Récupération des données du marché...")
             
-            for batch_num in range(total_batches):
-                batch_start = batch_num * batch_size
-                batch_end = min((batch_num + 1) * batch_size, len(filtered_pairs))
-                
-                # Traiter le lot actuel
-                batch_symbols = list(filtered_pairs.items())[batch_start:batch_end]
-                status_text.text(f"Analyse du lot {batch_num + 1}/{total_batches}...")
-                
-                batch_opportunities = []
-                for symbol, ticker in batch_symbols:
-                    try:
-                        base_symbol = symbol.split('/')[0]
-                        analysis = self.analyzer.analyze_symbol(base_symbol)
+            # 1. Récupérer tous les tickers en une seule requête
+            tickers = self.exchange.exchange.fetch_tickers()
+            
+            # 2. Filtrage rapide des paires USDT
+            opportunities = []
+            status_text.text("Analyse des meilleures opportunités...")
+            
+            # Première passe ultra rapide : sélectionner les meilleures paires sur critères simples
+            candidates = []
+            for symbol, ticker in tickers.items():
+                if not symbol.endswith('/USDT'):
+                    continue
+                    
+                try:
+                    price = float(ticker['last'])
+                    volume = float(ticker.get('quoteVolume', 0))
+                    change = float(ticker.get('percentage', 0))
+                    
+                    # Filtres de base
+                    if (0 < price <= max_price and 
+                        volume >= min_volume and 
+                        -5 <= change <= 15):  # Éviter les pumps trop importants
                         
-                        if analysis and analysis['score'] >= min_score:
-                            price = float(ticker['last'])
-                            volume = float(ticker['quoteVolume'])
-                            tokens_possible = min(budget/price, volume/(price*10))
-                            
-                            batch_opportunities.append({
-                                'symbol': base_symbol,
-                                'price': price,
-                                'volume': volume,
-                                'change': ticker['percentage'],
-                                'score': analysis['score'],
-                                'rsi': analysis.get('rsi', 50),
-                                'signal': analysis['signal'],
-                                'tokens_possible': tokens_possible,
-                                'investment': min(budget, tokens_possible * price)
-                            })
-                            
-                    except Exception as e:
-                        continue
-                
-                opportunities.extend(batch_opportunities)
-                progress_bar.progress((batch_num + 1) / total_batches)
-
-                # Si on a déjà trouvé 10 bonnes opportunités, on peut s'arrêter
-                if len(opportunities) >= 10:
-                    break
+                        candidates.append({
+                            'symbol': symbol.split('/')[0],
+                            'price': price,
+                            'volume': volume,
+                            'change': change
+                        })
+                        
+                except:
+                    continue
             
+            # Limiter aux 20 meilleures paires par volume
+            candidates.sort(key=lambda x: x['volume'], reverse=True)
+            candidates = candidates[:20]
+            
+            # Seconde passe : analyse technique uniquement sur les meilleurs candidats
+            for candidate in candidates:
+                try:
+                    analysis = self.analyzer.analyze_symbol(candidate['symbol'])
+                    if analysis and analysis['score'] >= min_score:
+                        tokens_possible = min(
+                            budget/candidate['price'], 
+                            candidate['volume']/(candidate['price']*10)
+                        )
+                        
+                        opportunities.append({
+                            **candidate,
+                            'score': analysis['score'],
+                            'rsi': analysis.get('rsi', 50),
+                            'signal': analysis['signal'],
+                            'tokens_possible': tokens_possible,
+                            'investment': min(budget, tokens_possible * candidate['price'])
+                        })
+                        
+                        # S'arrêter si on a assez d'opportunités
+                        if len(opportunities) >= 10:
+                            break
+                            
+                except Exception as e:
+                    continue
+                    
             status_text.empty()
-            progress_bar.empty()
 
-            # 4. Retourner les 10 meilleures opportunités
-            sorted_opportunities = sorted(
-                opportunities,
-                key=lambda x: (x['score'], x['volume']),
-                reverse=True
-            )[:10]
-
-            st.success(f"✅ Analyse terminée ! {len(sorted_opportunities)} opportunités trouvées")
-            return sorted_opportunities
+            # Retourner les meilleures opportunités triées
+            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
 
         except Exception as e:
-            logger.error(f"Erreur _get_best_opportunities: {e}")
-            st.error(f"Une erreur est survenue: {str(e)}")
-            return []   
-
+            st.error(f"Erreur lors de la recherche : {str(e)}")
+            return []
     def _show_opportunities(self, opportunities: List[Dict], budget: float):
         for opp in opportunities:
             with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
