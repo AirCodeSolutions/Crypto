@@ -176,41 +176,69 @@ class TopPerformancePage:
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric(
-                        "Prix", 
-                        f"${opp['price']:.8f}", 
-                        f"{opp['change']:+.2f}%",
-                        delta_color="normal"
-                    )
+                    "Prix",
+                    f"${opp['price']:.8f}",
+                    f"{opp['change']:+.2f}%" if opp.get('change') else None
+            )
                 with col2:
-                    rsi_ok = 30 <= opp['rsi'] <= 70  # RSI dans une zone saine
-                    rsi_color = "green" if rsi_ok else "red"
-                    st.markdown(f"<p style='color: {rsi_color}'>RSI: {opp['rsi']:.1f}</p>", 
+                    # RSI dans les indicateurs principaux
+                    rsi = opp.get('rsi', 0)
+                    rsi_color = "green" if 30 <= rsi <= 70 else "red"
+                    st.markdown(f"RSI: <span style='color: {rsi_color}'>{rsi:.1f}</span>", 
                             unsafe_allow_html=True)
                 with col3:
-                    st.metric("Volume 24h", f"${opp['volume']/1e6:.1f}M")
-
+                    # Affichage du volume en millions
+                    volume = opp.get('volume', 0)
+                    st.metric("Volume 24h", f"${volume/1e6:.1f}M")
+                
                 # Section 2: Analyse Technique
                 st.markdown("""---""")
                 st.markdown("### 🔍 Analyse Technique")
-                tech_col1, tech_col2 = st.columns(2)
-                with tech_col1:
-                    indicators = [
-                        (f"Score technique: {opp['score']:.2f}", buy_conditions['score']),
-                        (f"RSI: {opp['rsi']:.1f}", buy_conditions['rsi']),
-                        (f"Bougies vertes: {opp.get('green_candles', 0)}", buy_conditions['candles']),
-                        (f"Volume: {opp.get('volume_trend', 'N/A')}", buy_conditions['volume'])
-                    ]
-                    
-                    for text, condition in indicators:
-                        color = "green" if condition else "red"
-                        st.markdown(f"<p style='color: {color}'>{'✓' if condition else '✗'} {text}</p>", 
-                                unsafe_allow_html=True)
-                
-                with tech_col2:
-                    if should_buy:
-                        st.success("✅ Configuration idéale pour l'achat")
+                # Configuration des indicateurs avec leurs conditions
+                indicators = [
+                    {
+                        'name': 'Score technique',
+                        'value': opp['score'],
+                        'format': '.2f',
+                        'condition': opp['score'] >= 0.7
+                    },
+                    {
+                        'name': 'RSI',
+                        'value': opp.get('rsi', 0),
+                        'format': '.1f',
+                        'condition': 30 <= opp.get('rsi', 0) <= 70
+                    },
+                    {
+                        'name': 'Bougies vertes',
+                        'value': opp.get('green_candles', 0),
+                        'format': 'd',
+                        'condition': opp.get('green_candles', 0) >= 3
+                    },
+                    {
+                        'name': 'Volume',
+                        'value': f"${opp.get('volume', 0)/1e6:.1f}M",
+                        'format': 's',
+                        'condition': opp.get('volume', 0) >= 50000
+                    }
+                ]
+
+                # Affichage des indicateurs
+                for ind in indicators:
+                    color = "green" if ind['condition'] else "red"
+                    symbol = "✓" if ind['condition'] else "✗"
+                    if ind['format'] == 's':  # Pour les strings formatées (comme le volume)
+                        value = ind['value']
                     else:
-                        st.warning("⚠️ Certains indicateurs ne sont pas optimaux")
+                        value = f"{ind['value']:{ind['format']}}"
+                        
+                    st.markdown(
+                        f"<span style='color: {color}'>{symbol} {ind['name']}: {value}</span>", 
+                        unsafe_allow_html=True
+                    )
+
+                # Message d'avertissement si nécessaire
+                if not all(ind['condition'] for ind in indicators):
+                    st.warning("⚠️ Certains indicateurs ne sont pas optimaux")
 
                 # Section 3: Niveaux de Trading
                 if should_buy:
