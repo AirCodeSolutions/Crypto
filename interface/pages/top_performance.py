@@ -18,14 +18,22 @@ class TopPerformancePage:
         #GuideHelper.show_pattern_guide()
         #GuideHelper.show_quick_guide()
         GuideHelper.show_opportunites_guide()
-
+        # Initialisation correcte des préférences utilisateur avec dict()
+        if 'user_preferences' not in st.session_state:
+            st.session_state['user_preferences'] = dict({
+                'budget': 100.0,
+                'max_price': 5.0,
+                'min_volume': 50000.0,
+                'min_score': 0.6,
+                'timeframe': '1h'
+            })
         col1, col2 = st.columns(2)
         with col1:
             st.subheader("💰 Paramètres d'Investissement")
             budget = st.number_input(
                 "Budget disponible (USDT)",
                 min_value=10.0,
-                value=100.0,
+                value=st.session_state['user_preferences']['budget'],
                 step=10.0
             )
             
@@ -33,7 +41,7 @@ class TopPerformancePage:
                 "Prix maximum par crypto (USDT)",
                 min_value=0.1,
                 max_value=20.0,
-                value=5.0
+                value=st.session_state['user_preferences']['max_price']
             )
 
         with col2:
@@ -41,7 +49,7 @@ class TopPerformancePage:
             min_volume = st.number_input(
                 "Volume minimum 24h (USDT)",
                 min_value=10000.0,
-                value=50000.0,
+                value=st.session_state['user_preferences']['min_volume'],
                 step=10000.0
             )
             
@@ -49,17 +57,18 @@ class TopPerformancePage:
                 "Score minimum",
                 min_value=0.0,
                 max_value=1.0,
-                value=0.6
+                value=st.session_state['user_preferences']['min_score']
             )
 
-        # Mise à jour des préférences quand elles changent
-        st.session_state.user_preferences.update({
-            'budget': budget,
-            'max_price': max_price,
-            'min_volume': min_volume,
-            'min_score': min_score,
-            'timeframe': timeframe
-        })
+
+        # Mise à jour des préférences
+            st.session_state['user_preferences'].update({
+                'budget': budget,
+                'max_price': max_price,
+                'min_volume': min_volume,
+                'min_score': min_score,
+                'timeframe': timeframe
+            })
 
         # Ajout de la sélection du timeframe
         col1, col2 = st.columns(2)
