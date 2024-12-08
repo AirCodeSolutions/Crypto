@@ -16,9 +16,9 @@ class TopPerformancePage:
     def render(self):
         st.title("🏆 Top Performances (Prix ≤ 20 USDT)")
         # Section Guides
-        GuideHelper.show_indicator_help()
-        GuideHelper.show_pattern_guide()
-        GuideHelper.show_quick_guide()
+        #GuideHelper.show_indicator_help()
+        #GuideHelper.show_pattern_guide()
+        #GuideHelper.show_quick_guide()
         # Section Guides
         with st.expander("ℹ️ Guide des Opportunités", expanded=False):
             col1, col2 = st.columns(2)
@@ -98,61 +98,54 @@ class TopPerformancePage:
 
     def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float) -> List[Dict]:
         try:
-            markets = self.exchange.get_available_symbols()
-            opportunities = []
+            # 1. Récupération groupée de tous les tickers USDT en une seule requête
+            all_tickers = self.exchange.exchange.fetch_tickers()
+            usdt_pairs = {symbol: ticker for symbol, ticker in all_tickers.items() 
+                        if symbol.endswith('/USDT')}
             
+            opportunities = []
             status_text = st.empty()
             progress_bar = st.progress(0)
-            total_markets = len(markets)
+            total_pairs = len(usdt_pairs)
             
-            for i, symbol in enumerate(markets):
-                status_text.text(f"Analyse de {symbol}...")
-                progress_bar.progress(i/total_markets)
-                
+            for i, (symbol, ticker) in enumerate(usdt_pairs.items()):
                 try:
-                    ticker = self.exchange.get_ticker(symbol)
+                    status_text.text(f"Analyse de {symbol}...")
+                    progress_bar.progress(i/total_pairs)
                     
-                    # Vérification des données de base
-                    if not ticker or 'last' not in ticker:
-                        continue
-                        
+                    # Filtrage initial rapide
                     price = float(ticker['last'])
                     volume = float(ticker.get('quoteVolume', 0))
                     
-                    # Filtres de base
-                    if price <= max_price and volume >= min_volume:
-                        analysis = self.analyzer.analyze_symbol(symbol)
-                        
-                        if analysis and analysis['score'] >= min_score:
-                            tokens_possible = min(budget/price, volume/(price*10))  # Max 10% du volume
-                            
-                            opportunities.append({
-                                'symbol': symbol,
-                                'price': price,
-                                'volume': volume,
-                                'change': ticker.get('percentage', 0),
-                                'score': analysis['score'],
-                                'rsi': analysis.get('rsi', 50),
-                                'signal': analysis['signal'],
-                                'tokens_possible': tokens_possible,
-                                'investment': min(budget, tokens_possible * price)
-                            })
+                    # Application des filtres de base avant l'analyse détaillée
+                    if not (0 < price <= max_price and volume >= min_volume):
+                        continue
                     
+                    # Analyse technique uniquement pour les paires pré-filtrées
+                    analysis = self.analyzer.analyze_symbol(symbol.split('/')[0])
+                    if analysis and analysis['score'] >= min_score:
+                        tokens_possible = min(budget/price, volume/(price*10))
+                        
+                        opportunities.append({
+                            'symbol': symbol.split('/')[0],
+                            'price': price,
+                            'volume': volume,
+                            'change': ticker['percentage'],
+                            'score': analysis['score'],
+                            'rsi': analysis.get('rsi', 50),
+                            'signal': analysis['signal'],
+                            'tokens_possible': tokens_possible,
+                            'investment': min(budget, tokens_possible * price)
+                        })
+                        
                 except Exception as e:
-                    logger.error(f"Erreur analyse {symbol}: {e}")
                     continue
-                
-                time.sleep(0.1)  # Rate limiting
-            
+                    
             status_text.empty()
             progress_bar.empty()
             
-            # Tri par score et volume
-            return sorted(
-                opportunities,
-                key=lambda x: (x['score'], x['volume']), 
-                reverse=True
-            )
+            # Tri des meilleures opportunités
+            return sorted(opportunities, key=lambda x: (x['score'], x['volume']), reverse=True)[:10]  # Limite aux 10 meilleures
             
         except Exception as e:
             logger.error(f"Erreur _get_best_opportunities: {e}")
