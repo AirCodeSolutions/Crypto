@@ -82,7 +82,7 @@ class CryptoAnalyzerApp:
         """
         try:
             self.setup_page()
-            st.title("Crypto Analyzer Pro - AirCodeSolutions ❤️")
+            st.title("Crypto Analyzer by AirCodeSolutions 🚀")
             # Navigation
             page = st.sidebar.selectbox(
                 "Navigation",
