@@ -99,11 +99,6 @@ class TopPerformancePage:
                 # Stocker les résultats dans session_state
                 st.session_state['current_results'] = results
 
-
-
-
-
-                
                 if results:
                     st.success(f"🎯 {len(results)} opportunités trouvées !")
                     # Ajout du filtre ici, juste après l'obtention des résultats
