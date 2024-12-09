@@ -99,26 +99,31 @@ class TopPerformancePage:
                 # Stocker les résultats dans session_state
                 st.session_state['current_results'] = results
 
-                # Afficher le tri et les résultats hors du if button pour les maintenir
-                if 'current_results' in st.session_state and st.session_state['current_results']:
-                    results = st.session_state['current_results']
-                        
-                    col1, col2 = st.columns([1, 3])
-                    with col1:
-                        sort_by = st.selectbox(
-                            "Trier par",
-                            ["Score", "Volume", "RSI"],
-                            key="sort_opportunities"
-                        )
 
-                    # Tri des résultats
+
+
+
+                
+                if results:
+                    st.success(f"🎯 {len(results)} opportunités trouvées !")
+                    # Ajout du filtre ici, juste après l'obtention des résultats
+                    sort_by = st.selectbox(
+                        "Trier par",
+                        ["Score", "Volume", "RSI"],
+                        key="sort_opportunities"
+                    )
+                    
+                    # Tri des résultats selon le critère choisi
                     if sort_by == "Score":
                         results.sort(key=lambda x: x['score'], reverse=True)
                     elif sort_by == "Volume":
-                        results.sort(key=lambda x: x.get('volume', 0), reverse=True)
+                        results.sort(key=lambda x: x['volume'], reverse=True)
                     elif sort_by == "RSI":
-                        results.sort(key=lambda x: abs(x.get('rsi', 50) - 40))
-                    self._show_opportunities(results, budget)           
+                        results.sort(key=lambda x: abs(x['rsi'] - 40))  # Plus proche de 40 = meilleur
+                    
+                    # Affichage des résultats triés
+                    st.success(f"🎯 {len(results)} opportunités trouvées !")
+                    self._show_opportunities(results, budget)            
 
                 else:
                     st.warning("🔍 Aucune opportunité ne correspond aux critères actuels.")
