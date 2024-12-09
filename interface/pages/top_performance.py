@@ -200,7 +200,7 @@ class TopPerformancePage:
                     # Calculs simples sans appels API
                     tokens_possible = budget/price
                     gain_potentiel = tokens_possible * (price * 0.03)
-
+                    analysis = self.analyzer.analyze_symbol(symbol.split('/')[0])
                     opportunities.append({
                         'symbol': symbol.split('/')[0],
                         'price': price,
@@ -208,7 +208,11 @@ class TopPerformancePage:
                         'change': change,
                         'tokens_possible': tokens_possible,
                         'investment': min(budget, tokens_possible * price),
-                        'gain_potentiel': gain_potentiel
+                        'gain_potentiel': gain_potentiel,
+                        'score': analysis.get('score', 0),  # Ajout du score de façon sécurisée
+                        'rsi': analysis.get('rsi', 50),
+                        'signal': analysis.get('signal', 'NEUTRAL'),
+                        'green_candles': analysis.get('green_candles', 0)
                     })
 
                 except Exception as e:
