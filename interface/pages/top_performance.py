@@ -154,15 +154,15 @@ class TopPerformancePage:
             if st.session_state.get('strict_results'):
                 st.markdown("### ✅ Opportunités Idéales")
                 sorted_strict = sorted(st.session_state['strict_results'], key=sort_function, reverse=(sort_by != "RSI"))
-                for opp in sorted_strict:
-                    self._show_opportunities(opp, budget)
+                # Passage de la liste complète
+                self._show_opportunities(sorted_strict, budget)
 
             # Affichage des opportunités potentielles
             if st.session_state.get('potential_results'):
                 st.markdown("### 👀 Opportunités à Surveiller")
                 sorted_potential = sorted(st.session_state['potential_results'], key=sort_function, reverse=(sort_by != "RSI"))
-                for opp in sorted_potential:
-                    self._show_opportunities(opp, budget)
+                # Passage de la liste complète
+                self._show_opportunities(sorted_potential, budget)
         
 
     def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float, timeframe: str = '1h') -> List[Dict]:
