@@ -165,23 +165,22 @@ class TopPerformancePage:
                 self._show_opportunities(sorted_potential, budget)
         
 
-    def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float, timeframe: str = '1h'):
+    def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float, timeframe: str = '1h') -> List[Dict]:
         try:
-            # 1. Une seule requête rapide pour tous les tickers
+            # 1. Une seule requête pour tous les tickers
             all_tickers = self.exchange.exchange.fetch_tickers()
+
+            # 2. Filtrage rapide et création des opportunités en une passe
             opportunities = []
-            
-            # 2. Filtrage initial rapide (top 20 par volume)
             filtered_pairs = []
             for symbol, ticker in all_tickers.items():
                 if not symbol.endswith('/USDT'):
                     continue
-                
                 try:
                     price = float(ticker['last'])
                     volume = float(ticker.get('quoteVolume', 0))
                     
-                    if 0 < price <= max_price:  # Enlever le filtre sur volume ici
+                    if 0 < price <= max_price and volume >= min_volume:
                         filtered_pairs.append({
                             'symbol': symbol.split('/')[0],
                             'price': price,
@@ -198,35 +197,20 @@ class TopPerformancePage:
             # 4. Analyser seulement le top 20
             for pair in top_pairs:
                 try:
-                    # Récupérer les données OHLCV pour l'analyse des bougies
-                    df = self.exchange.get_ohlcv(f"{pair['symbol']}/USDT", timeframe, limit=5)
-                    if df is not None and not df.empty:
-                        # Compter les bougies vertes consécutives
-                        green_candles = 0
-                        for index in range(len(df)-1, -1, -1):
-                            if df['close'][index] > df['open'][index]:
-                                green_candles += 1
-                            else:
-                                break
-
-                        analysis = self.analyzer.analyze_symbol(pair['symbol'])
-                        if analysis:
-                            pair.update({
-                                'score': analysis.get('score', 0),
-                                'rsi': analysis.get('rsi', 50),
-                                'signal': analysis.get('signal', 'NEUTRAL'),
-                                'tokens_possible': budget/pair['price'],
-                                'investment': min(budget, (budget/pair['price']) * pair['price']),
-                                'green_candles': green_candles,  # Mise à jour avec le vrai compte
-                                'volume_trend': 'croissant' if df['volume'].is_monotonic_increasing else 'décroissant'
-                            })
-                            # Ajouter à opportunities même si ne respecte pas tous les critères
-                            opportunities.append(pair)
-
-                except Exception as e:
-                    print(f"Erreur analyse {pair['symbol']}: {str(e)}")
+                    analysis = self.analyzer.analyze_symbol(pair['symbol'])
+                    if analysis:
+                        pair.update({
+                            'score': analysis.get('score', 0),
+                            'rsi': analysis.get('rsi', 50),
+                            'signal': analysis.get('signal', 'NEUTRAL'),
+                            'tokens_possible': budget/pair['price'],
+                            'investment': min(budget, (budget/pair['price']) * pair['price']),
+                            'green_candles': analysis.get('green_candles', 0)
+                        })
+                        opportunities.append(pair)
+                except:
                     continue
-
+                
             return opportunities
 
         except Exception as e:
