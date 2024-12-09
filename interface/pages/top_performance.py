@@ -106,8 +106,25 @@ class TopPerformancePage:
                 #    st.session_state['show_sort'] = False
 
                 # Affichage du résumé
-                strict_count = len(results['strict'])
-                potential_count = len(results['potential'])
+                strict_results = []
+                potential_results = []
+                
+                # Tri des résultats en deux catégories
+                for opp in results:
+                    if (opp.get('score', 0) >= min_score and 
+                        30 <= opp.get('rsi', 0) <= 45 and 
+                        opp.get('green_candles', 0) >= 3):
+                        strict_results.append(opp)
+                    else:
+                        potential_results.append(opp)
+
+                # Stockage dans session_state
+                st.session_state['strict_results'] = strict_results
+                st.session_state['potential_results'] = potential_results
+
+                # Affichage du résumé
+                strict_count = len(strict_results)
+                potential_count = len(potential_results)
                 
                 if strict_count > 0:
                     st.success(f"🎯 {strict_count} opportunité{'s' if strict_count > 1 else ''} correspond{'ent' if strict_count > 1 else ''} à tous les critères")
@@ -117,38 +134,46 @@ class TopPerformancePage:
                 if potential_count > 0:
                     st.info(f"👀 {potential_count} opportunité{'s' if potential_count > 1 else ''} à surveiller (ne correspond{'ent' if potential_count > 1 else ''} pas à tous les critères)")
 
-                st.session_state['current_results'] = results
                 st.session_state['show_sort'] = True
 
-        # Affichage des résultats et du tri
+            # Affichage des résultats et du tri
         if st.session_state.get('show_sort', False):
-            results = st.session_state['current_results']
-            
-            # Tri
             sort_by = st.selectbox(
                 "Trier par",
                 ["Score", "Volume", "RSI"],
                 key="sort_opportunities"
             )
 
+            # Fonction de tri
+            def get_sort_key(x):
+                if sort_by == "Score":
+                    return float(x.get('score', 0))
+                elif sort_by == "Volume":
+                    return float(x.get('volume', 0))
+                else:  # RSI
+                    return abs(float(x.get('rsi', 50)) - 40)
+
             # Affichage des opportunités strictes
-            if results['strict']:
+            if st.session_state.get('strict_results'):
                 st.markdown("### ✅ Opportunités Idéales")
-                sorted_strict = sorted(results['strict'].copy(), 
-                                    key=lambda x: x.get(sort_by.lower(), 0), 
-                                    reverse=True)
+                sorted_strict = sorted(
+                    st.session_state['strict_results'],
+                    key=get_sort_key,
+                    reverse=(sort_by != "RSI")
+                )
                 for opp in sorted_strict:
                     self._show_opportunities(opp, budget)
 
             # Affichage des opportunités potentielles
-            if results['potential']:
+            if st.session_state.get('potential_results'):
                 st.markdown("### 👀 Opportunités à Surveiller")
-                sorted_potential = sorted(results['potential'].copy(), 
-                                        key=lambda x: x.get(sort_by.lower(), 0), 
-                                        reverse=True)
+                sorted_potential = sorted(
+                    st.session_state['potential_results'],
+                    key=get_sort_key,
+                    reverse=(sort_by != "RSI")
+                )
                 for opp in sorted_potential:
                     self._show_opportunities(opp, budget)
-
         
 
     def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float, timeframe: str = '1h') -> List[Dict]:
