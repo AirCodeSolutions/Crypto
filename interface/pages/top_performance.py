@@ -198,6 +198,17 @@ class TopPerformancePage:
             for pair in top_pairs:
                 try:
                     analysis = self.analyzer.analyze_symbol(pair['symbol'])
+                    # Récupérer les données OHLCV pour l'analyse des bougies
+                    df = self.exchange.get_ohlcv(f"{pair['symbol']}/USDT", timeframe, limit=5)
+                    if df is not None and not df.empty:
+                        # Compter les bougies vertes consécutives
+                        green_candles = 0
+                        for index in range(len(df)-1, -1, -1):
+                            if df['close'][index] > df['open'][index]:
+                                green_candles += 1
+                            else:
+                                break
+                    analysis = self.analyzer.analyze_symbol(pair['symbol'])
                     if analysis:
                         pair.update({
                             'score': analysis.get('score', 0),
@@ -205,7 +216,7 @@ class TopPerformancePage:
                             'signal': analysis.get('signal', 'NEUTRAL'),
                             'tokens_possible': budget/pair['price'],
                             'investment': min(budget, (budget/pair['price']) * pair['price']),
-                            'green_candles': analysis.get('green_candles', 0)
+                            'green_candles':  green_candles
                         })
                         opportunities.append(pair)
                 except:
