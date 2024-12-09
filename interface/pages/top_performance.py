@@ -3,6 +3,7 @@ import streamlit as st
 import time
 from typing import List, Dict
 from ..components.guide_helper import GuideHelper
+from ..components.styles import MOBILE_STYLES
 import logging
 
 class TopPerformancePage:
@@ -12,6 +13,8 @@ class TopPerformancePage:
         self.analyzer = analyzer_service
         
     def render(self):
+        # Appliquer les styles mobile en premier
+        st.markdown(MOBILE_STYLES, unsafe_allow_html=True)
         st.title("🏆 Opportunités ")
         # Section Guides
         #GuideHelper.show_indicator_help()
