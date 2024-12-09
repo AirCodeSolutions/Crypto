@@ -88,10 +88,8 @@ class TopPerformancePage:
                 'timeframe': timeframe
             })
 
-        
-
         if st.button("🔍 Rechercher des Opportunités"):
-            with st.spinner("Analyse du marché en cours..."):
+            with st.spinner("Analyse en cours..."):
                 results = self._get_best_opportunities(
                     max_price=max_price,
                     min_volume=min_volume,
@@ -99,42 +97,35 @@ class TopPerformancePage:
                     budget=budget,
                     timeframe=timeframe
                 )
-                # Stocker les résultats dans session_state
-                st.session_state['current_results'] = results
-
                 if results:
-                    st.success(f"🎯 {len(results)} opportunités trouvées !")
-                    # Ajout du filtre ici, juste après l'obtention des résultats
-                    sort_by = st.selectbox(
-                        "Trier par",
-                        ["Score", "Volume", "RSI"],
-                        key="sort_opportunities"
-                    )
-                    
-                    # Tri des résultats selon le critère choisi
-                    if sort_by == "Score":
-                        results.sort(key=lambda x: x['score'], reverse=True)
-                    elif sort_by == "Volume":
-                        results.sort(key=lambda x: x['volume'], reverse=True)
-                    elif sort_by == "RSI":
-                        results.sort(key=lambda x: abs(x['rsi'] - 40))  # Plus proche de 40 = meilleur
-                    
-                    # Affichage des résultats triés
-                    st.success(f"🎯 {len(results)} opportunités trouvées !")
-                    self._show_opportunities(results, budget)            
-
+                    st.session_state['current_results'] = results
+                    st.session_state['show_sort'] = True
                 else:
-                    st.warning("🔍 Aucune opportunité ne correspond aux critères actuels.")
-                    st.info("""
-                    💡 Suggestions pour trouver des opportunités:
-                    - Augmentez le prix maximum (actuellement: {}$ USDT)
-                    - Réduisez le volume minimum (actuellement: {}k USDT)
-                    - Baissez le score minimum (actuellement: {})
-                    - Revenez vérifier dans quelques minutes
-                    """.format(max_price, min_volume/1000, min_score))
-                    
-                    # Afficher les meilleurs volumes même s'ils ne correspondent pas aux critères
-                    self._show_top_volumes(max_price)
+                    st.warning("Aucune opportunité ne correspond aux critères actuels.")
+                    st.session_state['show_sort'] = False
+
+        # Affichage des résultats et du tri
+        if st.session_state.get('show_sort', False):
+            results = st.session_state['current_results']
+            
+            # Tri
+            sort_by = st.selectbox(
+                "Trier par",
+                ["Score", "Volume", "RSI"],
+                key="sort_opportunities"
+            )
+
+            sorted_results = results.copy()  # Créer une copie pour le tri
+            if sort_by == "Score":
+                sorted_results.sort(key=lambda x: float(x.get('score', 0)), reverse=True)
+            elif sort_by == "Volume":
+                sorted_results.sort(key=lambda x: float(x.get('volume', 0)), reverse=True)
+            elif sort_by == "RSI":
+                sorted_results.sort(key=lambda x: abs(float(x.get('rsi', 50)) - 40))
+
+            self._show_opportunities(sorted_results, budget)
+
+        
 
     def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float, timeframe: str = '1h') -> List[Dict]:
         try:
