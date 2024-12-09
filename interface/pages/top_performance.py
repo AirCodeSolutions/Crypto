@@ -21,6 +21,7 @@ class TopPerformancePage:
         #GuideHelper.show_pattern_guide()
         #GuideHelper.show_quick_guide()
         GuideHelper.show_opportunites_guide()
+        
         # Initialisation correcte des préférences utilisateur avec dict()
         if 'user_preferences' not in st.session_state:
             st.session_state['user_preferences'] = dict({
@@ -97,12 +98,27 @@ class TopPerformancePage:
                     budget=budget,
                     timeframe=timeframe
                 )
-                if results:
-                    st.session_state['current_results'] = results
-                    st.session_state['show_sort'] = True
+                #if results:
+                #    st.session_state['current_results'] = results
+                #    st.session_state['show_sort'] = True
+                #else:
+                #    st.warning("Aucune opportunité ne correspond aux critères actuels.")
+                #    st.session_state['show_sort'] = False
+
+                # Affichage du résumé
+                strict_count = len(results['strict'])
+                potential_count = len(results['potential'])
+                
+                if strict_count > 0:
+                    st.success(f"🎯 {strict_count} opportunité{'s' if strict_count > 1 else ''} correspond{'ent' if strict_count > 1 else ''} à tous les critères")
                 else:
-                    st.warning("Aucune opportunité ne correspond aux critères actuels.")
-                    st.session_state['show_sort'] = False
+                    st.warning("Aucune opportunité ne correspond à tous les critères")
+
+                if potential_count > 0:
+                    st.info(f"👀 {potential_count} opportunité{'s' if potential_count > 1 else ''} à surveiller (ne correspond{'ent' if potential_count > 1 else ''} pas à tous les critères)")
+
+                st.session_state['current_results'] = results
+                st.session_state['show_sort'] = True
 
         # Affichage des résultats et du tri
         if st.session_state.get('show_sort', False):
@@ -115,16 +131,23 @@ class TopPerformancePage:
                 key="sort_opportunities"
             )
 
-            sorted_results = results.copy()  # Créer une copie pour le tri
-            if sort_by == "Score":
-                sorted_results.sort(key=lambda x: float(x.get('score', 0)), reverse=True)
-            elif sort_by == "Volume":
-                sorted_results.sort(key=lambda x: float(x.get('volume', 0)), reverse=True)
-            elif sort_by == "RSI":
-                sorted_results.sort(key=lambda x: abs(float(x.get('rsi', 50)) - 40))
-            # Affichage des résultats triés
-            st.success(f"🎯 {len(results)} opportunités trouvées !")
-            self._show_opportunities(sorted_results, budget)
+            # Affichage des opportunités strictes
+            if results['strict']:
+                st.markdown("### ✅ Opportunités Idéales")
+                sorted_strict = sorted(results['strict'].copy(), 
+                                    key=lambda x: x.get(sort_by.lower(), 0), 
+                                    reverse=True)
+                for opp in sorted_strict:
+                    self._show_opportunities(opp, budget)
+
+            # Affichage des opportunités potentielles
+            if results['potential']:
+                st.markdown("### 👀 Opportunités à Surveiller")
+                sorted_potential = sorted(results['potential'].copy(), 
+                                        key=lambda x: x.get(sort_by.lower(), 0), 
+                                        reverse=True)
+                for opp in sorted_potential:
+                    self._show_opportunities(opp, budget)
 
         
 
@@ -171,21 +194,45 @@ class TopPerformancePage:
             top_opportunities = opportunities[:10]
 
             # 4. Analyse technique uniquement sur le top 10
-            final_opportunities = []
-            for opp in top_opportunities:
-                try:
-                    analysis = self.analyzer.analyze_symbol(opp['symbol'])
-                    if analysis:
-                        opp.update({
-                            'score': analysis['score'],
-                            'rsi': analysis.get('rsi', 50),
-                            'signal': analysis['signal']
-                        })
-                        final_opportunities.append(opp)
-                except:
-                    continue
+            #final_opportunities = []
+            #for opp in top_opportunities:
+            #    try:
+            #        analysis = self.analyzer.analyze_symbol(opp['symbol'])
+            #        if analysis:
+            #            opp.update({
+            #                'score': analysis['score'],
+            #                'rsi': analysis.get('rsi', 50),
+            #                'signal': analysis['signal']
+            #            })
+            #            final_opportunities.append(opp)
+            #    except:
+            #        continue
 
-            return final_opportunities
+            #return final_opportunities
+
+            strict_opportunities = []
+            potential_opportunities = []
+
+            for opp in opportunities:
+                # Vérification des critères stricts
+                meets_criteria = (
+                    opp['score'] >= min_score and 
+                    30 <= opp.get('rsi', 0) <= 45 and 
+                    opp.get('green_candles', 0) >= 3
+                )
+
+                if meets_criteria:
+                    strict_opportunities.append(opp)
+                else:
+                    potential_opportunities.append(opp)
+
+            return {
+                'strict': strict_opportunities,
+                'potential': potential_opportunities
+            }
+
+
+            
 
         except Exception as e:
             st.error(f"Erreur lors de la recherche : {str(e)}")
