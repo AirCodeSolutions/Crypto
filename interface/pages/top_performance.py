@@ -165,22 +165,23 @@ class TopPerformancePage:
                 self._show_opportunities(sorted_potential, budget)
         
 
-    def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float, timeframe: str = '1h') -> List[Dict]:
+    def _get_best_opportunities(self, max_price: float, min_volume: float, min_score: float, budget: float, timeframe: str = '1h'):
         try:
-            # 1. Une seule requête pour tous les tickers
+            # 1. Une seule requête rapide pour tous les tickers
             all_tickers = self.exchange.exchange.fetch_tickers()
-
-            # 2. Filtrage rapide et création des opportunités en une passe
             opportunities = []
+            
+            # 2. Filtrage initial rapide (top 20 par volume)
             filtered_pairs = []
             for symbol, ticker in all_tickers.items():
                 if not symbol.endswith('/USDT'):
                     continue
+                
                 try:
                     price = float(ticker['last'])
                     volume = float(ticker.get('quoteVolume', 0))
                     
-                    if 0 < price <= max_price and volume >= min_volume:
+                    if 0 < price <= max_price:  # Enlever le filtre sur volume ici
                         filtered_pairs.append({
                             'symbol': symbol.split('/')[0],
                             'price': price,
@@ -219,13 +220,14 @@ class TopPerformancePage:
                                 'green_candles': green_candles,  # Mise à jour avec le vrai compte
                                 'volume_trend': 'croissant' if df['volume'].is_monotonic_increasing else 'décroissant'
                             })
+                            # Ajouter à opportunities même si ne respecte pas tous les critères
                             opportunities.append(pair)
+
                 except Exception as e:
                     print(f"Erreur analyse {pair['symbol']}: {str(e)}")
                     continue
 
             return opportunities
-
 
         except Exception as e:
             st.error(f"Erreur lors de la recherche : {str(e)}")
