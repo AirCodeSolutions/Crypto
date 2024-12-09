@@ -98,24 +98,26 @@ class TopPerformancePage:
                     budget=budget,
                     timeframe=timeframe
                 )
-                #if results:
-                #    st.session_state['current_results'] = results
-                #    st.session_state['show_sort'] = True
-                #else:
-                #    st.warning("Aucune opportunité ne correspond aux critères actuels.")
-                #    st.session_state['show_sort'] = False
-
+                
                 # Affichage du résumé
                 strict_results = []
                 potential_results = []
                 
                 # Tri des résultats en deux catégories
                 for opp in results:
-                    if (opp.get('score', 0) >= min_score and 
-                        30 <= opp.get('rsi', 0) <= 45 and 
-                        opp.get('green_candles', 0) >= 3):
-                        strict_results.append(opp)
-                    else:
+                    # Conversion du RSI en float pour la comparaison
+                    try:
+                        rsi = float(opp.get('rsi', 0))
+                        score = float(opp.get('score', 0))
+                        green_candles = int(opp.get('green_candles', 0))
+                        
+                        if (score >= min_score and 
+                            30 <= rsi <= 45 and 
+                            green_candles >= 3):
+                            strict_results.append(opp)
+                        else:
+                            potential_results.append(opp)
+                    except (ValueError, TypeError):
                         potential_results.append(opp)
 
                 # Stockage dans session_state
