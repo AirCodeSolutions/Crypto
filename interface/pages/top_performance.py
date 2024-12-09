@@ -122,7 +122,8 @@ class TopPerformancePage:
                 sorted_results.sort(key=lambda x: float(x.get('volume', 0)), reverse=True)
             elif sort_by == "RSI":
                 sorted_results.sort(key=lambda x: abs(float(x.get('rsi', 50)) - 40))
-
+            # Affichage des résultats triés
+            st.success(f"🎯 {len(results)} opportunités trouvées !")
             self._show_opportunities(sorted_results, budget)
 
         
