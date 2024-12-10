@@ -1,163 +1,103 @@
-# interface/components/alerts.py
 import streamlit as st
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Literal
 from datetime import datetime
-import time
+from typing import Dict, List, Optional, Literal
 
 @dataclass
-class NotificationMessage:
-    """Représente une notification ou une alerte"""
-    message: str
-    type: Literal["info", "success", "warning", "error"]
-    timestamp: datetime = field(default_factory=datetime.now)
-    is_read: bool = False
-    details: Optional[Dict] = None
-    
-    def format_time(self) -> str:
-        """Formate le timestamp pour l'affichage"""
-        now = datetime.now()
-        delta = now - self.timestamp
-        
-        if delta.days > 0:
-            return f"Il y a {delta.days} jours"
-        elif delta.seconds > 3600:
-            return f"Il y a {delta.seconds // 3600}h"
-        elif delta.seconds > 60:
-            return f"Il y a {delta.seconds // 60}m"
-        else:
-            return "À l'instant"
+class PriceAlert:
+    """Représente une alerte de prix"""
+    symbol: str
+    target_price: float
+    condition: Literal["above", "below"]
+    created_at: datetime = field(default_factory=datetime.now)
+    triggered: bool = False
+    notification_sent: bool = False
 
-class AlertSystem:
-    """
-    Système de gestion des alertes et notifications.
-    Permet d'afficher différents types de messages et de gérer leur état.
-    """
-    
+class EnhancedAlertSystem:
     def __init__(self):
         """Initialise le système d'alertes"""
+        if 'price_alerts' not in st.session_state:
+            st.session_state.price_alerts = []
         if 'notifications' not in st.session_state:
             st.session_state.notifications = []
-    
-    def add_notification(
-        self,
-        message: str,
-        notification_type: Literal["info", "success", "warning", "error"],
-        details: Optional[Dict] = None
-    ):
-        """
-        Ajoute une nouvelle notification
-        
-        Args:
-            message: Contenu principal de la notification
-            notification_type: Type de la notification
-            details: Informations supplémentaires (optionnel)
-        """
-        notification = NotificationMessage(
-            message=message,
-            type=notification_type,
-            details=details
+
+    def add_price_alert(self, symbol: str, target_price: float, condition: Literal["above", "below"]):
+        """Ajoute une nouvelle alerte de prix"""
+        alert = PriceAlert(
+            symbol=symbol,
+            target_price=target_price,
+            condition=condition
         )
-        st.session_state.notifications.insert(0, notification)
-    
-    def clear_all(self):
-        """Efface toutes les notifications"""
-        st.session_state.notifications = []
-    
-    def mark_all_as_read(self):
-        """Marque toutes les notifications comme lues"""
-        for notif in st.session_state.notifications:
-            notif.is_read = True
-    
-    def get_unread_count(self) -> int:
-        """Retourne le nombre de notifications non lues"""
-        return sum(1 for n in st.session_state.notifications if not n.is_read)
+        st.session_state.price_alerts.append(alert)
 
-    def render(self):
-        """Affiche l'interface des notifications"""
-        with st.container():
-            # En-tête avec compteur
-            unread = self.get_unread_count()
-            col1, col2, col3 = st.columns([2, 1, 1])
-            
-            with col1:
-                st.markdown(f"### 🔔 Notifications ({unread} non lues)")
-            
-            with col2:
-                if st.button("Tout marquer comme lu"):
-                    self.mark_all_as_read()
-                    
-            with col3:
-                if st.button("Effacer tout"):
-                    if st.session_state.notifications:  # Vérification pour éviter une confirmation inutile
-                        self.clear_all()
-            
-            # Affichage des notifications
-            if not st.session_state.notifications:
-                st.info("Aucune notification")
-                return
-            
-            for notification in st.session_state.notifications:
-                self._render_notification(notification)
+    def check_alerts(self, symbol: str, current_price: float):
+        """Vérifie les alertes pour un symbole donné"""
+        for alert in st.session_state.price_alerts:
+            if alert.symbol == symbol and not alert.triggered:
+                if self._check_price_condition(current_price, alert.target_price, alert.condition):
+                    self._trigger_alert(alert, current_price)
 
-    def _render_notification(self, notification: NotificationMessage):
-        """
-        Affiche une notification individuelle
+    def _check_price_condition(self, current_price: float, target_price: float, condition: str) -> bool:
+        """Vérifie si la condition de prix est remplie"""
+        if condition == "above":
+            return current_price >= target_price
+        return current_price <= target_price
+
+    def _trigger_alert(self, alert: PriceAlert, current_price: float):
+        """Déclenche l'alerte et crée une notification"""
+        alert.triggered = True
         
-        Args:
-            notification: Notification à afficher
-        """
-        # Couleurs et icônes selon le type
-        styles = {
-            "info": {"icon": "ℹ️", "color": "blue"},
-            "success": {"icon": "✅", "color": "green"},
-            "warning": {"icon": "⚠️", "color": "orange"},
-            "error": {"icon": "❌", "color": "red"}
-        }
+        # Création de la notification
+        condition_text = "dépassé" if alert.condition == "above" else "descendu sous"
+        message = f"🔔 {alert.symbol} a {condition_text} {alert.target_price:.4f} USDT (Prix actuel: {current_price:.4f} USDT)"
         
-        style = styles[notification.type]
+        self.add_notification(
+            message=message,
+            notification_type="warning" if alert.condition == "below" else "success",
+            details={
+                "Symbol": alert.symbol,
+                "Prix cible": f"{alert.target_price:.4f}",
+                "Prix actuel": f"{current_price:.4f}",
+                "Condition": "Au-dessus" if alert.condition == "above" else "En-dessous"
+            }
+        )
+
+    def render_alert_manager(self):
+        """Affiche l'interface de gestion des alertes"""
+        st.subheader("⚙️ Gestionnaire d'Alertes")
         
-        with st.container():
-            # Utilisation du markdown pour le style
-            st.markdown(
-                f"""
-                <div style='padding: 10px; border-left: 3px solid {style['color']}; margin: 5px 0;'>
-                    {style['icon']} {notification.message}
-                </div>
-                """,
-                unsafe_allow_html=True
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            symbol = st.text_input("Symbole", key="alert_symbol").upper()
+        with col2:
+            target_price = st.number_input("Prix cible", min_value=0.0, step=0.0001, key="alert_price")
+        with col3:
+            condition = st.selectbox(
+                "Condition",
+                options=["above", "below"],
+                format_func=lambda x: "Au-dessus" if x == "above" else "En-dessous",
+                key="alert_condition"
             )
-            
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.caption(notification.format_time())
-            
-            # Affichage des détails si présents
-            if notification.details:
-                with st.expander("Voir les détails"):
-                    for key, value in notification.details.items():
-                        st.write(f"**{key}:** {value}")
-            
-            # Mise à jour du statut de lecture
-            if not notification.is_read:
-                notification.is_read = True
 
-# Exemple d'utilisation:
-if __name__ == "__main__":
-    alert_system = AlertSystem()
-    
-    # Exemple d'ajout de différentes notifications
-    alert_system.add_notification(
-        "BTC/USDT a atteint votre prix cible de 50000$",
-        "success",
-        {"Prix actuel": "50000$", "Target": "50000$", "Gain": "+5%"}
-    )
-    
-    alert_system.add_notification(
-        "RSI en zone de survente sur ETH/USDT",
-        "warning",
-        {"RSI": "29.5", "Prix": "2800$"}
-    )
-    
-    # Affichage des notifications
-    alert_system.render()
+        if st.button("Ajouter l'alerte"):
+            if symbol and target_price > 0:
+                self.add_price_alert(symbol, target_price, condition)
+                st.success(f"Alerte ajoutée pour {symbol}")
+
+        # Affichage des alertes actives
+        st.subheader("🔔 Alertes actives")
+        active_alerts = [alert for alert in st.session_state.price_alerts if not alert.triggered]
+        
+        for alert in active_alerts:
+            with st.container():
+                col1, col2, col3, col4 = st.columns([2, 2, 2, 1])
+                with col1:
+                    st.write(f"**{alert.symbol}**")
+                with col2:
+                    st.write(f"Prix cible: {alert.target_price:.4f}")
+                with col3:
+                    st.write("Au-dessus" if alert.condition == "above" else "En-dessous")
+                with col4:
+                    if st.button("❌", key=f"delete_{alert.symbol}_{alert.target_price}"):
+                        st.session_state.price_alerts.remove(alert)
+                        st.rerun()

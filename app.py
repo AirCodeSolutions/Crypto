@@ -5,9 +5,10 @@ import pandas as pd
 from datetime import datetime
 import logging
 from typing import List, Dict
-from interface import TimeSelector, TradingChart, ChartConfig, AlertSystem, GuideHelper
+from interface import TimeSelector, TradingChart, ChartConfig, GuideHelper
 from services.exchange import ExchangeService
 from core.analysis import MarketAnalyzer
+from interface.components.alerts import EnhancedAlertSystem
 
 # Configuration du logging pour un meilleur suivi des erreurs
 logging.basicConfig(level=logging.INFO)
@@ -17,18 +18,17 @@ class CryptoAnalyzerApp:
     """Application principale d'analyse de cryptomonnaies en temps réel"""
     
     def __init__(self):
-        """
-        Initialise l'application avec tous les services nécessaires.
-        Configure également l'état de session pour la persistance des données.
-        """
         try:
             self.exchange = ExchangeService()
             self.analyzer = MarketAnalyzer(self.exchange)
-            self.alert_system = AlertSystem()
+            self.alert_system = EnhancedAlertSystem()  # Nouveau système d'alertes
             
-            # État de session pour le suivi des analyses
             if 'analyzed_symbols' not in st.session_state:
                 st.session_state.analyzed_symbols = set()
+            
+            # Initialiser le thread de mise à jour des prix
+            if 'last_price_check' not in st.session_state:
+                st.session_state.last_price_check = time.time()
             
             logger.info("Application initialisée avec succès")
             
@@ -167,37 +167,19 @@ class CryptoAnalyzerApp:
             st.error("Impossible d'afficher le graphique")
 
     def _display_analysis(self, symbol: str):
-        """Affiche l'analyse avec progression et guide"""
+        """Affiche l'analyse avec progression et alertes"""
         if not symbol:
             st.info("📝 Sélectionnez une crypto pour voir l'analyse")
             return
-        # Conteneur pour le guide
-        with st.container():
-            GuideHelper.show_indicator_help()
 
-        # Message et barre de progression
-        progress_text = st.empty()
-        progress_bar = st.progress(0)
-        
         try:
-            # Étape 1: Chargement initial
-            progress_text.text("Chargement des données...")
-            progress_bar.progress(25)
-            
-            # Étape 2: Analyse
-            progress_text.text("Analyse en cours...")
+            # Récupération des données et analyse
             analysis = self.analyzer.analyze_symbol(symbol)
-            progress_bar.progress(75)
-
+            
             if analysis:
-                # Nettoyage des indicateurs de progression
-                progress_text.empty()
-                progress_bar.empty()        
-                
-
-                    
+                # Affichage des métriques principales
                 cols = st.columns([2, 2, 2, 3])
-                            
+                
                 with cols[0]:
                     st.metric(
                         "Prix",
@@ -229,68 +211,42 @@ class CryptoAnalyzerApp:
                         f"Signal: {analysis['signal']}</div>",
                         unsafe_allow_html=True
                     )
-                # Une fois terminé
-                progress_bar.progress(100, text="Terminé!")
-                time.sleep(0.5)  # Petit délai pour voir la completion
-                progress_bar.empty()
-                    
-            
 
-                # Détails de l'analyse
-                if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
-                    with st.expander("📊 Détails de l'analyse"):
-                        for key, value in analysis['analysis'].items():
-                            st.write(f"**{key.title()}:** {value}")
-                # Ajout des boutons de notification que nous avions avant
-                action_cols = st.columns(2)
-                with action_cols[0]:
-                    if st.button("📈 Analyser", key=f"analyze_{symbol}"):
-                        self.alert_system.add_notification(
-                            f"Analyse de {symbol} terminée",
-                            "success",
-                            {
-                                "Signal": analysis['signal'],
-                                "RSI": f"{analysis['rsi']:.1f}"
-                            }
+                # Section des alertes de prix
+                with st.expander("🔔 Configurer les Alertes de Prix"):
+                    # Interface de configuration des alertes
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        alert_price = st.number_input(
+                            "Prix d'alerte",
+                            min_value=0.0,
+                            value=float(analysis['price']),
+                            step=0.0001
+                        )
+                    with col2:
+                        alert_condition = st.selectbox(
+                            "Condition",
+                            options=["above", "below"],
+                            format_func=lambda x: "Au-dessus" if x == "above" else "En-dessous"
                         )
                     
-                with action_cols[1]:
-                    if st.button("🔔 Configurer Alertes", key=f"alerts_{symbol}"):
-                        self.alert_system.add_notification(
-                            f"Alerte configurée pour {symbol}",
-                            "info",
-                            {"Prix": f"${analysis['price']:,.2f}"}
-                        )
+                    if st.button("➕ Ajouter l'alerte"):
+                        self.alert_system.add_price_alert(symbol, alert_price, alert_condition)
+                        st.success(f"Alerte ajoutée pour {symbol} à ${alert_price:.4f}")
 
-                # Affichage des alertes
+                # Vérification des alertes de prix
+                current_time = time.time()
+                if current_time - st.session_state.last_price_check >= 5:  # Vérifier toutes les 5 secondes
+                    self.alert_system.check_alerts(symbol, analysis['price'])
+                    st.session_state.last_price_check = current_time
+
+                # Affichage des notifications
                 st.markdown("### 🔔 Notifications")
                 self.alert_system.render()
-            else:
-                st.warning("Aucune donnée disponible pour cette crypto")
 
         except Exception as e:
-            progress_text.empty()
-            progress_bar.empty()
             logger.error(f"Erreur affichage analyse: {e}")
-            st.error("Erreur lors de l'analyse")
-
-        if analysis:
-            # Ajout de l'analyse des bougies
-            with st.expander("📊 Analyse des Bougies"):
-                df = self.exchange.get_ohlcv(symbol)
-                candle_analysis = self._analyze_candles(df)
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.markdown("### 🟢 Patterns Haussiers")
-                    for pattern in candle_analysis['bullish_patterns']:
-                        st.write(f"✓ {pattern}")
-                with col2:
-                    st.markdown("### 🔴 Patterns Baissiers")
-                    for pattern in candle_analysis['bearish_patterns']:
-                        st.write(f"✓ {pattern}")
-
-                st.markdown(f"**Tendance actuelle:** {candle_analysis['trend']}")       
+            st.error("Erreur lors de l'analyse")   
 
     def _analyze_candles(self, df) -> Dict:
         """Analyse des patterns de bougies"""
