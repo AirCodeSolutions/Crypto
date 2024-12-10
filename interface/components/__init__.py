@@ -10,5 +10,5 @@ __all__ = [
     'TimeSelector',
     'TradingChart',
     'ChartConfig',
-    'AlertSystem'
+    'EnhancedAlertSystem'
 ]
