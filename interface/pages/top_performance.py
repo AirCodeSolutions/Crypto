@@ -224,10 +224,10 @@ class TopPerformancePage:
         for opp in opportunities:
             # Déterminer si c'est un bon moment pour acheter
             buy_conditions = {
-                'rsi': 30 <= opp['rsi'] <= 45,
-                'score': opp['score'] >= 0.7,
-                'volume': opp.get('volume_trend') == 'croissant',
-                'candles': opp.get('green_candles', 0) >= 3
+            'rsi': 30 <= opp.get('rsi', 0) <= 70,  # Zone saine du RSI
+            'score': opp.get('score', 0) >= 0.7,
+            'volume': opp.get('volume', 0) >= 50000,  # Volume minimum
+            'candles': opp.get('green_candles', 0) >= 3  # Au moins 3 bougies vertes sur 5
             }
             
             should_buy = all(buy_conditions.values())
@@ -256,6 +256,17 @@ class TopPerformancePage:
                     volume = opp.get('volume', 0)
                     st.metric("Volume 24h", f"${volume/1e6:.1f}M")
                 
+                # Analyse des Bougies
+                st.markdown("### 🕯️ Analyse des Bougies")
+                candle_col1, candle_col2 = st.columns(2)
+                with candle_col1:
+                     st.metric(
+                        "Bougies vertes (5 dernières)", 
+                        f"{opp['green_candles']}/5",
+                        f"{opp['bullish_percentage']:.0f}% haussier"
+                    )
+
+
                 # Section 2: Analyse Technique
                 st.markdown("""---""")
                 st.markdown("### 🔍 Analyse Technique")

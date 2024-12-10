@@ -402,18 +402,18 @@ class MarketAnalyzer:
             if df is None or df.empty or ticker is None:
                 raise ValueError(f"Données insuffisantes pour {symbol}")
             
-            # Calcul rapide des bougies vertes consécutives
-            last_candles = df.tail(5)  # On prend les 5 dernières bougies
-            green_candles = 0
-            for i in range(len(last_candles)-1, -1, -1):  # On part de la plus récente
-                if last_candles.iloc[i]['close'] > last_candles.iloc[i]['open']:
-                    green_candles += 1
-                else:
-                    break
+            # Analyse des bougies sur les 5 dernières périodes
+            last_candles = df.tail(5)
+            total_green = sum(1 for i in range(len(last_candles)) 
+                            if last_candles.iloc[i]['close'] > last_candles.iloc[i]['open'])
+            
+            # Calcul du pourcentage haussier
+            bullish_percentage = (total_green / 5) * 100
 
             # Analyse et retour des résultats seulement si nous avons des données valides
             market_analysis = self.signal_analyzer.analyze_market_conditions(df)
-           
+            rsi = self.technical_indicators.calculate_rsi(df).iloc[-1] 
+
             if market_analysis is None:
                 raise ValueError(f"Analyse impossible pour {symbol}")
 
@@ -425,7 +425,8 @@ class MarketAnalyzer:
                 'signal': market_analysis.get('signal', 'NEUTRAL'),
                 'score': market_analysis.get('score', 0.5),
                 'analysis': market_analysis.get('analysis', {}),
-                'green_candles': green_candles,
+                'green_candles': total_green,
+                'bullish_percentage': bullish_percentage,
                 'timestamp': pd.Timestamp.now()
             }
 
