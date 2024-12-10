@@ -171,40 +171,45 @@ class TopPerformancePage:
             all_tickers = self.exchange.exchange.fetch_tickers()
             opportunities = []
             
-            # 2. Filtrage rapide initial
+            # 2. Premier filtrage rapide
+            filtered_pairs = []
             for symbol, ticker in all_tickers.items():
+                if not symbol.endswith('/USDT'):
+                    continue
+                    
                 try:
-                    if not symbol.endswith('/USDT'):
-                        continue
-
                     price = float(ticker['last'])
                     volume = float(ticker.get('quoteVolume', 0))
-                    change = float(ticker.get('percentage', 0))
-
-                    # N'appliquer que le filtre de prix pour garder plus d'opportunités
-                    if not (0 < price <= max_price):
-                        continue
-
-                    # Analyse technique
-                    analysis = self.analyzer.analyze_symbol(symbol.split('/')[0])
-                    if analysis:
-                        # Calcul des bougies vertes en utilisant l'analyze_symbol
-                        green_candles = analysis.get('green_candles', 0)  # Cette valeur doit être calculée dans analyze_symbol
-                        
-                        opportunities.append({
+                    
+                    if 0 < price <= max_price:  # On garde seulement le filtre de prix
+                        filtered_pairs.append({
                             'symbol': symbol.split('/')[0],
                             'price': price,
                             'volume': volume,
-                            'change': change,
+                            'change': float(ticker.get('percentage', 0))
+                        })
+                except:
+                    continue
+
+            # 3. Trier par volume et prendre le top 20
+            filtered_pairs.sort(key=lambda x: x['volume'], reverse=True)
+            top_pairs = filtered_pairs[:20]
+
+            # 4. Analyser uniquement le top 20
+            for pair in top_pairs:
+                try:
+                    analysis = self.analyzer.analyze_symbol(pair['symbol'])
+                    if analysis:
+                        pair.update({
                             'score': analysis.get('score', 0),
                             'rsi': analysis.get('rsi', 50),
                             'signal': analysis.get('signal', 'NEUTRAL'),
-                            'tokens_possible': budget/price,
-                            'investment': min(budget, (budget/price) * price),
-                            'green_candles': green_candles
+                            'tokens_possible': budget/pair['price'],
+                            'investment': min(budget, (budget/pair['price']) * pair['price']),
+                            'green_candles': 0  # Temporairement à 0
                         })
-                        
-                except Exception as e:
+                        opportunities.append(pair)
+                except:
                     continue
 
             return opportunities
