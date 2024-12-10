@@ -200,13 +200,17 @@ class TopPerformancePage:
                 try:
                     analysis = self.analyzer.analyze_symbol(pair['symbol'])
                     if analysis:
+                        # Calcul du pourcentage haussier basé sur le nombre de bougies vertes
+                        green_candles = analysis.get('green_candles', 0)
+                        bullish_percentage = (green_candles / 5) * 100
                         pair.update({
                             'score': analysis.get('score', 0),
                             'rsi': analysis.get('rsi', 50),
                             'signal': analysis.get('signal', 'NEUTRAL'),
                             'tokens_possible': budget/pair['price'],
                             'investment': min(budget, (budget/pair['price']) * pair['price']),
-                            'green_candles': 0  # Temporairement à 0
+                            'green_candles': green_candles,
+                            'bullish_percentage': bullish_percentage  
                         })
                         opportunities.append(pair)
                 except:
