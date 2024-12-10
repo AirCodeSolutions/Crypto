@@ -2,7 +2,8 @@
 # D'abord, importons chaque composant de son fichier source
 from .widgets import TimeSelector
 from .chart_components import TradingChart, ChartConfig
-from .alerts import AlertSystem
+
+from interface.components.alerts import EnhancedAlertSystem
 
 # Ensuite, définissons ce que nous voulons rendre disponible
 __all__ = [
