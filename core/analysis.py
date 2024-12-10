@@ -402,11 +402,11 @@ class MarketAnalyzer:
             if df is None or df.empty or ticker is None:
                 raise ValueError(f"Données insuffisantes pour {symbol}")
             
-            # Calcul des bougies vertes
+            # Calcul rapide des bougies vertes consécutives
+            last_candles = df.tail(5)  # On prend les 5 dernières bougies
             green_candles = 0
-            last_candles = df.tail(5)  # Dernières 5 bougies
-            for _, candle in last_candles.iterrows():
-                if candle['close'] > candle['open']:
+            for i in range(len(last_candles)-1, -1, -1):  # On part de la plus récente
+                if last_candles.iloc[i]['close'] > last_candles.iloc[i]['open']:
                     green_candles += 1
                 else:
                     break
