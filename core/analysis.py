@@ -401,9 +401,19 @@ class MarketAnalyzer:
             # Vérification que nous avons bien des données
             if df is None or df.empty or ticker is None:
                 raise ValueError(f"Données insuffisantes pour {symbol}")
+            
+            # Calcul des bougies vertes
+            green_candles = 0
+            last_candles = df.tail(5)  # Dernières 5 bougies
+            for _, candle in last_candles.iterrows():
+                if candle['close'] > candle['open']:
+                    green_candles += 1
+                else:
+                    break
 
             # Analyse et retour des résultats seulement si nous avons des données valides
             market_analysis = self.signal_analyzer.analyze_market_conditions(df)
+           
             if market_analysis is None:
                 raise ValueError(f"Analyse impossible pour {symbol}")
 
@@ -415,6 +425,7 @@ class MarketAnalyzer:
                 'signal': market_analysis.get('signal', 'NEUTRAL'),
                 'score': market_analysis.get('score', 0.5),
                 'analysis': market_analysis.get('analysis', {}),
+                'green_candles': green_candles,
                 'timestamp': pd.Timestamp.now()
             }
 
