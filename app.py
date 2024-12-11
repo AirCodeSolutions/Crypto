@@ -8,7 +8,7 @@ from typing import List, Dict
 from interface import TimeSelector, TradingChart, ChartConfig, GuideHelper
 from services.exchange import ExchangeService
 from core.analysis import MarketAnalyzer
-from interface.components.alerts import EnhancedAlertSystem
+from interface.components.alerts import AlertSystem
 
 # Configuration du logging pour un meilleur suivi des erreurs
 logging.basicConfig(level=logging.INFO)
