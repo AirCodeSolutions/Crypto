@@ -26,9 +26,8 @@ class AuthManager:
         """
         try:
             # Vérification si l'utilisateur existe déjà
-            existing_users = self.airtable.utilisateurs.search(
-                formula=f"OR({{username}}='{username}', {{email}}='{email}')"
-            )
+            formula = f"OR(username='{username}', email='{email}')"
+            existing_users = self.airtable.utilisateurs.first(formula=formula)
             
             if existing_users:
                 return False, "Nom d'utilisateur ou email déjà utilisé"
@@ -57,15 +56,12 @@ class AuthManager:
         """
         try:
             # Recherche de l'utilisateur
-            users = self.airtable.utilisateurs.search(
-                formula=f"{{username}}='{username}'"
-            )
+            formula = f"username='{username}'"
+            user = self.airtable.utilisateurs.first(formula=formula)
             
-            if not users:
+            if not user:
                 return False, "Utilisateur non trouvé"
                 
-            user = users[0]
-            
             # Vérification du mot de passe
             if user['fields']['password'] != self.hash_password(password):
                 return False, "Mot de passe incorrect"
