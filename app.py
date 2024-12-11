@@ -21,7 +21,7 @@ class CryptoAnalyzerApp:
         try:
             self.exchange = ExchangeService()
             self.analyzer = MarketAnalyzer(self.exchange)
-            self.alert_system = EnhancedAlertSystem()  # Nouveau système d'alertes
+            self.alert_system = AlertSystem()  # Nouveau système d'alertes
             
             if 'analyzed_symbols' not in st.session_state:
                 st.session_state.analyzed_symbols = set()
