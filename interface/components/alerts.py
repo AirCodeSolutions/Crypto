@@ -13,6 +13,21 @@ class NotificationMessage:
     timestamp: datetime = field(default_factory=datetime.now)
     is_read: bool = False
     details: Optional[Dict] = None
+    def format_time(self) -> str:
+            """Formate le timestamp pour l'affichage"""
+            now = datetime.now()
+            delta = now - self.timestamp
+            
+            if delta.days > 0:
+                return f"Il y a {delta.days} jours"
+            elif delta.seconds > 3600:
+                return f"Il y a {delta.seconds // 3600}h"
+            elif delta.seconds > 60:
+                return f"Il y a {delta.seconds // 60}m"
+            else:
+                return "À l'instant"
+
+
 
 @dataclass
 class PriceAlert:
