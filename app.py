@@ -7,8 +7,11 @@ import logging
 from typing import List, Dict
 from interface import TimeSelector, TradingChart, ChartConfig, GuideHelper
 from services.exchange import ExchangeService
+from services.storage import AirtableService
 from core.analysis import MarketAnalyzer
 from interface.components.alerts import AlertSystem
+from interface.components.auth_manager import AuthManager
+from interface.pages.live_analysis import LiveAnalysisPage
 
 # Configuration du logging pour un meilleur suivi des erreurs
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +25,8 @@ class CryptoAnalyzerApp:
             self.exchange = ExchangeService()
             self.analyzer = MarketAnalyzer(self.exchange)
             self.alert_system = AlertSystem()  # Nouveau système d'alertes
+            self.airtable = AirtableService()
+            self.auth_manager = AuthManager(self.airtable)
             
             if 'analyzed_symbols' not in st.session_state:
                 st.session_state.analyzed_symbols = set()
@@ -39,10 +44,11 @@ class CryptoAnalyzerApp:
     def setup_page(self):
         """Configure la mise en page et les styles de l'application"""
         st.set_page_config(
-            page_title="Crypto Analyzer Pro",
+            page_title="Crypto Analyzer by AirCodeSolutions",
             page_icon="📊",
             layout="wide",
-            initial_sidebar_state="collapsed"
+            #initial_sidebar_state="collapsed"
+            initial_sidebar_state="auto"
         )
         st.markdown("""
         <style>
@@ -80,71 +86,112 @@ class CryptoAnalyzerApp:
         Point d'entrée principal de l'application.
         Gère l'affichage de tous les composants et leur interaction.
         """
-        try:
-            self.setup_page()
-            st.title("Crypto Analyzer by AirCodeSolutions 🚀")
-            # Navigation
-            page = st.sidebar.selectbox(
-                "Navigation",
-                ["Analyse en Direct", "Top Performances", "Guide"]
+       
+        self.setup_page()
+        # Gestion de l'authentification
+        if not st.session_state.logged_in:
+            self._show_auth_page()
+            return
+            
+        # Navigation pour les utilisateurs connectés
+        self._show_main_interface()
+
+    def _show_auth_page(self):
+        """Affiche la page d'authentification"""
+        st.title("Crypto Analyzer Pro - AirCodeSolutions ❤️")
+        
+        tab1, tab2 = st.tabs(["Connexion", "Inscription"])
+        
+        with tab1:
+            self.auth_manager.render_login_form()
+            
+        with tab2:
+            self.auth_manager.render_register_form()
+
+    def _show_main_interface(self):
+        """Affiche l'interface principale pour les utilisateurs connectés"""
+        st.sidebar.title(f"👤 {st.session_state.user_info['username']}")
+        
+        if st.sidebar.button("📤 Déconnexion"):
+            self.auth_manager.logout()
+            st.rerun()
+
+        # Navigation
+        page = st.sidebar.selectbox(
+            "Navigation",
+            ["Analyse en Direct", "Top Performances", "Portfolio", "Paramétres", "Guide"]
             )
             
-            if page == "Analyse en Direct":
-
-                # Section de recherche et sélection de crypto
-                search_col1, search_col2 = st.columns([1, 3])  # Colonnes pour meilleure organisation
-                with search_col1:
-                    search_term = st.text_input(
-                        "🔍",  # Juste une icône comme label
-                        value="",
-                        max_chars=5,
-                        placeholder="BTC...",  # Exemple de ce qu'on attend
-                        key="crypto_search"
-                    ).upper()
-                available_symbols = self.exchange.get_available_symbols()
-                
-                # Filtrage des cryptos selon la recherche
-                filtered_symbols = [
-                    symbol for symbol in available_symbols 
-                    if search_term in symbol
-                ] if search_term else available_symbols[:30]
-
-                if not filtered_symbols:
-                    st.warning("Aucune crypto trouvée pour votre recherche.")
-                    return
-
-                # Interface principale divisée en colonnes
-                chart_col, analysis_col = st.columns([2, 1])
-                
-                with chart_col:
-                    # Sélection de la crypto et de la période
-                    selected_symbol = st.selectbox(
-                        "Sélectionner une crypto",
-                        filtered_symbols,
-                        format_func=self._format_symbol_display
-                    )
-                    
-                    # Sélecteur de période et affichage du graphique
-                    timeframe = TimeSelector.render("timeframe_selector")
-                    self._display_chart(selected_symbol, timeframe)
-
-                with analysis_col:
-                    self._display_analysis(selected_symbol)
-                pass
-
-            elif page == "Top Performances":
-                from interface.pages.top_performance import TopPerformancePage
-                top_page = TopPerformancePage(
+        # Affichage de la page sélectionnée
+        if page == "Analyse en Direct":
+            LiveAnalysisPage(
                 exchange_service=self.exchange,
-                analyzer_service=self.analyzer  # Ajout de l'analyzer
-                )
-                top_page.render()
+                analyzer_service=self.analyzer
+            ).render()
 
-        except Exception as e:
-            logger.error(f"Erreur dans l'application: {e}", exc_info=True)
-            st.error(f"Une erreur est survenue: {str(e)}")
-            if st.button("🔄 Rafraîchir"):
-                st.rerun()
+        elif page == "Top Performances":
+            from interface.pages.top_performance import TopPerformancePage
+            top_page = TopPerformancePage(
+            exchange_service=self.exchange,
+            analyzer_service=self.analyzer  # Ajout de l'analyzer
+            )
+            top_page.render()
+
+        elif page == "Portfolio":
+           self._show_portfolio_page()
+                        
+        elif page == "Paramètres":
+            self._show_settings_page()
+
+    def _show_portfolio_page(self):
+        """Affiche la page du portfolio"""
+        st.title("💼 Portfolio")
+        # Vous pouvez implémenter le contenu du portfolio ici...
+
+    def _show_settings_page(self):
+        """Affiche la page des paramètres"""
+        st.title("⚙️ Paramètres")
+        
+        settings = st.session_state.user_info.get('settings', {})
+        
+        with st.form("settings_form"):
+            new_capital = st.number_input(
+                "Capital initial (USDT)",
+                min_value=0.0,
+                value=float(settings.get('initial_capital', 1000))
+            )
+            
+            new_risk = st.slider(
+                "Risque par trade (%)",
+                min_value=0.5,
+                max_value=5.0,
+                value=float(settings.get('risk_per_trade', 1.5)),
+                step=0.5
+            )
+            
+            if st.form_submit_button("Sauvegarder"):
+                try:
+                    self.airtable.utilisateurs.update(
+                        st.session_state.user_info['id'],
+                        {
+                            "settings": {
+                                "initial_capital": new_capital,
+                                "risk_per_trade": new_risk
+                            }
+                        }
+                    )
+                    st.success("Paramètres sauvegardés !")
+                    
+                    # Mise à jour des informations en session
+                    st.session_state.user_info['settings'] = {
+                        "initial_capital": new_capital,
+                        "risk_per_trade": new_risk
+                    }
+                    
+                except Exception as e:
+                    st.error(f"Erreur lors de la sauvegarde: {str(e)}")        
+
+       
 
     def _format_symbol_display(self, symbol: str) -> str:
         """Formate l'affichage d'un symbole avec son prix actuel"""
