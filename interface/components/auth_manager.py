@@ -26,7 +26,7 @@ class AuthManager:
         """
         try:
             # Vérification si l'utilisateur existe déjà
-            formula = f"OR(username='{username}', email='{email}')"
+            formula = f"OR({{Username}}='{username}', {{Email}}='{email}')"
             existing_users = self.airtable.utilisateurs.first(formula=formula)
             
             if existing_users:
@@ -34,13 +34,13 @@ class AuthManager:
                 
             # Création du nouvel utilisateur avec des champs séparés
             user_data = {
-                "username": username,
-                "email": email,
-                "password": self.hash_password(password),
-                "status": "pending",  # En attente de validation
-                "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "initial_capital": 1000,  # Valeur par défaut
-                "risk_per_trade": 1.5     # Valeur par défaut
+                "Username": username,
+                "Email": email,
+                "Password": self.hash_password(password),
+                "Status": "pending",  # En attente de validation
+                "Created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "Initial_capital": 1000,  # Valeur par défaut
+                "Risk_per_trade": 1.5     # Valeur par défaut
             }
             
             self.airtable.utilisateurs.create(user_data)
@@ -56,29 +56,29 @@ class AuthManager:
         """
         try:
             # Recherche de l'utilisateur
-            formula = f"username='{username}'"
+            formula = f"{{Username}}='{username}'"
             user = self.airtable.utilisateurs.first(formula=formula)
             
             if not user:
                 return False, "Utilisateur non trouvé"
                 
             # Vérification du mot de passe
-            if user['fields']['password'] != self.hash_password(password):
+            if user['fields']['Password'] != self.hash_password(password):
                 return False, "Mot de passe incorrect"
                 
             # Vérification du statut
-            if user['fields']['status'] != "active":
+            if user['fields']['Status'] != "active":
                 return False, "Compte en attente de validation"
                 
             # Connexion réussie - stockage des paramètres séparés
             st.session_state.logged_in = True
             st.session_state.user_info = {
                 'id': user['id'],
-                'username': user['fields']['username'],
-                'email': user['fields']['email'],
+                'username': user['fields']['Username'],
+                'email': user['fields']['Email'],
                 'settings': {
-                    'initial_capital': float(user['fields'].get('initial_capital', 1000)),
-                    'risk_per_trade': float(user['fields'].get('risk_per_trade', 1.5))
+                    'initial_capital': float(user['fields'].get('Initial_capital', 1000)),
+                    'risk_per_trade': float(user['fields'].get('Risk_per_trade', 1.5))
                 }
             }
             
@@ -141,8 +141,8 @@ class AuthManager:
             self.airtable.utilisateurs.update(
                 user_id,
                 {
-                    "initial_capital": new_capital,
-                    "risk_per_trade": new_risk
+                    "Initial_capital": new_capital,
+                    "Risk_per_trade": new_risk
                 }
             )
             
