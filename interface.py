@@ -1,0 +1,1781 @@
+# interface.py
+import streamlit as st
+import time
+from datetime import datetime, timedelta
+import plotly.graph_objects as go
+import pandas as pd
+import ta
+from utils import (
+    get_valid_symbol, 
+    calculate_timeframe_data, 
+    format_number,
+    get_exchange  # Ajout de cet import
+)
+from technical_analysis import SignalGenerator, TechnicalAnalysis  # Ajout de TechnicalAnalysis
+from portfolio_management import PortfolioManager  # Ajout de cet import
+from ai_predictor import AIPredictor, AITester  # Ajout de ces imports
+
+
+class LiveAnalysisPage:
+    def __init__(self, exchange, ta_analyzer, portfolio_manager):
+        self.exchange = exchange
+        self.ta = ta_analyzer
+        self.portfolio = portfolio_manager
+        
+    def render(self):
+        st.title("📈 Analyse en Direct")
+        
+        # Input pour ajouter une crypto
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            symbol = st.text_input("Entrez le symbole de la crypto (ex: BTC, ETH)", "").upper()
+
+        # Gestion des cryptos suivies
+        self._manage_tracked_coins(symbol)
+        
+        # Affichage des analyses
+        if st.session_state.tracked_coins:
+            self._display_tracked_coins()
+
+    def _manage_tracked_coins(self, symbol):
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Ajouter à la liste de suivi"):
+                if symbol and symbol not in st.session_state.tracked_coins:
+                    valid_symbol = get_valid_symbol(self.exchange, symbol)
+                    if valid_symbol:
+                        st.session_state.tracked_coins.add(symbol)
+                        st.success(f"{symbol} ajouté à la liste de suivi")
+                    else:
+                        st.error(f"{symbol} n'est pas une crypto valide")
+
+        with col2:
+            if st.button("Supprimer de la liste"):
+                if symbol in st.session_state.tracked_coins:
+                    st.session_state.tracked_coins.remove(symbol)
+                    st.info(f"{symbol} retiré de la liste de suivi")
+    
+
+    def _display_tracked_coins(self):
+        st.subheader("Cryptos suivies")
+        for coin in st.session_state.tracked_coins:
+            self._analyze_and_display_coin(coin)
+
+    def _analyze_and_display_coin(self, coin):
+        try:
+            valid_symbol = get_valid_symbol(self.exchange, coin)
+            if valid_symbol:
+                ticker = self.exchange.fetch_ticker(valid_symbol)
+                df = calculate_timeframe_data(self.exchange, valid_symbol, '1h', 100)
+                
+                if df is not None:
+                    # Création d'un container pour cette crypto
+                    with st.container():
+                        # En-tête avec les infos principales
+                        st.markdown(f"### {coin}")
+                        
+                        # Première ligne : Prix et volume
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric(
+                                "Prix",
+                                f"${ticker['last']:,.8f}",
+                                f"{ticker['percentage']:+.2f}%"
+                            )
+                        with col2:
+                            st.metric(
+                                "Volume 24h",
+                                f"${ticker['quoteVolume']/1e6:.1f}M",
+                                None
+                            )
+                        with col3:
+                            rsi = self.ta.calculate_rsi(df).iloc[-1]
+                            st.metric(
+                                "RSI",
+                                f"{rsi:.1f}",
+                                None,
+                                help="RSI > 70: Suracheté, RSI < 30: Survendu"
+                            )
+
+                        # Analyse de la tendance des bougies
+                        last_candles = df.tail(5)  # Prendre les 5 dernières bougies
+                        green_candles = sum(last_candles['close'] > last_candles['open'])
+                        trend_strength = green_candles / 5 * 100
+
+                        # Afficher l'analyse des bougies
+                        st.markdown("#### 🕯️ Analyse des bougies")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric(
+                                "Bougies vertes (5 dernières)",
+                                f"{green_candles}/5",
+                                f"{trend_strength:.0f}% haussier"
+                            )
+                        with col2:
+                            consecutive_green = 0
+                            for i in range(len(last_candles)-1, -1, -1):
+                                if last_candles.iloc[i]['close'] > last_candles.iloc[i]['open']:
+                                    consecutive_green += 1
+                                else:
+                                    break
+                            st.metric(
+                                "Bougies vertes consécutives",
+                                f"{consecutive_green}",
+                                help="Nombre de bougies vertes consécutives"
+                            )
+
+                        # Signaux et recommandations
+                        signal_gen = SignalGenerator(df, ticker['last'])
+                        score = signal_gen.calculate_opportunity_score()
+                        signals = signal_gen.generate_trading_signals()
+
+                        # Affichage du score et des signaux
+                        st.markdown("#### 📊 Analyse Technique")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.metric(
+                                "Score Technique",
+                                f"{score:.2f}",
+                                help="Score > 0.7: Fort potentiel"
+                            )
+                        with col2:
+                            if signals['action']:
+                                signal_color = "🟢" if signals['action'] == 'BUY' else "🔴"
+                                st.markdown(f"{signal_color} **{signals['action']}**")
+                        
+                        # Niveaux clés
+                        support, resistance = self.ta.calculate_support_resistance(df)
+                        st.markdown("#### 🎯 Niveaux clés")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Support", f"${support:.8f}")
+                        with col2:
+                            st.metric("Prix actuel", f"${ticker['last']:.8f}")
+                        with col3:
+                            st.metric("Résistance", f"${resistance:.8f}")
+
+                        # Bouton pour ajouter au portfolio si signal d'achat
+                        if signals['action'] == 'BUY' and consecutive_green >= 2:  # Au moins 2 bougies vertes consécutives
+                            st.markdown("---")
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.success("✅ Confirmation de tendance haussière")
+                            with col2:
+                                if st.button("📝 Préparer un ordre", key=f"prepare_{coin}"):
+                                    # Calcul des niveaux suggérés
+                                    risk_percentage = 1.5
+                                    stop_loss = ticker['last'] * (1 - risk_percentage/100)
+                                    risk_amount = ticker['last'] - stop_loss
+                                    target_1 = ticker['last'] + (risk_amount * 2)
+                                    target_2 = ticker['last'] + (risk_amount * 3)
+
+                                    st.session_state['prepared_trade'] = {
+                                        'symbol': coin,
+                                        'price': ticker['last'],
+                                        'stop_loss': stop_loss,
+                                        'target_1': target_1,
+                                        'target_2': target_2,
+                                        'support': support,
+                                        'resistance': resistance,
+                                        'score': score
+                                    }
+                                    st.success(f"✅ Trade préparé pour {coin}! Allez dans Portfolio pour finaliser l'ordre.")
+
+                        # Affichage des raisons du signal
+                        if signals['reasons']:
+                            st.markdown("#### 📊 Analyse détaillée")
+                            for reason in signals['reasons']:
+                                st.write(f"• {reason}")
+                        
+        except Exception as e:
+            st.error(f"Erreur pour {coin}: {str(e)}")
+
+        
+class PortfolioPage:
+    def __init__(self, portfolio_manager):
+        self.portfolio = portfolio_manager
+
+    def render(self):
+        st.title("💼 Gestion du Portefeuille")
+
+
+        with st.expander("⚙️ Paramètres du Portfolio"):
+            col1, col2 = st.columns(2)
+            with col1:
+                # Configuration du capital initial avec une clé unique
+                initial_capital = st.session_state.portfolio['capital']
+                new_capital = st.number_input(
+                    "Capital (USDT)",
+                    min_value=0.0,
+                    value=float(initial_capital) if initial_capital > 0 else 1000.0,
+                    step=100.0,
+                    key="capital_input_settings"  # Ajout d'une clé unique
+                )
+                
+                # Si le capital a été modifié
+                if new_capital != initial_capital:
+                    # Vérifier s'il y a des positions ouvertes
+                    if st.session_state.portfolio['positions']:
+                        st.warning("⚠️ Impossible de modifier le capital avec des positions ouvertes")
+                    else:
+                        # Mise à jour du capital
+                        st.session_state.portfolio['capital'] = new_capital
+                        st.session_state.portfolio['current_capital'] = new_capital
+                        
+                        # Réinitialisation des performances
+                        st.session_state.portfolio['performance'] = {
+                            'total_trades': 0,
+                            'winning_trades': 0,
+                            'total_profit': 0,
+                            'max_drawdown': 0
+                        }
+                        
+                        st.success(f"💰 Capital mis à jour à {new_capital} USDT")
+                        st.rerun()
+                        
+            with col2:
+                # Bouton de réinitialisation
+                if st.button("🗑️ Réinitialiser Portfolio", type="secondary"):
+                    if st.session_state.portfolio['positions']:
+                        # Demande de confirmation si des positions sont ouvertes
+                        if st.warning("⚠️ Attention: Cette action supprimera toutes vos positions et votre historique. Êtes-vous sûr?"):
+                            if st.button("✅ Confirmer la réinitialisation"):
+                                self._reset_portfolio()
+                    else:
+                        # Réinitialisation directe s'il n'y a pas de positions ouvertes
+                        self._reset_portfolio()
+
+                        
+                
+        # Formulaire d'ajout de position
+        self._add_position_form()
+        
+        # Affichage des positions actuelles
+        self._display_current_positions()
+        
+        # Historique et statistiques
+        self._display_history_and_stats()
+        # Vérifier les trades préparés
+        self._check_prepared_trade()
+    
+            
+    def _reset_portfolio(self):
+        """Réinitialise le portfolio à son état initial"""
+        st.session_state.portfolio = {
+            'positions': {},
+            'history': [],
+            'capital': 0,
+            'current_capital': 0,
+            'performance': {
+                'total_trades': 0,
+                'winning_trades': 0,
+                'total_profit': 0,
+                'max_drawdown': 0
+            }
+        }
+        st.success("✨ Portfolio réinitialisé avec succès!")
+        st.rerun()
+        
+    def _add_position_form(self):
+        with st.expander("➕ Ajouter une nouvelle position"):
+            # Première ligne : Symbole et Prix d'entrée
+            col1, col2 = st.columns(2)
+            with col1:
+                new_symbol = st.text_input("Symbole (ex: BTC)", "").upper()
+                amount = st.number_input("Montant (USDT)", min_value=0.0, value=100.0)
+            with col2:
+                entry_price = st.number_input("Prix d'entrée", min_value=0.0, value=0.0, format="%.8f")
+            
+            # Calculateur d'aide
+            st.markdown("---")
+            st.markdown("### 🎯 Calculateur de niveaux")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                risk_percentage = st.slider(
+                    "Risque acceptable (%)", 
+                    min_value=0.5, 
+                    max_value=5.0, 
+                    value=1.5,
+                    step=0.5,
+                    help="Pourcentage de perte maximale acceptable"
+                )
+            with col2:
+                risk_reward = st.slider(
+                    "Ratio Risque/Récompense", 
+                    min_value=1.5, 
+                    max_value=5.0, 
+                    value=2.0,
+                    step=0.5,
+                    help="Ratio entre profit potentiel et risque"
+                )
+
+            if entry_price > 0:
+                # Calcul des niveaux suggérés
+                stop_loss = entry_price * (1 - risk_percentage/100)
+                risk_amount = entry_price - stop_loss
+                target_1 = entry_price + (risk_amount * risk_reward)
+                target_2 = entry_price + (risk_amount * (risk_reward * 1.5))
+
+                # Affichage des niveaux calculés
+                st.markdown("#### Niveaux suggérés:")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    suggested_sl = st.metric(
+                        "Stop Loss suggéré",
+                        f"{stop_loss:.8f}",
+                        f"{-risk_percentage:.1f}%"
+                    )
+                with col2:
+                    suggested_t1 = st.metric(
+                        "Target 1 suggéré",
+                        f"{target_1:.8f}",
+                        f"+{risk_percentage * risk_reward:.1f}%"
+                    )
+                with col3:
+                    suggested_t2 = st.metric(
+                        "Target 2 suggéré",
+                        f"{target_2:.8f}",
+                        f"+{risk_percentage * risk_reward * 1.5:.1f}%"
+                    )
+
+                # Champs pour les niveaux réels
+                st.markdown("---")
+                st.markdown("### 📊 Niveaux de la position")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    stop_loss = st.number_input(
+                        "Stop Loss", 
+                        min_value=0.0, 
+                        value=float(stop_loss), 
+                        format="%.8f",
+                        help="Niveau de stop loss en USDT"
+                    )
+                with col2:
+                    target_1 = st.number_input(
+                        "Target 1", 
+                        min_value=0.0, 
+                        value=float(target_1), 
+                        format="%.8f",
+                        help="Premier objectif de profit"
+                    )
+                with col3:
+                    target_2 = st.number_input(
+                        "Target 2", 
+                        min_value=0.0, 
+                        value=float(target_2), 
+                        format="%.8f",
+                        help="Second objectif de profit"
+                    )
+
+                # Calcul des métriques de la position
+                if amount > 0:
+                    potential_loss = (stop_loss - entry_price) * (amount / entry_price)
+                    potential_profit_1 = (target_1 - entry_price) * (amount / entry_price)
+                    potential_profit_2 = (target_2 - entry_price) * (amount / entry_price)
+
+                    st.markdown("#### Analyse de la position")
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric(
+                            "Perte maximale",
+                            f"{potential_loss:.2f} USDT",
+                            f"{(potential_loss/amount)*100:.1f}% du capital"
+                        )
+                    with col2:
+                        st.metric(
+                            "Profit potentiel (T2)",
+                            f"{potential_profit_2:.2f} USDT",
+                            f"{(potential_profit_2/amount)*100:.1f}% du capital"
+                        )
+
+                # Bouton d'ajout
+                st.markdown("---")
+                if st.button("Ajouter la position", type="primary"):
+                    self._handle_new_position(new_symbol, amount, entry_price, stop_loss, target_1, target_2)
+
+            else:
+                st.info("Entrez un prix d'entrée pour voir les niveaux suggérés")
+                
+    def _handle_new_position(self, symbol, amount, entry_price, stop_loss, target_1, target_2):
+        try:
+            # Validation des entrées
+            if not all([symbol, amount > 0, entry_price > 0, stop_loss > 0, target_1 > 0, target_2 > 0]):
+                st.error("Tous les champs doivent être remplis avec des valeurs valides")
+                return
+
+            if stop_loss >= entry_price:
+                st.error("Le stop loss doit être inférieur au prix d'entrée")
+                return
+
+            if target_1 <= entry_price or target_2 <= target_1:
+                st.error("Les targets doivent être supérieurs au prix d'entrée et Target 2 > Target 1")
+                return
+
+            # Ajout de la position
+            success, message = self.portfolio.add_position(symbol, amount, entry_price, stop_loss, target_1, target_2)
+            
+            if success:
+                st.success(message)
+            else:
+                st.error(message)
+                
+        except Exception as e:
+            st.error(f"Erreur lors de l'ajout de la position : {str(e)}")
+
+    def _display_current_positions(self):
+        st.subheader("📊 Positions Ouvertes")
+        
+        # Récupération des positions
+        positions_df = self.portfolio.get_open_positions()
+        
+        if positions_df.empty:
+            st.info("Aucune position ouverte")
+            return
+            
+        # Mise à jour des positions
+        self.portfolio.update_positions()
+        
+        # Affichage des positions
+        for _, position in positions_df.iterrows():
+            with st.expander(f"{position['symbol']} - {position['pnl']:.2f}%"):
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.metric(
+                        "Prix actuel",
+                        f"${position['current_price']:.4f}",
+                        f"{position['pnl']:.2f}%"
+                    )
+                    
+                with col2:
+                    st.metric("Montant", f"{position['amount']:.4f}")
+                    
+                with col3:
+                    st.metric("Valeur", f"${position['amount'] * position['current_price']:.2f}")
+                
+                # Niveaux importants
+                st.markdown("### Niveaux")
+                levels_col1, levels_col2, levels_col3 = st.columns(3)
+                
+                with levels_col1:
+                    st.write("Stop Loss:", f"${position['stop_loss']:.4f}")
+                    
+                with levels_col2:
+                    st.write("Target 1:", f"${position['target_1']:.4f}")
+                    
+                with levels_col3:
+                    st.write("Target 2:", f"${position['target_2']:.4f}")
+                
+                # Bouton de fermeture
+                if st.button("Fermer la position", key=f"close_{position['symbol']}"):
+                    self.portfolio.close_position(
+                        position['symbol'],
+                        position['current_price'],
+                        "Fermeture manuelle"
+                    )
+                    st.success(f"Position {position['symbol']} fermée")
+                    st.rerun()
+
+    def _add_risk_management_section(self):
+        with st.expander("⚠️ Gestion des Risques"):
+            st.markdown("""
+            ### Règles de gestion des risques
+            
+            1. **Position Size** 🎯
+            - Maximum 1-2% du capital par trade
+            - Stop loss toujours défini
+            - Ratio risque/récompense minimum de 1:2
+            
+            2. **Diversification** 📊
+            - Maximum 20% du capital en crypto
+            - Pas plus de 4-5 positions simultanées
+            - Varier les types de cryptos
+            
+            3. **Périodes de Trading** ⏰
+            - Éviter les annonces importantes
+            - Préférer les périodes de forte liquidité
+            - Pas de FOMO sur les pics de volatilité
+            """)
+            
+            # Calculs de gestion des risques
+            capital = st.session_state.portfolio['current_capital']
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                risk_percentage = st.slider(
+                    "% de risque par trade",
+                    min_value=0.5,
+                    max_value=2.0,
+                    value=1.0,
+                    step=0.1,
+                    help="Pourcentage du capital à risquer par trade"
+                )
+                
+                max_risk_amount = capital * (risk_percentage/100)
+                st.metric(
+                    "Risque maximum par trade",
+                    f"${max_risk_amount:.2f}",
+                    help="Perte maximale acceptable par position"
+                )
+                
+            with col2:
+                max_positions = st.slider(
+                    "Nombre maximum de positions",
+                    min_value=1,
+                    max_value=5,
+                    value=3,
+                    help="Nombre maximum de positions simultanées"
+                )
+                
+                position_size = capital / max_positions
+                st.metric(
+                    "Taille suggérée par position",
+                    f"${position_size:.2f}",
+                    help="Montant suggéré pour chaque position"
+                )
+    
+    def _display_history_and_stats(self):
+        st.subheader("📈 Historique et Statistiques")
+        
+        # Récupération des données
+        summary = self.portfolio.get_portfolio_summary()
+        history_df = self.portfolio.get_trade_history()
+        
+        # Calcul de la performance si elle n'existe pas dans le summary
+        if 'performance' not in summary:
+            if summary['capital_initial'] > 0:
+                performance = ((summary['capital_actuel'] / summary['capital_initial']) - 1) * 100
+            else:
+                performance = 0.0
+        else:
+            performance = summary['performance']
+        
+        # Affichage des statistiques globales
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                "Capital total",
+                f"${summary['capital_actuel']:.2f}",
+                f"{performance:.2f}%"
+            )
+            
+        with col2:
+            if summary['nombre_trades'] > 0:
+                win_rate = f"{summary['win_rate']:.1f}%"
+            else:
+                win_rate = "N/A"
+            st.metric("Win Rate", win_rate)
+            
+        with col3:
+            st.metric("Nombre de trades", summary['nombre_trades'])
+            
+        with col4:
+            st.metric("Drawdown Max", f"{summary['max_drawdown']:.2f}%")
+    
+        # Historique des trades
+        if not history_df.empty:
+            st.subheader("Historique des trades")
+            
+            # Formatage des colonnes pour l'affichage
+            if 'duration' in history_df.columns:
+                history_df['Durée'] = history_df['duration'].astype(str)
+            else:
+                history_df['Durée'] = 'N/A'
+
+            if 'pnl' in history_df.columns:
+                history_df['P&L'] = history_df['pnl'].map('{:,.2f}%'.format)
+            else:
+                history_df['P&L'] = 'N/A'
+            
+            # Sélection et renommage des colonnes à afficher
+            display_columns = [col for col in ['symbol', 'entry_price', 'exit_price', 'pnl', 'Durée', 'reason'] 
+                             if col in history_df.columns]
+            
+            column_names = {
+                'symbol': 'Symbole',
+                'entry_price': 'Prix entrée',
+                'exit_price': 'Prix sortie',
+                'pnl': 'P&L',
+                'reason': 'Raison'
+            }
+            
+            display_df = history_df[display_columns].rename(columns=column_names)
+            
+            st.dataframe(display_df)
+        else:
+            st.info("Aucun historique de trade disponible")
+
+    def _check_prepared_trade(self):
+        if 'prepared_trade' in st.session_state:
+            trade = st.session_state['prepared_trade']
+            
+            st.info("💫 Trade préparé disponible!")
+            with st.expander("📝 Détails du trade préparé"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Symbole", trade['symbol'])
+                    st.metric("Prix actuel", f"${trade['price']:.8f}")
+                    st.metric("Score technique", f"{trade['score']:.2f}")
+                with col2:
+                    st.metric("Support", f"${trade['support']:.8f}")
+                    st.metric("Résistance", f"${trade['resistance']:.8f}")
+                
+                # Calcul de la taille suggérée de position
+                capital = st.session_state.portfolio['current_capital']
+                suggested_risk = capital * 0.01  # 1% du capital
+                position_size = (suggested_risk / (trade['price'] - trade['stop_loss'])) * trade['price']
+                
+                st.markdown("### 📊 Position suggérée")
+                col1, col2 = st.columns(2)
+                with col1:
+                    amount = st.number_input(
+                        "Montant (USDT)",
+                        min_value=0.0,
+                        value=min(position_size, capital * 0.1),  # Max 10% du capital
+                        step=10.0
+                    )
+                with col2:
+                    risk_percent = (amount * (trade['price'] - trade['stop_loss'])) / capital * 100
+                    st.metric("Risque", f"{risk_percent:.2f}%")
+                
+                if st.button("✅ Créer la position"):
+                    self._handle_new_position(
+                        trade['symbol'],
+                        amount,
+                        trade['price'],
+                        trade['stop_loss'],
+                        trade['target_1'],
+                        trade['target_2']
+                    )
+                    del st.session_state['prepared_trade']
+                    st.rerun()
+                
+        
+class OpportunitiesPage:
+    def __init__(self, exchange, ta_analyzer):
+        self.exchange = exchange
+        self.ta = ta_analyzer
+
+    def render(self):
+        st.title("🎯 Opportunités Court Terme")
+        
+        # Section d'information
+        with st.expander("ℹ️ Guide des Opportunités", expanded=True):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("""
+                ### 🎯 Configuration Idéale
+                - Score technique > 0.7
+                - 2-3 bougies vertes consécutives
+                - Volume croissant
+                - Support proche (-1-2%)
+                - RSI entre 30-45
+                """)
+                
+                st.markdown("""
+                ### ⏱️ Horizons de Trading
+                - 5m : Scalping (15-30 min)
+                - 15m : Intraday (1-4 heures)
+                - 1h : Swing court (6-24 heures)
+                - 4h : Swing long (2-5 jours)
+                """)
+            
+            with col2:
+                st.markdown("""
+                ### 🚫 À Éviter
+                - RSI > 70 (surachat)
+                - Volume décroissant
+                - Résistance proche
+                - Bougies rouges
+                """)
+                
+                st.markdown("""
+                ### 💰 Gestion des Trades
+                - Stop loss : -1.5% du prix d'entrée
+                - Target 1 : +2-3%
+                - Target 2 : +4-5%
+                - Sortie partielle à T1
+                """)
+        
+        # Filtres de recherche
+        st.markdown("### 🔍 Filtres de Recherche")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            min_var = st.number_input("Variation minimum (%)", value=1.0)
+        with col2:
+            min_vol = st.number_input("Volume minimum (USDT)", value=100000.0)
+        with col3:
+            min_score = st.slider("Score minimum", 
+                                min_value=0.0, 
+                                max_value=1.0, 
+                                value=0.7,
+                                help="Recommandé : ≥ 0.7 pour plus de fiabilité")
+
+        # Options supplémentaires
+        col1, col2 = st.columns(2)
+        with col1:
+            timeframe = st.selectbox(
+                "Timeframe",
+                ["5m", "15m", "1h", "4h"],
+                index=2,
+                help="""
+                5m : Trading ultra court terme (très risqué)
+                15m : Trading intraday
+                1h : Recommandé pour débutants
+                4h : Trades plus sûrs mais moins fréquents
+                """
+            )
+        with col2:
+            max_price = st.number_input("Prix maximum (USDT)", 
+                                      value=20.0,
+                                      help="Filtrer les cryptos selon leur prix unitaire")
+
+        # Avertissement
+        st.info("""
+        ℹ️ **Note importante :** 
+        - Plus le timeframe est petit, plus le risque est élevé
+        - Commencez par le timeframe 1h si vous débutez
+        - Attendez toujours la confirmation des 3 bougies vertes
+        - Vérifiez toujours la tendance sur le timeframe supérieur
+        """)
+
+        if st.button("🔍 Rechercher des opportunités"):
+            self._search_opportunities(min_var, min_vol, min_score, timeframe, max_price)
+            
+
+    def _search_opportunities(self, min_var, min_vol, min_score, timeframe, max_price):
+        try:
+            markets = self.exchange.load_markets()
+            usdt_pairs = [symbol for symbol in markets.keys() if symbol.endswith('USDT')]
+            
+            opportunities = []
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+
+            for i, symbol in enumerate(usdt_pairs):
+                try:
+                    status_text.text(f"Analyse de {symbol}...")
+                    ticker = self.exchange.fetch_ticker(symbol)
+                    price = ticker['last']
+                    
+                    # Filtre initial sur prix et volume
+                    if price <= max_price and ticker['quoteVolume'] >= min_vol:
+                        df = calculate_timeframe_data(self.exchange, symbol, timeframe, 100)
+                        if df is not None:
+                            # 1. Vérification des bougies vertes consécutives
+                            last_candles = df.tail(3)  # Prendre les 3 dernières bougies
+                            green_candles = sum(last_candles['close'] > last_candles['open'])
+                            consecutive_green = 0
+                            for idx in range(len(last_candles)-1, -1, -1):
+                                if last_candles.iloc[idx]['close'] > last_candles.iloc[idx]['open']:
+                                    consecutive_green += 1
+                                else:
+                                    break
+                                    
+                            # 2. Vérification du volume croissant
+                            volume_growing = (df['volume'].iloc[-1] > df['volume'].iloc[-2] > df['volume'].iloc[-3])
+                            
+                            # 3. Calcul de la distance au support
+                            support, resistance = self.ta.calculate_support_resistance(df)
+                            distance_to_support = ((price - support) / price) * 100
+                            
+                            # 4. Calcul du RSI
+                            rsi = self.ta.calculate_rsi(df).iloc[-1]
+                            
+                            # 5. Calcul du score technique
+                            signal_gen = SignalGenerator(df, price)
+                            score = signal_gen.calculate_opportunity_score()
+                            signals = signal_gen.generate_trading_signals()
+                            
+                            # Configuration idéale
+                            ideal_setup = (
+                                score >= min_score and          # Score minimum
+                                consecutive_green >= 2 and      # Au moins 2 bougies vertes consécutives
+                                volume_growing and              # Volume croissant
+                                30 <= rsi <= 45 and            # RSI dans la zone idéale
+                                0 <= distance_to_support <= 2   # Support proche
+                            )
+                            
+                            if ideal_setup:
+                                opportunities.append({
+                                    'symbol': symbol.replace('/USDT', ''),
+                                    'price': price,
+                                    'score': score,
+                                    'green_candles': consecutive_green,
+                                    'rsi': rsi,
+                                    'distance_to_support': distance_to_support,
+                                    'volume_trend': "Croissant" if volume_growing else "Décroissant",
+                                    'change_24h': ticker['percentage'],
+                                    'volume': ticker['quoteVolume'],
+                                    'signal': signals['action'],
+                                    'reasons': signals['reasons']
+                                })
+                    
+                    progress_bar.progress((i + 1) / len(usdt_pairs))
+                    
+                except Exception as e:
+                    continue
+            
+            progress_bar.empty()
+            status_text.empty()
+            
+            if opportunities:
+                st.success(f"🎯 {len(opportunities)} configurations idéales trouvées!")
+                
+                # Tri par score et RSI
+                opportunities.sort(key=lambda x: (x['score'], -abs(37.5-x['rsi'])), reverse=True)
+                
+                for opp in opportunities:
+                    with st.expander(f"💎 {opp['symbol']} - Score: {opp['score']:.2f}"):
+                        # Métriques principales
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Prix", f"${opp['price']:.8f}", f"{opp['change_24h']:+.2f}%")
+                        with col2:
+                            st.metric("RSI", f"{opp['rsi']:.1f}", 
+                                     help="Idéal entre 30-45")
+                        with col3:
+                            st.metric("Distance Support", f"{opp['distance_to_support']:.1f}%",
+                                     help="Distance au support le plus proche")
+                        
+                        # Confirmations
+                        st.markdown("#### ✅ Confirmations")
+                        conf_col1, conf_col2 = st.columns(2)
+                        with conf_col1:
+                            st.write(f"• {opp['green_candles']} bougies vertes consécutives")
+                            st.write(f"• Volume {opp['volume_trend']}")
+                        with conf_col2:
+                            st.write(f"• Score technique: {opp['score']:.2f}")
+                            st.write(f"• RSI: {opp['rsi']:.1f}")
+                        
+                        # Raisons détaillées
+                        if opp['reasons']:
+                            st.markdown("#### 📊 Analyse détaillée")
+                            for reason in opp['reasons']:
+                                st.write(f"• {reason}")
+                        
+                        # Bouton d'action
+                        if st.button("📝 Préparer un ordre", key=f"prepare_{opp['symbol']}"):
+                            st.session_state['prepared_trade'] = {
+                                'symbol': opp['symbol'],
+                                'price': opp['price'],
+                                'score': opp['score'],
+                                'rsi': opp['rsi'],
+                                'support': opp['price'] * (1 - opp['distance_to_support']/100)
+                            }
+                            st.success(f"✅ Trade préparé pour {opp['symbol']}! Allez dans Portfolio pour finaliser l'ordre.")
+                            
+            else:
+                st.info("Aucune configuration idéale trouvée actuellement. Réessayez plus tard ou ajustez les filtres.")
+                
+        except Exception as e:
+            st.error(f"Erreur lors de la recherche : {str(e)}")
+        
+class HistoricalAnalysisPage:
+    def __init__(self, exchange, ta_analyzer):
+        self.exchange = exchange
+        self.ta = ta_analyzer
+
+    def render(self):
+        st.title("📊 Analyse Historique")
+        
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            symbol = st.text_input("Entrez le symbole (ex: BTC, ETH)", "").upper()
+        with col2:
+            timeframe = st.selectbox(
+                "Timeframe",
+                ["1h", "4h", "1d"],
+                index=0
+            )
+        with col3:
+            lookback = st.slider(
+                "Jours d'historique",
+                min_value=7,
+                max_value=90,
+                value=30
+            )
+
+        if symbol:
+            valid_symbol = get_valid_symbol(self.exchange, symbol)
+            if valid_symbol:
+                if st.button("📊 Analyser"):
+                    with st.spinner(f"Analyse de {symbol} en cours..."):
+                        self._perform_historical_analysis(valid_symbol, timeframe, lookback)
+            else:
+                st.error(f"Symbole {symbol} non trouvé")
+
+    def _perform_historical_analysis(self, symbol, timeframe, lookback):
+        try:
+            # Récupération des données
+            df = calculate_timeframe_data(self.exchange, symbol, timeframe, lookback * 24)
+            
+            if df is not None and not df.empty:
+                # Calcul des indicateurs
+                df['rsi'] = self.ta.calculate_rsi(df)
+                df['ema9'] = ta.trend.ema_indicator(df['close'], window=9)
+                df['ema20'] = ta.trend.ema_indicator(df['close'], window=20)
+                df['ema50'] = ta.trend.ema_indicator(df['close'], window=50)
+                df['macd'] = ta.trend.macd_diff(df['close'])
+                
+                # Prix actuel et variation
+                current_price = df['close'].iloc[-1]
+                price_change = ((current_price / df['close'].iloc[0] - 1) * 100)
+                
+                # Affichage des métriques principales
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Prix actuel", f"${current_price:.4f}", 
+                             f"{price_change:+.2f}%")
+                with col2:
+                    st.metric("Plus haut", f"${df['high'].max():.4f}")
+                with col3:
+                    st.metric("Plus bas", f"${df['low'].min():.4f}")
+                
+                # Graphique des prix
+                st.subheader("Graphique des prix")
+                fig = go.Figure()
+                
+                # Chandelier
+                fig.add_trace(go.Candlestick(
+                    x=df.index,
+                    open=df['open'],
+                    high=df['high'],
+                    low=df['low'],
+                    close=df['close'],
+                    name="Prix"
+                ))
+                
+                # EMAs
+                fig.add_trace(go.Scatter(x=df.index, y=df['ema9'], 
+                                       name="EMA 9", line=dict(color='blue')))
+                fig.add_trace(go.Scatter(x=df.index, y=df['ema20'], 
+                                       name="EMA 20", line=dict(color='orange')))
+                fig.add_trace(go.Scatter(x=df.index, y=df['ema50'], 
+                                       name="EMA 50", line=dict(color='red')))
+                
+                fig.update_layout(
+                    title=f"Analyse de {symbol}",
+                    yaxis_title="Prix (USDT)",
+                    xaxis_title="Date",
+                    height=600,
+                    template="plotly_dark"
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # RSI
+                st.subheader("RSI")
+                fig_rsi = go.Figure()
+                fig_rsi.add_trace(go.Scatter(x=df.index, y=df['rsi'], name="RSI"))
+                fig_rsi.add_hline(y=70, line_dash="dash", line_color="red")
+                fig_rsi.add_hline(y=30, line_dash="dash", line_color="green")
+                fig_rsi.update_layout(
+                    height=200,
+                    template="plotly_dark",
+                    yaxis_title="RSI"
+                )
+                st.plotly_chart(fig_rsi, use_container_width=True)
+                
+                # MACD
+                st.subheader("MACD")
+                fig_macd = go.Figure()
+                fig_macd.add_trace(go.Scatter(x=df.index, y=df['macd'], name="MACD"))
+                fig_macd.add_hline(y=0, line_dash="dash", line_color="gray")
+                fig_macd.update_layout(
+                    height=200,
+                    template="plotly_dark",
+                    yaxis_title="MACD"
+                )
+                st.plotly_chart(fig_macd, use_container_width=True)
+                
+                # Niveaux clés
+                support, resistance = self.ta.calculate_support_resistance(df)
+                st.subheader("Niveaux clés")
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Support", f"${support:.4f}")
+                with col2:
+                    st.metric("Résistance", f"${resistance:.4f}")
+                
+                # Analyse du signal actuel
+                signal_gen = SignalGenerator(df, current_price)
+                signals = signal_gen.generate_trading_signals()
+                
+                # Affichage du signal
+                st.subheader("Signal actuel")
+                if signals['action']:
+                    signal_color = "🟢" if signals['action'] == 'BUY' else "🔴"
+                    st.write(f"{signal_color} {signals['action']}")
+                    for reason in signals['reasons']:
+                        st.write(f"• {reason}")
+                else:
+                    st.info("Pas de signal clair pour le moment")
+                
+            else:
+                st.error("Aucune donnée disponible pour cette période")
+                
+        except Exception as e:
+            st.error(f"Erreur lors de l'analyse : {str(e)}")
+            st.exception(e)  # Affiche les détails de l'erreur en mode développement
+
+            
+class TopPerformancePage:
+    def __init__(self, exchange, ta_analyzer):
+        self.exchange = exchange
+        self.ta = ta_analyzer
+
+    def _analyze_and_display_opportunities(self, min_volume, min_score):
+        try:
+            markets = self.exchange.load_markets()
+            usdt_pairs = [symbol for symbol in markets.keys() if symbol.endswith('USDT')]
+            
+            opportunities = []
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            
+            for i, symbol in enumerate(usdt_pairs):
+                try:
+                    status_text.text(f"Analyse de {symbol}...")
+                    ticker = self.exchange.fetch_ticker(symbol)
+                    
+                    # Vérification des valeurs avec conversions explicites
+                    try:
+                        price = float(ticker.get('last', 0))
+                        volume = float(ticker.get('quoteVolume', 0))
+                        percentage = float(ticker.get('percentage', 0))
+                    except (TypeError, ValueError):
+                        continue
+                    
+                    # Vérification sécurisée des conditions
+                    if not (price and volume):  # Si l'un des deux est 0 ou None
+                        continue
+                    
+                    # Comparaison sécurisée
+                    if not (0 < price <= 20.0 and volume >= float(min_volume)):
+                        continue
+                        
+                    df = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
+                    if df is None or df.empty:
+                        continue
+                        
+                    try:
+                        # Calcul des indicateurs avec vérification
+                        rsi = self.ta.calculate_rsi(df)
+                        if rsi is None or rsi.empty:
+                            continue
+                        rsi_value = float(rsi.iloc[-1])
+                        
+                        market_sentiment = float(self.ta.get_market_sentiment(df))
+                        volume_profile = float(self.ta.analyze_volume_profile(df))
+                        
+                        # Génération des signaux
+                        signal_gen = SignalGenerator(df, price)
+                        score = float(signal_gen.calculate_opportunity_score())
+                        signals = signal_gen.generate_trading_signals()
+                        
+                        if not all(x is not None for x in [rsi_value, market_sentiment, volume_profile, score]):
+                            continue
+                        
+                        opportunities.append({
+                            'symbol': symbol.replace('/USDT', ''),
+                            'price': price,
+                            'change_24h': percentage,
+                            'volume': volume,
+                            'rsi': rsi_value,
+                            'sentiment': market_sentiment,
+                            'volume_trend': volume_profile,
+                            'score': score,
+                            'signal': signals.get('action', ''),
+                            'reasons': signals.get('reasons', []) if signals.get('action') == 'BUY' else []
+                        })
+                        
+                    except (ValueError, TypeError, AttributeError) as e:
+                        st.warning(f"Erreur d'analyse pour {symbol}: {str(e)}")
+                        continue
+                    
+                except Exception as e:
+                    continue
+                
+                finally:
+                    # Mise à jour de la progression
+                    progress_bar.progress(min((i + 1) / len(usdt_pairs), 1.0))
+            
+            progress_bar.empty()
+            status_text.empty()
+            
+            if opportunities:
+                # Tri sécurisé
+                opportunities.sort(key=lambda x: (float(x.get('score', 0)), float(x.get('change_24h', 0))), reverse=True)
+                
+                buy_signals = []
+                watch_list = []
+                
+                for opp in opportunities:
+                    try:
+                        if float(opp.get('score', 0)) >= float(min_score) and opp.get('signal') == 'BUY':
+                            buy_signals.append(opp)
+                        else:
+                            watch_list.append(opp)
+                    except (ValueError, TypeError):
+                        continue
+                
+                # Affichage des signaux d'achat
+                if buy_signals:
+                    st.success("### 🎯 Signaux d'achat détectés")
+                    for opp in buy_signals:
+                        with st.expander(f"💰 {opp['symbol']} - Score: {opp['score']:.2f}"):
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("Prix", f"${opp['price']:.4f}", f"{opp['change_24h']:+.2f}%")
+                            with col2:
+                                st.metric("RSI", f"{opp['rsi']:.1f}")
+                            with col3:
+                                st.metric("Volume 24h", f"${opp['volume']/1e6:.1f}M")
+                            
+                            if opp['reasons']:
+                                st.markdown("#### Raisons d'achat:")
+                                for reason in opp['reasons']:
+                                    st.write(f"✅ {reason}")
+                
+                # Affichage de la watchlist
+                if watch_list:
+                    st.markdown("### 👀 Watch List")
+                    cols = st.columns(3)
+                    for i, opp in enumerate(watch_list):
+                        with cols[i % 3]:
+                            try:
+                                st.metric(
+                                    opp['symbol'],
+                                    f"${opp['price']:.4f}",
+                                    f"{opp['change_24h']:+.2f}%",
+                                    help=f"Score: {opp['score']:.2f}\nRSI: {opp['rsi']:.1f}"
+                                )
+                            except (ValueError, TypeError):
+                                continue
+            else:
+                st.info("Aucune opportunité trouvée avec les critères actuels")
+                
+        except Exception as e:
+            st.error(f"Erreur lors de l'analyse : {str(e)}")
+            import traceback
+            st.error(traceback.format_exc())
+
+    def render(self):
+        st.title("🏆 Top Performances (Prix ≤ 20 USDT)")
+        
+        # Filtres de base
+        col1, col2 = st.columns(2)
+        with col1:
+            min_volume = st.number_input(
+                "Volume minimum (USDT)",
+                min_value=10000.0,
+                value=100000.0,
+                step=10000.0
+            )
+        with col2:
+            min_score = st.slider(
+                "Score minimum pour achat",
+                0.0, 1.0, 0.6,
+                help="Score technique minimum pour considérer un achat"
+            )
+
+        if st.button("🔄 Actualiser les données"):
+            with st.spinner("Analyse en cours..."):
+                self._analyze_and_display_opportunities(min_volume, min_score)
+
+
+
+class GuidePage:
+    def render(self):
+        st.title("📚 Guide de Trading Crypto Avancé DEV")
+        # [Code du guide]
+        pass
+    
+class MicroBudgetTrading:
+    def __init__(self, exchange):
+        self.exchange = exchange
+
+    def find_opportunities(self):
+        try:
+            markets = {k: v for k, v in self.exchange.load_markets().items() 
+                      if k.endswith('/USDT')}
+            
+            opportunities = []
+            all_tickers = self.exchange.fetch_tickers(list(markets.keys()))
+            
+            for symbol, ticker in all_tickers.items():
+                try:
+                    price = ticker['last']
+                    volume = ticker['quoteVolume']
+                    
+                    # Filtres de base
+                    if not (0.01 <= price <= 5 and volume >= 10000):
+                        continue
+                        
+                    # Analyse technique détaillée
+                    df = calculate_timeframe_data(self.exchange, symbol, '1h', 24)
+                    if df is None or df.empty:
+                        continue
+                    
+                    # Calculs techniques
+                    rsi = ta.momentum.rsi(df['close']).iloc[-1]
+                    ema9 = ta.trend.ema_indicator(df['close'], window=9).iloc[-1]
+                    ema20 = ta.trend.ema_indicator(df['close'], window=20).iloc[-1]
+                    macd = ta.trend.macd_diff(df['close']).iloc[-1]
+                    macd_prev = ta.trend.macd_diff(df['close']).iloc[-2]
+                    
+                    # Comptage des bougies vertes
+                    last_candles = df.tail(5)
+                    green_candles = sum(last_candles['close'] > last_candles['open'])
+                    consecutive_green = 0
+                    for i in reversed(range(len(last_candles))):
+                        if last_candles.iloc[i]['close'] > last_candles.iloc[i]['open']:
+                            consecutive_green += 1
+                        else:
+                            break
+                    
+                    # Conditions strictes pour un bon trade
+                    if not (30 <= rsi <= 45 and        # RSI en zone d'achat
+                          ema9 > ema20 and             # Tendance haussière
+                          macd > macd_prev and         # MACD en hausse
+                          green_candles >= 3 and       # Majorité de bougies vertes
+                          consecutive_green >= 2):      # Au moins 2 vertes consécutives
+                        continue
+                        
+                    # Calcul des niveaux
+                    stop_loss = price * 0.985
+                    target = price * 1.03
+                    
+                    # Calcul du score
+                    score = (
+                        (1 if 35 <= rsi <= 40 else 0.5) +  # RSI idéal
+                        (1 if consecutive_green >= 3 else 0.5) +  # Momentum
+                        (1 if volume >= 50000 else 0.5)  # Volume
+                    ) / 3
+                    
+                    reasons = [
+                        f"RSI optimal: {rsi:.1f}",
+                        f"{consecutive_green} bougies vertes consécutives",
+                        f"Volume 24h: ${volume/1e6:.1f}M",
+                        "MACD haussier",
+                        "Tendance EMA positive"
+                    ]
+                    
+                    opportunities.append({
+                        'symbol': symbol.replace('/USDT', ''),
+                        'price': price,
+                        'volume_24h': volume,
+                        'change_24h': ticker['percentage'],
+                        'stop_loss': stop_loss,
+                        'target': target,
+                        'suggested_position': 30,
+                        'score': score,
+                        'rsi': rsi,
+                        'conditions': {
+                            'tendance': '✅',
+                            'volume': '✅' if volume >= 50000 else '❌',
+                            'momentum': '✅'
+                        },
+                        'risk_reward': (target - price) / (price - stop_loss),
+                        'reasons': reasons,
+                        'green_candles': green_candles,
+                        'consecutive_green': consecutive_green
+                    })
+                
+                except Exception as e:
+                    continue
+                    
+                time.sleep(0.1)  # Respecter les limites de l'API
+            
+            return sorted(opportunities, key=lambda x: x['score'], reverse=True)
+            
+        except Exception as e:
+            print(f"Erreur détaillée: {str(e)}")
+            return []
+
+    def _format_opportunity(self, opp):
+        """Formatage standard des opportunités"""
+        return {
+            'symbol': opp['symbol'],
+            'price': opp['price'],
+            'volume_24h': opp['volume_24h'],
+            'change_24h': opp['change_24h'],
+            'stop_loss': opp['stop_loss'],
+            'target': opp['target'],
+            'suggested_position': opp['suggested_position'],
+            'score': opp['score'],
+            'rsi': opp['rsi'],
+            'conditions': opp['conditions'],
+            'risk_reward': opp['risk_reward'],
+            'reasons': opp['reasons']
+        }
+        
+def _analyze_micro_opportunity(self, df, current_price, symbol):  # Ajout de symbol comme paramètre
+    try:
+        score = 0
+        reasons = []
+        
+        # Analyse multi-timeframes
+        df_1h = calculate_timeframe_data(self.exchange, symbol, '1h', 100)
+        if df_1h is None:
+            return {'score': 0, 'reasons': ['Données 1h non disponibles']}
+
+        # 1. Tendance horaire positive
+        ema9_1h = ta.trend.ema_indicator(df_1h['close'], window=9)
+        ema20_1h = ta.trend.ema_indicator(df_1h['close'], window=20)
+        if ema9_1h.iloc[-1] > ema20_1h.iloc[-1]:
+            score += 0.2
+            reasons.append("Tendance horaire haussière")
+    
+        # 2. Volume significatif et croissant
+        recent_volume = df['volume'].tail(3).mean()
+        avg_volume = df['volume'].mean()
+        if recent_volume > avg_volume * 1.5:  # Augmenté le seuil
+            score += 0.2
+            reasons.append("Volume très fort")
+        elif recent_volume > avg_volume * 1.2:
+            score += 0.1
+            reasons.append("Volume en augmentation")
+    
+        # 3. Analyse des bougies plus stricte
+        last_candles = df.tail(3)
+        green_candles = sum(last_candles['close'] > last_candles['open'])
+        if green_candles >= 3:  # 3 bougies vertes requises
+            score += 0.3
+            reasons.append(f"3 bougies vertes consécutives")
+    
+        # 4. RSI plus conservateur
+        rsi = ta.momentum.rsi(df['close']).iloc[-1]
+        if 35 <= rsi <= 45:  # Zone optimale plus étroite
+            score += 0.2
+            reasons.append("RSI dans zone idéale (35-45)")
+    
+        # 5. Support solide
+        support = df['low'].rolling(10).min().iloc[-1]
+        if current_price <= support * 1.02:
+            score += 0.1
+            reasons.append("Proche d'un support solide")
+    
+        # 6. Momentum
+        macd = ta.trend.macd_diff(df['close']).iloc[-1]
+        if macd > 0 and macd > ta.trend.macd_diff(df['close']).iloc[-2]:
+            score += 0.1
+            reasons.append("MACD en progression")
+        
+        return {
+            'score': min(score, 1.0),
+            'reasons': reasons
+        }
+        
+    except Exception as e:
+        return {'score': 0, 'reasons': [f'Erreur: {str(e)}']}
+
+class GuidePage:
+    def render(self):
+        st.title("📚 Guide de Trading Crypto Avancé")
+        
+        guide_section = st.selectbox(
+            "Choisir une section",
+            ["Démarrage Rapide", "Système de Scoring", "Trading Court Terme", 
+             "Gestion de Position", "Signaux de Trading", "Indicateurs Techniques", 
+             "Analyse Multi-Timeframes", "Gestion des Risques", "Analyse des Bougies",
+             "Recommandations pour Trader"]
+        )
+        
+        if guide_section == "Démarrage Rapide":
+            self._quick_start_guide()
+        elif guide_section == "Système de Scoring":
+            self._scoring_system_guide()
+        elif guide_section == "Trading Court Terme":
+            self._short_term_trading_guide()
+        elif guide_section == "Gestion de Position":
+            self._position_management_guide()
+        elif guide_section == "Signaux de Trading":
+            self._trading_signals_guide()
+        elif guide_section == "Indicateurs Techniques":
+            self._technical_indicators_guide()
+        elif guide_section == "Analyse Multi-Timeframes":
+            self._multi_timeframe_guide()
+        elif guide_section == "Gestion des Risques":
+            self._risk_management_guide()
+        elif guide_section == "Analyse des Bougies":
+            self._candle_analysis_guide()
+        elif guide_section == "Recommandations pour Trader":
+            self._trading_recommendations_guide()
+
+    def _quick_start_guide(self):
+        st.markdown("""
+        ## 🚀 Guide de Démarrage Rapide
+        
+        ### 1. Configuration Initiale
+        1. Définissez votre capital initial (100€ maximum pour commencer)
+        2. Ne risquez jamais plus de 1.5% par trade
+        3. Commencez par suivre 2-3 cryptos principales
+        
+        ### 2. Critères de Sélection
+        ✅ **Conditions idéales pour un trade:**
+        - Prix entre 0.01 et 5 USDT
+        - RSI entre 30-45
+        - Volume > 50,000 USDT
+        - Au moins 3/5 bougies vertes
+        - MACD haussier
+        
+        ### 3. Validation d'une Entrée
+        1. Score technique > 0.7
+        2. Volume confirmant
+        3. Plusieurs timeframes alignés
+        
+        ### 4. Gestion des Positions
+        - Stop loss systématique à -1.5%
+        - Take profit à +3%
+        - Maximum 2 positions simultanées
+        """)
+
+    def _scoring_system_guide(self):
+        st.markdown("""
+        ## 🎯 Système de Scoring
+        
+        ### Score Global (0-1)
+        
+        #### 1. RSI (40%)
+        - 0.4: RSI 35-40
+        - 0.3: RSI 30-35 ou 40-45
+        - 0.0: RSI hors zones
+        
+        #### 2. Volume (30%)
+        - 0.3: Volume > 150% moyenne
+        - 0.2: Volume > 100% moyenne
+        - 0.0: Volume < moyenne
+        
+        #### 3. Tendance (30%)
+        - 0.3: EMA9 > EMA20, MACD haussier
+        - 0.2: EMA9 > EMA20
+        - 0.0: Pas de tendance claire
+        
+        ### Interprétation
+        - Score > 0.8: Configuration idéale
+        - Score > 0.7: Bon setup
+        - Score < 0.7: Attendre mieux
+        """)
+
+    def _trading_signals_guide(self):
+        st.markdown("""
+        ## 🎯 Signaux de Trading
+        
+        ### 1. Signaux d'Achat
+        #### Conditions Requises
+        - RSI: 30-45
+        - MACD: Croisement haussier
+        - Volume: > moyenne 20 périodes
+        - Bougies: 3/5 vertes minimum
+        
+        ### 2. Confirmation du Signal
+        #### Points à Vérifier
+        1. Support proche (-1-2%)
+        2. Pas de résistance proche
+        3. Tendance générale haussière
+        
+        ### 3. Meilleurs Moments
+        #### Timing optimal
+        - 2-4h UTC: Session Asie
+        - 8-11h UTC: Session Europe
+        - 13-16h UTC: Session USA
+        """)
+
+    def _risk_management_guide(self):
+        st.markdown("""
+        ## ⚠️ Gestion des Risques
+        
+        ### 1. Règles de Base
+        #### Capital et Position
+        - Maximum 100€ pour débuter
+        - 30-35€ par position maximum
+        - Stop loss systématique -1.5%
+        - Take profit +3%
+        
+        ### 2. Diversification
+        - Maximum 2 positions simultanées
+        - Cryptos différentes uniquement
+        - Pas plus de 60% du capital engagé
+        
+        ### 3. Protection du Capital
+        #### Règles Essentielles
+        1. Jamais de martingale
+        2. Pas d'émotions
+        3. Stop loss obligatoire
+        4. Prendre ses profits
+        """)
+
+    def _candle_analysis_guide(self):
+        st.markdown("""
+        ## 🕯️ Analyse des Bougies
+        
+        ### 1. Configuration Idéale
+        ```
+        - Minimum 3/5 bougies vertes
+        - 2 bougies vertes consécutives
+        - Corps > mèches
+        - Volume croissant
+        ```
+        
+        ### 2. Signaux d'Alerte
+        ```
+        - Longues mèches hautes
+        - Volume décroissant
+        - Dojis après hausse
+        - Corps très petits
+        ```
+        
+        ### 3. Points d'Entrée
+        ```
+        - Après une bougie verte forte
+        - Support testé 2-3 fois
+        - Volume confirmant
+        - Pas de résistance proche
+        ```
+        """)
+
+    def _trading_recommendations_guide(self):
+        st.markdown("""
+        ## 💡 Recommandations Essentielles
+        
+        ### 1. Pour Débuter
+        - Commencer avec des cryptos < 1 USDT
+        - Trades de 30€ maximum
+        - Toujours utiliser des stops
+        - Noter tous ses trades
+        
+        ### 2. À Éviter
+        - FOMO sur les pumps
+        - Trading sans stop loss
+        - Trop de positions simultanées
+        - Modifier ses stops
+        
+        ### 3. Bonnes Pratiques
+        - Vérifier plusieurs timeframes
+        - Attendre les configurations idéales
+        - Respecter son plan de trading
+        - Prendre ses profits partiels
+        """)
+
+    def _multi_timeframe_guide(self):
+        st.markdown("""
+        ## 📊 Analyse Multi-Timeframes
+        
+        ### Configuration Idéale
+        1. Tendance 4h haussière
+        2. Signaux 1h confirmant
+        3. Entrée sur 15m
+        
+        ### Vérifications
+        - EMA alignées sur 4h
+        - RSI cohérent sur 1h
+        - Volume confirmant sur 15m
+        
+        ### Points d'Attention
+        - Résistances sur TF supérieurs
+        - Divergences sur plusieurs TF
+        - Confluence des signaux
+        """)
+
+    def _technical_indicators_guide(self):
+        st.markdown("""
+        ## 📈 Indicateurs Techniques
+        
+        ### RSI (Relative Strength Index)
+        - Zone achat: 30-45
+        - Zone neutre: 45-60
+        - Zone vente: > 60
+        
+        ### EMA (Moyennes Mobiles)
+        - EMA9 > EMA20: Tendance haussière
+        - Croisements: Signaux de changement
+        - Support/Résistance dynamique
+        
+        ### MACD
+        - Croisement haussier: Signal d'achat
+        - Histogramme croissant: Momentum
+        - Divergences: Retournements possibles
+        
+        ### Volume
+        - Confirme les mouvements
+        - Précède souvent les breakouts
+        - Valide les supports/résistances
+        """)
+
+    def _position_management_guide(self):
+        st.markdown("""
+        ## 💼 Gestion de Position
+        
+        ### 1. Entrée en Position
+        - 30€ maximum par trade
+        - Stop loss immédiat -1.5%
+        - Take profit +3%
+        
+        ### 2. Pendant le Trade
+        - Ne pas modifier les stops
+        - Surveiller le volume
+        - Noter les niveaux clés
+        
+        ### 3. Sortie de Position
+        - Respecter ses niveaux
+        - Sortie partielle possible
+        - Ne pas regretter
+        """)
+
+    def _short_term_trading_guide(self):
+        st.markdown("""
+        ## ⚡ Trading Court Terme
+        
+        ### 1. Sélection des Trades
+        - Prix < 5 USDT
+        - Volume > 50K USDT
+        - RSI 30-45
+        - 3/5 bougies vertes
+        
+        ### 2. Timing
+        - Éviter l'ouverture des marchés
+        - Préférer les heures calmes
+        - Surveiller les annonces
+        
+        ### 3. Durée
+        - 15 minutes minimum
+        - 24 heures maximum
+        - Sortie sur objectif
+        """)
+
+class MicroTradingPage:
+    def __init__(self, exchange, portfolio_manager, ai_predictor):
+        self.exchange = exchange
+        self.portfolio = portfolio_manager
+        self.micro_trader = MicroBudgetTrading(exchange)
+        self.ai_predictor = ai_predictor
+        self.ai_tester = AITester(exchange, self.ai_predictor)
+        
+    def render(self):
+        st.title("🎯 Trading Micro-Budget")
+        
+        # Onglets
+        tab1, tab2 = st.tabs(["Trading", "Test & Optimisation"])
+        
+        with tab1:
+            self._render_trading_interface()
+            
+        with tab2:
+            self._render_testing_interface()
+    
+    def _render_trading_interface(self):
+        # Guide rapide
+        with st.expander("📚 Guide Micro-Budget", expanded=True):
+            st.markdown("""
+            ### Règles pour trader avec 100€:
+            1. **Position size**: 30-35€ maximum par position
+            2. **Objectif**: +3% par trade
+            3. **Stop loss**: -1.5% systématique
+            4. **Cryptos cibles**: Entre 0.1$ et 5$
+            5. **Positions**: 2-3 maximum en même temps
+            
+            ### ⚠️ Points importants:
+            - Ne jamais acheter sans stop loss
+            - Prendre ses profits à +3%
+            - Ne pas garder une position plus de 24h
+            """)
+            
+        # Recherche d'opportunités
+        if st.button("🔍 Rechercher des opportunités"):
+            with st.spinner("Analyse en cours..."):
+                opportunities = self.micro_trader.find_opportunities()
+                if isinstance(opportunities, list):
+                    if opportunities:
+                        for opp in opportunities:
+                            self._display_opportunity(opp)
+                    else:
+                        st.info("Aucune opportunité trouvée pour le moment")
+                else:
+                    st.error(f"Erreur lors de la recherche: {opportunities}")
+    
+    def _render_testing_interface(self):
+        st.subheader("🧪 Test des Prédictions")
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            symbol = st.text_input("Crypto à tester (ex: BTC)", "").upper()
+        with col2:
+            days = st.number_input("Jours d'historique", min_value=7, value=30)
+            
+        if st.button("🔬 Lancer le test"):
+            with st.spinner("Test en cours..."):
+                results = self.ai_tester.backtest_predictions(f"{symbol}/USDT", days)
+                
+                if results:
+                    # Affichage des métriques
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Précision", f"{results['metrics']['accuracy']:.1%}")
+                    with col2:
+                        st.metric("Prédictions correctes", 
+                                f"{results['metrics']['precision']:.1%}")
+                    with col3:
+                        st.metric("Détection hausses", 
+                                f"{results['metrics']['recall']:.1%}")
+                    
+                    # Visualisation
+                    fig = self.ai_tester.visualize_results(results, symbol)
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                    # Recommandations
+                    st.subheader("💡 Analyse")
+                    if results['metrics']['accuracy'] > 0.7:
+                        st.success("""
+                            ✅ Les prédictions sont fiables pour cette crypto.
+                            Recommandation: Vous pouvez suivre les signaux d'achat.
+                        """)
+                    else:
+                        st.warning("""
+                            ⚠️ Les prédictions manquent de fiabilité.
+                            Recommandation: Attendez des signaux plus forts.
+                        """)
+                else:
+                    st.error("Erreur lors du test")
+    
+    def _display_opportunity(self, opp):
+        with st.expander(f"💫 {opp['symbol']} - Score: {opp['score']:.2f}"):
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Prix", f"${opp['price']:.4f}")
+            with col2:
+                st.metric("Position suggérée", f"${opp['suggested_position']:.2f}")
+            with col3:
+                profit = (opp['target'] - opp['price']) / opp['price'] * 100
+                st.metric("Profit potentiel", f"+{profit:.1f}%")
+        
+            st.markdown("### Niveaux suggérés:")
+            levels_col1, levels_col2, levels_col3 = st.columns(3)
+            with levels_col1:
+                st.write("🔴 Stop Loss:", f"${opp['stop_loss']:.4f}")
+            with levels_col2:
+                st.write("🎯 Target:", f"${opp['target']:.4f}")
+            with levels_col3:
+                risk = (opp['price'] - opp['stop_loss']) * (opp['suggested_position'] / opp['price'])
+                st.write("💰 Risque:", f"${risk:.2f}")
+        
+            st.markdown("### Raisons du signal:")
+            for reason in opp['reasons']:
+                st.write(f"✅ {reason}")
+        
+            if st.button("📝 Préparer l'ordre", key=f"prep_{opp['symbol']}"):
+                st.session_state['prepared_trade'] = {
+                    'symbol': opp['symbol'],
+                    'price': opp['price'],
+                    'stop_loss': opp['stop_loss'],
+                    'target_1': opp['target'],
+                    'target_2': opp['target'] * 1.02,
+                    'suggested_amount': opp['suggested_position'],
+                    'score': opp['score']
+                }
+                st.success(f"✅ Trade préparé! Allez dans Portfolio pour finaliser.")
