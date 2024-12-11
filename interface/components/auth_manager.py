@@ -26,24 +26,22 @@ class AuthManager:
         """
         try:
             # Vérification si l'utilisateur existe déjà
-            existing_user = self.airtable.utilisateurs.get_all(
+            existing_users = self.airtable.utilisateurs.search(
                 formula=f"OR({{username}}='{username}', {{email}}='{email}')"
             )
             
-            if existing_user:
+            if existing_users:
                 return False, "Nom d'utilisateur ou email déjà utilisé"
                 
-            # Création du nouvel utilisateur
+            # Création du nouvel utilisateur avec des champs séparés
             user_data = {
                 "username": username,
                 "email": email,
                 "password": self.hash_password(password),
                 "status": "pending",  # En attente de validation
                 "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "settings": {
-                    "initial_capital": 1000,
-                    "risk_per_trade": 1.5
-                }
+                "initial_capital": 1000,  # Valeur par défaut
+                "risk_per_trade": 1.5     # Valeur par défaut
             }
             
             self.airtable.utilisateurs.create(user_data)
@@ -59,7 +57,7 @@ class AuthManager:
         """
         try:
             # Recherche de l'utilisateur
-            users = self.airtable.utilisateurs.get_all(
+            users = self.airtable.utilisateurs.search(
                 formula=f"{{username}}='{username}'"
             )
             
@@ -76,13 +74,16 @@ class AuthManager:
             if user['fields']['status'] != "active":
                 return False, "Compte en attente de validation"
                 
-            # Connexion réussie
+            # Connexion réussie - stockage des paramètres séparés
             st.session_state.logged_in = True
             st.session_state.user_info = {
                 'id': user['id'],
                 'username': user['fields']['username'],
                 'email': user['fields']['email'],
-                'settings': user['fields'].get('settings', {})
+                'settings': {
+                    'initial_capital': float(user['fields'].get('initial_capital', 1000)),
+                    'risk_per_trade': float(user['fields'].get('risk_per_trade', 1.5))
+                }
             }
             
             return True, "Connexion réussie !"
@@ -137,3 +138,26 @@ class AuthManager:
                         st.success(message)
                     else:
                         st.error(message)
+
+    def update_user_settings(self, user_id: str, new_capital: float, new_risk: float) -> bool:
+        """Met à jour les paramètres de l'utilisateur"""
+        try:
+            self.airtable.utilisateurs.update(
+                user_id,
+                {
+                    "initial_capital": new_capital,
+                    "risk_per_trade": new_risk
+                }
+            )
+            
+            # Mise à jour des informations en session
+            if st.session_state.user_info:
+                st.session_state.user_info['settings'] = {
+                    "initial_capital": new_capital,
+                    "risk_per_trade": new_risk
+                }
+            
+            return True
+        except Exception as e:
+            st.error(f"Erreur lors de la mise à jour des paramètres: {str(e)}")
+            return False
