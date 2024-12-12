@@ -19,6 +19,22 @@ class AuthManager:
         """Hash le mot de passe de manière sécurisée"""
         return hashlib.sha256(password.encode()).hexdigest()
 
+    def _check_existing_user(self, username: str, email: str) -> bool:
+        """Vérifie si un utilisateur existe déjà"""
+        try:
+            # Récupérer tous les enregistrements et vérifier manuellement
+            records = self.airtable.utilisateurs.all()
+            
+            for record in records:
+                fields = record.get('fields', {})
+                if fields.get('name') == username or fields.get('email') == email:
+                    return True
+            return False
+            
+        except Exception as e:
+            print(f"Erreur lors de la vérification de l'utilisateur: {str(e)}")
+            return True  # En cas d'erreur, on suppose que l'utilisateur existe
+
     def register(self, username: str, email: str, password: str) -> Tuple[bool, str]:
         """
         Enregistre un nouvel utilisateur
@@ -26,21 +42,18 @@ class AuthManager:
         """
         try:
             # Vérification si l'utilisateur existe déjà
-            formula = f"OR({{Username}}='{username}', {{Email}}='{email}')"
-            existing_users = self.airtable.utilisateurs.first(formula=formula)
-            
-            if existing_users:
+            if self._check_existing_user(username, email):
                 return False, "Nom d'utilisateur ou email déjà utilisé"
                 
             # Création du nouvel utilisateur avec des champs séparés
             user_data = {
-                "Username": username,
-                "Email": email,
-                "Password": self.hash_password(password),
-                "Status": "pending",  # En attente de validation
-                "Created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "Initial_capital": 1000,  # Valeur par défaut
-                "Risk_per_trade": 1.5     # Valeur par défaut
+                "name": username,
+                "email": email,
+                "password": self.hash_password(password),
+                "status": "pending",
+                "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "capital": 1000,
+                "risk": 1.5
             }
             
             self.airtable.utilisateurs.create(user_data)
@@ -55,30 +68,36 @@ class AuthManager:
         Retourne (succès, message)
         """
         try:
-            # Recherche de l'utilisateur
-            formula = f"{{Username}}='{username}'"
-            user = self.airtable.utilisateurs.first(formula=formula)
+            # Récupérer tous les utilisateurs et chercher une correspondance
+            records = self.airtable.utilisateurs.all()
+            user = None
+            
+            for record in records:
+                fields = record.get('fields', {})
+                if fields.get('name') == username:
+                    user = record
+                    break
             
             if not user:
                 return False, "Utilisateur non trouvé"
                 
             # Vérification du mot de passe
-            if user['fields']['Password'] != self.hash_password(password):
+            if user['fields']['password'] != self.hash_password(password):
                 return False, "Mot de passe incorrect"
                 
             # Vérification du statut
-            if user['fields']['Status'] != "active":
+            if user['fields']['status'] != "active":
                 return False, "Compte en attente de validation"
                 
-            # Connexion réussie - stockage des paramètres séparés
+            # Connexion réussie
             st.session_state.logged_in = True
             st.session_state.user_info = {
                 'id': user['id'],
-                'username': user['fields']['Username'],
-                'email': user['fields']['Email'],
+                'username': user['fields']['name'],
+                'email': user['fields']['email'],
                 'settings': {
-                    'initial_capital': float(user['fields'].get('Initial_capital', 1000)),
-                    'risk_per_trade': float(user['fields'].get('Risk_per_trade', 1.5))
+                    'initial_capital': float(user['fields'].get('capital', 1000)),
+                    'risk_per_trade': float(user['fields'].get('risk', 1.5))
                 }
             }
             
@@ -141,8 +160,8 @@ class AuthManager:
             self.airtable.utilisateurs.update(
                 user_id,
                 {
-                    "Initial_capital": new_capital,
-                    "Risk_per_trade": new_risk
+                    "capital": new_capital,
+                    "risk": new_risk
                 }
             )
             
