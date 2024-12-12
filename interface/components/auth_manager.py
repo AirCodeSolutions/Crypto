@@ -52,7 +52,8 @@ class AuthManager:
                 "email": email,
                 "password": self.hash_password(password),
                 "status": "pending",
-                "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                #"created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "created_at": time.strftime("%d-%m-%Y %H:%M:%S"),
                 "capital": 1000,
                 "risk": 1.5
             }
