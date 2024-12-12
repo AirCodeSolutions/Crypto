@@ -16,32 +16,7 @@ from interface.pages.live_analysis import LiveAnalysisPage
 # Configuration du logging pour un meilleur suivi des erreurs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-class CryptoAnalyzerApp:
-    """Application principale d'analyse de cryptomonnaies en temps réel"""
-    
-    def __init__(self):
-        try:
-            self.exchange = ExchangeService()
-            self.analyzer = MarketAnalyzer(self.exchange)
-            self.alert_system = AlertSystem()  # Nouveau système d'alertes
-            self.airtable = AirtableService()
-            self.auth_manager = AuthManager(self.airtable)
-            
-            if 'analyzed_symbols' not in st.session_state:
-                st.session_state.analyzed_symbols = set()
-            
-            # Initialiser le thread de mise à jour des prix
-            if 'last_price_check' not in st.session_state:
-                st.session_state.last_price_check = time.time()
-            
-            logger.info("Application initialisée avec succès")
-            
-        except Exception as e:
-            logger.error(f"Erreur d'initialisation: {e}")
-            raise
-
-    def setup_page(self):
+def setup_page(self):
         """Configure la mise en page et les styles de l'application"""
         st.set_page_config(
             page_title="Crypto Analyzer by AirCodeSolutions",
@@ -80,6 +55,32 @@ class CryptoAnalyzerApp:
             .signal-sell { color: #ff0000; }
             </style>
         """, unsafe_allow_html=True)
+
+class CryptoAnalyzerApp:
+    """Application principale d'analyse de cryptomonnaies en temps réel"""
+    
+    def __init__(self):
+        try:
+            self.exchange = ExchangeService()
+            self.analyzer = MarketAnalyzer(self.exchange)
+            self.alert_system = AlertSystem()  # Nouveau système d'alertes
+            self.airtable = AirtableService()
+            self.auth_manager = AuthManager(self.airtable)
+            
+            if 'analyzed_symbols' not in st.session_state:
+                st.session_state.analyzed_symbols = set()
+            
+            # Initialiser le thread de mise à jour des prix
+            if 'last_price_check' not in st.session_state:
+                st.session_state.last_price_check = time.time()
+            
+            logger.info("Application initialisée avec succès")
+            
+        except Exception as e:
+            logger.error(f"Erreur d'initialisation: {e}")
+            raise
+
+    
 
     def main(self):
         """
