@@ -41,8 +41,7 @@ class AuthManager:
         Retourne (succès, message)
         """
         try:
-            # Debug - Affichons des informations sur la table
-            st.write("Debug - Table utilisée:", self.airtable.utilisateurs)
+            
             # Vérification si l'utilisateur existe déjà
             if self._check_existing_user(username, email):
                 return False, "Nom d'utilisateur ou email déjà utilisé"

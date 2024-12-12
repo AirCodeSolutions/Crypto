@@ -33,7 +33,14 @@ class AirtableService:
             #self.base_id = st.secrets["AIRTABLE_BASE_ID"]
             self.api = Api(st.secrets["AIRTABLE_API_KEY"])
             self.base = Base(self.api, "appwYozXBGggzUjCW")
+
+            # Debug - Affichons ce qu'on fait
+            st.write("Création de la table...")
+            st.write("Base ID:", self.base)
             self.utilisateurs = self.base.table("tblEthZxlqwvYqK3R")
+            st.write("Table créée:", self.utilisateurs)
+
+            #self.utilisateurs = self.base.table("tblEthZxlqwvYqK3R")
             logger.info("Service Airtable initialisé avec succès")
         except Exception as e:
             logger.error(f"Erreur d'initialisation du service Airtable: {e}")
