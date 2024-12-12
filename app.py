@@ -88,7 +88,7 @@ class CryptoAnalyzerApp:
         Gère l'affichage de tous les composants et leur interaction.
         """
        
-        self.setup_page()
+        #self.setup_page()
         # Gestion de l'authentification
         if not st.session_state.logged_in:
             self._show_auth_page()
