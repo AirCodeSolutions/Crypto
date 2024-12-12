@@ -31,57 +31,17 @@ class AirtableService:
             # Récupération des secrets de manière sécurisée
             #self.api_key = st.secrets["AIRTABLE_API_KEY"]
             #self.base_id = st.secrets["AIRTABLE_BASE_ID"]
-            
-
-            # Initialisation de l'API
-            #self.api = Api(self.api_key)
-
-            # Initialisation de l'API avec la clé
-            self.api = Api(st.secrets["pat7V90e4LZr6Nixi.0c9795b3f6b9842704e2c5d53cbaf0170ad296b9014ffb1c7d45b84b17c2f85c"])
-                    
-            # Création de la Base
-            self.base = Base(self.api, "appwYozXBGggzUjCW")  # votre base_id
-                    
-
-             # Initialisation de la table utilisateurs
-            self.utilisateurs = self.base.table("tblEthZxlqwvYqK3R")  # votre table_id
-            # Initialisation des tables
-            self._initialize_tables()
-            
+            self.api = Api(st.secrets["AIRTABLE_API_KEY"])
+            self.base = Base(self.api, "appwYozXBGggzUjCW")
+            self.utilisateurs = self.base.table("tblEthZxlqwvYqK3R")
             logger.info("Service Airtable initialisé avec succès")
-            
-        except KeyError as e:
-            logger.error(f"Configuration Airtable manquante: {e}")
-            raise ValueError("Configuration Airtable incomplète")
         except Exception as e:
             logger.error(f"Erreur d'initialisation du service Airtable: {e}")
             raise
 
-    def _initialize_tables(self):
-        """Initialise les connexions aux tables"""
-        try:
-            self.cryptos_suivies = Table(
-                self.api_key,
-                self.base_id,
-                "cryptos_suivies"
-            )
+                
             
-            self.historique_analyses = Table(
-                self.api_key,
-                self.base_id,
-                "historique_analyses"
-            )
-            
-            self.utilisateurs = Table(
-                self.api_key,
-                self.base_id,
-                "tblEthZxlqwvYqK3R"
-            )
-            
-        except Exception as e:
-            logger.error(f"Erreur lors de l'initialisation des tables: {e}")
-            raise
-
+    
     def test_connection(self) -> bool:
         """Teste la connexion à Airtable"""
         try:
