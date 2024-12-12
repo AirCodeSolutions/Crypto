@@ -29,11 +29,20 @@ class AirtableService:
         """Initialise la connexion à Airtable"""
         try:
             # Récupération des secrets de manière sécurisée
-            self.api_key = st.secrets["AIRTABLE_API_KEY"]
-            self.base_id = st.secrets["AIRTABLE_BASE_ID"]
+            #self.api_key = st.secrets["AIRTABLE_API_KEY"]
+            #self.base_id = st.secrets["AIRTABLE_BASE_ID"]
             
+
             # Initialisation de l'API
-            self.api = Api(self.api_key)
+            #self.api = Api(self.api_key)
+
+            # Initialisation de l'API avec la clé
+            self.api = Api(st.secrets["AIRTABLE_API_KEY"])
+                    
+            # Création de la Base
+            self.base = Base(self.api, "appwYozXBGggzUjCW")  # votre base_id
+                    
+
              # Initialisation de la table utilisateurs
             self.utilisateurs = self.base.table("tblEthZxlqwvYqK3R")  # votre table_id
             # Initialisation des tables
