@@ -37,7 +37,7 @@ class AirtableService:
             #self.api = Api(self.api_key)
 
             # Initialisation de l'API avec la clé
-            self.api = Api(st.secrets["AIRTABLE_API_KEY"])
+            self.api = Api(st.secrets["pat7V90e4LZr6Nixi.0c9795b3f6b9842704e2c5d53cbaf0170ad296b9014ffb1c7d45b84b17c2f85c"])
                     
             # Création de la Base
             self.base = Base(self.api, "appwYozXBGggzUjCW")  # votre base_id
