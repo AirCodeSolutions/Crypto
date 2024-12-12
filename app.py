@@ -16,45 +16,46 @@ from interface.pages.live_analysis import LiveAnalysisPage
 # Configuration du logging pour un meilleur suivi des erreurs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-def setup_page(self):
-        """Configure la mise en page et les styles de l'application"""
-        st.set_page_config(
-            page_title="Crypto Analyzer by AirCodeSolutions",
-            page_icon="📊",
-            layout="wide",
-            #initial_sidebar_state="collapsed"
-            initial_sidebar_state="auto"
-        )
-        st.markdown("""
-        <style>
-        /* Styles existants */
-        .main h1 { font-size: 1.2rem !important; }
-        
-        /* Style pour la barre de recherche */
-        [data-testid="stTextInput"] input {
-            max-width: 200px !important;  /* Limite la largeur */
-            font-size: 14px !important;   /* Taille de police appropriée */
-            padding: 8px !important;      /* Padding réduit */
-        }
-        </style>
+
+"""Configure la mise en page et les styles de l'application"""
+st.set_page_config(
+    page_title="Crypto Analyzer by AirCodeSolutions",
+    page_icon="📊",
+    layout="wide",
+    #initial_sidebar_state="collapsed"
+    initial_sidebar_state="auto"
+    )
+st.markdown("""
+    <style>
+    /* Styles existants */
+    .main h1 { font-size: 1.2rem !important; }
+      
+    /* Style pour la barre de recherche */
+    [data-testid="stTextInput"] input {
+                 
+    max-width: 200px !important;  /* Limite la largeur */
+        font-size: 14px !important;   /* Taille de police appropriée */
+        padding: 8px !important;      /* Padding réduit */
+    }
+    </style>
     """, unsafe_allow_html=True)
         
-        # Styles CSS pour l'interface
-        st.markdown("""
-            <style>
-            .main h1 { font-size: 1.2rem !important; }
-            .crypto-metrics { 
-                background-color: #f0f2f6; 
-                padding: 1rem; 
-                border-radius: 0.5rem; 
-                margin: 1rem 0;
-            }
-            .signal-strong-buy { color: #00ff00; font-weight: bold; }
-            .signal-buy { color: #008000; }
-            .signal-neutral { color: #808080; }
-            .signal-sell { color: #ff0000; }
-            </style>
-        """, unsafe_allow_html=True)
+    # Styles CSS pour l'interface
+st.markdown("""
+        <style>
+        .main h1 { font-size: 1.2rem !important; }
+        .crypto-metrics { 
+            background-color: #f0f2f6; 
+            padding: 1rem; 
+            border-radius: 0.5rem; 
+            margin: 1rem 0;
+        }
+        .signal-strong-buy { color: #00ff00; font-weight: bold; }
+        .signal-buy { color: #008000; }
+        .signal-neutral { color: #808080; }
+        .signal-sell { color: #ff0000; }
+        </style>
+    """, unsafe_allow_html=True)
 
 class CryptoAnalyzerApp:
     """Application principale d'analyse de cryptomonnaies en temps réel"""
