@@ -34,7 +34,8 @@ class AirtableService:
             
             # Initialisation de l'API
             self.api = Api(self.api_key)
-            
+             # Initialisation de la table utilisateurs
+            self.utilisateurs = self.base.table("tblEthZxlqwvYqK3R")  # votre table_id
             # Initialisation des tables
             self._initialize_tables()
             
