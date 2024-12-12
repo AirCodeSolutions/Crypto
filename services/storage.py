@@ -46,7 +46,7 @@ class AirtableService:
             logger.error(f"Erreur d'initialisation du service Airtable: {e}")
             raise
 
-    @property
+ 
     def utilisateurs(self):
         """Retourne la table utilisateurs"""
         return self._table           

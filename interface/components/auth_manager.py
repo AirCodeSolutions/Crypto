@@ -23,7 +23,7 @@ class AuthManager:
         """Vérifie si un utilisateur existe déjà"""
         try:
             # Récupérer tous les enregistrements et vérifier manuellement
-            records = self.airtable.utilisateurs.all()
+            records = self.airtable._utilisateurs.all()
             
             for record in records:
                 fields = record.get('fields', {})
@@ -57,7 +57,7 @@ class AuthManager:
                 "risk": 1.5
             }
             
-            self.airtable.utilisateurs.create(user_data)
+            self.airtable._utilisateurs.create(user_data)
             return True, "Inscription réussie ! En attente de validation."
             
         except Exception as e:
@@ -70,7 +70,7 @@ class AuthManager:
         """
         try:
             # Récupérer tous les utilisateurs et chercher une correspondance
-            records = self.airtable.utilisateurs.all()
+            records = self.airtable._utilisateurs.all()
             user = None
             
             for record in records:
@@ -158,7 +158,7 @@ class AuthManager:
     def update_user_settings(self, user_id: str, new_capital: float, new_risk: float) -> bool:
         """Met à jour les paramètres de l'utilisateur"""
         try:
-            self.airtable.utilisateurs.update(
+            self.airtable._utilisateurs.update(
                 user_id,
                 {
                     "capital": new_capital,
