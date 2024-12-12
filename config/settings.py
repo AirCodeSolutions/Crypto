@@ -7,7 +7,8 @@ import streamlit as st
 class AirtableSettings:
     """Paramètres de configuration pour Airtable"""
     API_KEY: str = st.secrets["AIRTABLE_API_KEY"]
-    BASE_ID: str = st.secrets["AIRTABLE_BASE_ID"]
+    #BASE_ID: str = st.secrets["AIRTABLE_BASE_ID"]
+    BASE_ID: str="appwYozXBGggzUjCW"
     CRYPTOS_TABLE: str = "cryptos_suivies"
     ANALYSES_TABLE: str = "historique_analyses"
     USERS_TABLE: str = "tblEthZxlqwvYqK3R"
