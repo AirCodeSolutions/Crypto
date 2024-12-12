@@ -10,7 +10,7 @@ class AirtableSettings:
     BASE_ID: str = st.secrets["AIRTABLE_BASE_ID"]
     CRYPTOS_TABLE: str = "cryptos_suivies"
     ANALYSES_TABLE: str = "historique_analyses"
-    USERS_TABLE: str = "utilisateurs"
+    USERS_TABLE: str = "tblEthZxlqwvYqK3R"
 
 @dataclass
 class AppSettings:
