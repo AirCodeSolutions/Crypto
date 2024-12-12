@@ -34,9 +34,7 @@ class AirtableService:
             self.api = Api(st.secrets["AIRTABLE_API_KEY"])
             self.base = Base(self.api, "appwYozXBGggzUjCW")
 
-             # Debug - Utilisons logger au lieu de st.write
-            logger.info("Création de la table...")
-            logger.info(f"Base ID: {self.base}")
+           
             self._utilisateurs = self.base.table("tblEthZxlqwvYqK3R")
             st.write("Table créée:", self.utilisateurs)
 
