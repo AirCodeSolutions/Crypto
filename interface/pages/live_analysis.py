@@ -20,13 +20,13 @@ class LiveAnalysisPage:
         st.title("📈 Analyse en Direct")
 
         # Guide et aide
-        #with st.container():
-        col1, col2 = st.columns(2)
-        with col1:
-            GuideHelper.show_indicator_help()
-            GuideHelper.show_pattern_guide()
-        with col2:
-            GuideHelper.show_quick_guide()
+        with st.container():
+            col1, col2 = st.columns(2)
+            with col1:
+                GuideHelper.show_indicator_help()
+                GuideHelper.show_pattern_guide()
+            with col2:
+                GuideHelper.show_quick_guide()
 
         # Section de recherche
         search_col1, search_col2 = st.columns([1, 2])
@@ -176,13 +176,8 @@ class LiveAnalysisPage:
                             )
                     # Affichage de l'analyse des bougies
                     with st.expander("📊 Analyse des Bougies"):
-                        if analysis:
-                            st.write("Trend:", analysis['analysis'].get('trend', 'Non disponible'))
-                            st.write("Momentum:", analysis['analysis'].get('momentum', 'Non disponible')) 
-                            st.write("Volatility:", analysis['analysis'].get('volatility', 'Non disponible'))
-                            if 'patterns' in analysis['analysis']:
-                                st.write("Patterns:", ', '.join(analysis['analysis']['patterns']))
-
+                        df = self.exchange.get_ohlcv(symbol)
+                        candle_analysis = self._analyze_candles(df)
                     # Affichage des notifications
                     st.markdown("### 🔔 Notifications")
                     self.alert_system.render()
