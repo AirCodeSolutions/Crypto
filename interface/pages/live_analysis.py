@@ -136,6 +136,50 @@ class LiveAnalysisPage:
                         for key, value in analysis['analysis'].items():
                             st.write(f"**{key.title()}:** {value}")
 
+                    with st.expander("🔔 Configurer les Alertes de Prix"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            alert_price = st.number_input(
+                                "Prix d'alerte",
+                                min_value=0.0,
+                                value=float(analysis['price']),
+                                step=0.0001
+                            )
+                        with col2:
+                            alert_condition = st.selectbox(
+                                "Condition",
+                                options=["above", "below"],
+                                format_func=lambda x: "Au-dessus" if x == "above" else "En-dessous"
+                            )
+                        
+                        if st.button("➕ Ajouter l'alerte"):
+                            self.alert_system.add_notification(
+                                f"Alerte configurée pour {symbol} à ${alert_price:.4f}",
+                                "info",
+                                {
+                                    "Prix": f"${alert_price:.4f}",
+                                    "Condition": "Au-dessus" if alert_condition == "above" else "En-dessous"
+                                }
+                            )
+
+                    # Boutons d'action et notifications
+                    action_cols = st.columns(2)
+                    with action_cols[0]:
+                        if st.button("📈 Analyser", key=f"analyze_{symbol}"):
+                            self.alert_system.add_notification(
+                                f"Analyse de {symbol} terminée",
+                                "success",
+                                {
+                                    "Signal": analysis['signal'],
+                                    "RSI": f"{analysis['rsi']:.1f}"
+                                }
+                            )
+
+                    # Affichage des notifications
+                    st.markdown("### 🔔 Notifications")
+                    self.alert_system.render()
+
+
         except Exception as e:
             logger.error(f"Erreur affichage analyse: {e}")
             st.error("Erreur lors de l'analyse")

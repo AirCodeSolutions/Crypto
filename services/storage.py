@@ -36,8 +36,7 @@ class AirtableService:
 
            
             self._utilisateurs = self.base.table("tblEthZxlqwvYqK3R")
-            st.write("Table créée:", self.utilisateurs)
-
+          
             #self.utilisateurs = self.base.table("tblEthZxlqwvYqK3R")
             logger.info("Service Airtable initialisé avec succès")
         except Exception as e:
