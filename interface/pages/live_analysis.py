@@ -29,7 +29,7 @@ class LiveAnalysisPage:
                 GuideHelper.show_quick_guide()
 
         # Section de recherche
-        search_col1, search_col2 = st.columns([1, 3])
+        search_col1, search_col2 = st.columns([1, 2])
         with search_col1:
             search_term = st.text_input(
                 "🔍",
@@ -51,7 +51,7 @@ class LiveAnalysisPage:
             return
 
         # Interface principale
-        chart_col, analysis_col = st.columns([2, 1])
+        chart_col, analysis_col = st.columns([1, 1])
         
         with chart_col:
             selected_symbol = st.selectbox(
@@ -82,7 +82,7 @@ class LiveAnalysisPage:
         try:
             df = self.exchange.get_ohlcv(symbol, timeframe)
             if df is not None:
-                config = ChartConfig(height=400, show_volume=True)
+                config = ChartConfig(height=300, show_volume=True, template="plotly_dark")
                 chart = TradingChart(config)
                 chart.render(df, f"{symbol}/USDT")
             else:
@@ -174,6 +174,14 @@ class LiveAnalysisPage:
                                     "RSI": f"{analysis['rsi']:.1f}"
                                 }
                             )
+                    # Affichage de l'analyse des bougies
+                    with st.expander("📊 Analyse des Bougies"):
+                        if analysis:
+                            st.write("Trend:", analysis['analysis'].get('trend', 'Non disponible'))
+                            st.write("Momentum:", analysis['analysis'].get('momentum', 'Non disponible')) 
+                            st.write("Volatility:", analysis['analysis'].get('volatility', 'Non disponible'))
+                            if 'patterns' in analysis['analysis']:
+                                st.write("Patterns:", ', '.join(analysis['analysis']['patterns']))
 
                     # Affichage des notifications
                     st.markdown("### 🔔 Notifications")
