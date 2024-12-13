@@ -3,15 +3,17 @@ import streamlit as st
 from ..components.widgets import TimeSelector
 from ..components.guide_helper import GuideHelper
 from ..components.chart_components import TradingChart, ChartConfig
+from ..components.alerts import AlertSystem
 import logging
 
 logger = logging.getLogger(__name__)
 
 class LiveAnalysisPage:
-    def __init__(self, exchange_service, analyzer_service):
+    def __init__(self, exchange_service, analyzer_service, alert_system):
         """Initialise la page avec les services nécessaires"""
         self.exchange = exchange_service
         self.analyzer = analyzer_service
+        self.alert_system = alert_system
 
     def render(self):
         """Affiche la page d'analyse en direct"""
