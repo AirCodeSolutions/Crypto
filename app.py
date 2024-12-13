@@ -16,7 +16,10 @@ from interface.pages.live_analysis import LiveAnalysisPage
 # Configuration du logging pour un meilleur suivi des erreurs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-def setup_page(self):
+
+class CryptoAnalyzerApp:
+    """Application principale d'analyse de cryptomonnaies en temps réel"""
+    def setup_page(self):
         """Configure la mise en page et les styles de l'application"""
         st.set_page_config(
             page_title="Crypto Analyzer by AirCodeSolutions",
@@ -62,9 +65,6 @@ def setup_page(self):
             </style>
         """, unsafe_allow_html=True)
 
-class CryptoAnalyzerApp:
-    """Application principale d'analyse de cryptomonnaies en temps réel"""
-    
     def __init__(self):
         try:
             self.exchange = ExchangeService()
@@ -72,6 +72,7 @@ class CryptoAnalyzerApp:
             self.alert_system = AlertSystem()  # Nouveau système d'alertes
             self.airtable = AirtableService()
             self.auth_manager = AuthManager(self.airtable)
+           
             
             if 'analyzed_symbols' not in st.session_state:
                 st.session_state.analyzed_symbols = set()
@@ -134,7 +135,8 @@ class CryptoAnalyzerApp:
             LiveAnalysisPage(
                 exchange_service=self.exchange,
                 analyzer_service=self.analyzer,
-                alert_system=self.alert_system  
+                alert_system=self.alert_system,
+               
             ).render()
 
         elif page == "Top Performances":
