@@ -128,7 +128,7 @@ class CryptoAnalyzerApp:
             LiveAnalysisPage(
                 exchange_service=self.exchange,
                 analyzer_service=self.analyzer,
-                alert_system=self.alert_system  
+                alertsystem=self.alert_system  
             ).render()
 
         elif page == "Top Performances":
