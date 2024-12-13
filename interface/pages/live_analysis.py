@@ -20,13 +20,13 @@ class LiveAnalysisPage:
         st.title("📈 Analyse en Direct")
 
         # Guide et aide
-        with st.container():
-            col1, col2 = st.columns(2)
-            with col1:
-                GuideHelper.show_indicator_help()
-                GuideHelper.show_pattern_guide()
-            with col2:
-                GuideHelper.show_quick_guide()
+        #with st.container():
+        col1, col2 = st.columns(2)
+        with col1:
+            GuideHelper.show_indicator_help()
+            GuideHelper.show_pattern_guide()
+        with col2:
+            GuideHelper.show_quick_guide()
 
         # Section de recherche
         search_col1, search_col2 = st.columns([1, 2])
