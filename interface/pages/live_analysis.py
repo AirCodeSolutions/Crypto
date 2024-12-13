@@ -1,3 +1,4 @@
+# interface/pages/live_analysis.py
 from typing import Optional, Dict
 import streamlit as st
 from ..components.widgets import TimeSelector
@@ -10,26 +11,23 @@ logger = logging.getLogger(__name__)
 
 class LiveAnalysisPage:
     def __init__(self, exchange_service, analyzer_service, alert_system):
-        """Initialise la page avec les services nécessaires"""
         self.exchange = exchange_service
         self.analyzer = analyzer_service
         self.alert_system = alert_system
 
     def render(self):
-        """Affiche la page d'analyse en direct"""
-        st.title("📈 Analyse en Direct")
+        st.title("📈 Analyse en Direct", anchor=False)
 
         # Guide et aide
-        with st.container():
-            col1, col2 = st.columns(2)
-            with col1:
-                GuideHelper.show_indicator_help()
-                GuideHelper.show_pattern_guide()
-            with col2:
-                GuideHelper.show_quick_guide()
+        col1, col2 = st.columns(2)
+        with col1:
+            GuideHelper.show_indicator_help()
+            GuideHelper.show_pattern_guide()
+        with col2:
+            GuideHelper.show_quick_guide()
 
         # Section de recherche
-        search_col1, search_col2 = st.columns([1, 2])
+        search_col1, search_col2 = st.columns([1, 3])
         with search_col1:
             search_term = st.text_input(
                 "🔍",
@@ -39,7 +37,6 @@ class LiveAnalysisPage:
                 key="crypto_search"
             ).upper()
 
-        # Récupération et filtrage des symboles
         available_symbols = self.exchange.get_available_symbols()
         filtered_symbols = [
             symbol for symbol in available_symbols 
@@ -69,7 +66,6 @@ class LiveAnalysisPage:
                 self._display_analysis(selected_symbol)
 
     def _format_symbol_display(self, symbol: str) -> str:
-        """Formate l'affichage d'un symbole avec son prix"""
         try:
             ticker = self.exchange.get_ticker(symbol)
             return f"{symbol} - ${ticker['last']:,.2f} USDT"
@@ -78,11 +74,14 @@ class LiveAnalysisPage:
             return symbol
 
     def _display_chart(self, symbol: str, timeframe: str):
-        """Affiche le graphique de trading"""
         try:
             df = self.exchange.get_ohlcv(symbol, timeframe)
             if df is not None:
-                config = ChartConfig(height=300, show_volume=True, template="plotly_dark")
+                config = ChartConfig(
+                    height=600,  # Augmenté pour mieux remplir l'espace
+                    show_volume=True,
+                    template="plotly_dark"
+                )
                 chart = TradingChart(config)
                 chart.render(df, f"{symbol}/USDT")
             else:
@@ -92,12 +91,10 @@ class LiveAnalysisPage:
             st.error("Impossible d'afficher le graphique")
 
     def _display_analysis(self, symbol: str):
-        """Affiche l'analyse technique"""
         try:
             analysis = self.analyzer.analyze_symbol(symbol)
             if analysis:
                 cols = st.columns([2, 2, 2, 3])
-                
                 with cols[0]:
                     st.metric(
                         "Prix",
@@ -131,78 +128,99 @@ class LiveAnalysisPage:
                     )
 
                 # Détails de l'analyse
-                if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
-                    with st.expander("📊 Détails de l'analyse"):
+                with st.expander("📊 Détails techniques"):
+                    if 'analysis' in analysis and isinstance(analysis['analysis'], dict):
                         for key, value in analysis['analysis'].items():
-                            st.write(f"**{key.title()}:** {value}")
+                            if key != 'patterns':  # Exclure les patterns car affichés séparément
+                                st.write(f"**{key.title()}:** {value}")
 
-                    with st.expander("🔔 Configurer les Alertes de Prix"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            alert_price = st.number_input(
-                                "Prix d'alerte",
-                                min_value=0.0,
-                                value=float(analysis['price']),
-                                step=0.0001
-                            )
-                        with col2:
-                            alert_condition = st.selectbox(
-                                "Condition",
-                                options=["above", "below"],
-                                format_func=lambda x: "Au-dessus" if x == "above" else "En-dessous"
-                            )
-                        
-                        if st.button("➕ Ajouter l'alerte"):
-                            self.alert_system.add_notification(
-                                f"Alerte configurée pour {symbol} à ${alert_price:.4f}",
-                                "info",
-                                {
-                                    "Prix": f"${alert_price:.4f}",
-                                    "Condition": "Au-dessus" if alert_condition == "above" else "En-dessous"
-                                }
-                            )
+                # Analyse des bougies
+                with st.expander("🕯️ Analyse des Bougies"):
+                    df = self.exchange.get_ohlcv(symbol)
+                    candle_analysis = self._analyze_candles(df)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.markdown("### 🟢 Patterns Haussiers")
+                        if candle_analysis['bullish_patterns']:
+                            for pattern in candle_analysis['bullish_patterns']:
+                                st.write(f"✓ {pattern}")
+                        else:
+                            st.write("Aucun pattern haussier détecté")
+                            
+                    with col2:
+                        st.markdown("### 🔴 Patterns Baissiers")
+                        if candle_analysis['bearish_patterns']:
+                            for pattern in candle_analysis['bearish_patterns']:
+                                st.write(f"✓ {pattern}")
+                        else:
+                            st.write("Aucun pattern baissier détecté")
+                    
+                    st.markdown(f"**Tendance actuelle:** {candle_analysis['trend']}")
 
-                    # Boutons d'action et notifications
-                    action_cols = st.columns(2)
-                    with action_cols[0]:
-                        if st.button("📈 Analyser", key=f"analyze_{symbol}"):
-                            self.alert_system.add_notification(
-                                f"Analyse de {symbol} terminée",
-                                "success",
-                                {
-                                    "Signal": analysis['signal'],
-                                    "RSI": f"{analysis['rsi']:.1f}"
-                                }
-                            )
-                    # Affichage de l'analyse des bougies
-                    with st.expander("📊 Analyse des Bougies"):
-                        df = self.exchange.get_ohlcv(symbol)
-                        candle_analysis = self._analyze_candles(df)
-                    # Affichage des notifications
-                    st.markdown("### 🔔 Notifications")
-                    self.alert_system.render()
+                # Configuration des alertes
+                with st.expander("🔔 Alertes de Prix"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        alert_price = st.number_input(
+                            "Prix d'alerte",
+                            min_value=0.0,
+                            value=float(analysis['price']),
+                            step=0.0001
+                        )
+                    with col2:
+                        alert_condition = st.selectbox(
+                            "Condition",
+                            options=["above", "below"],
+                            format_func=lambda x: "Au-dessus" if x == "above" else "En-dessous"
+                        )
+                    
+                    if st.button("➕ Ajouter l'alerte"):
+                        self.alert_system.add_notification(
+                            f"Alerte configurée pour {symbol} à ${alert_price:.4f}",
+                            "info",
+                            {
+                                "Prix": f"${alert_price:.4f}",
+                                "Condition": "Au-dessus" if alert_condition == "above" else "En-dessous"
+                            }
+                        )
+
+                # Boutons d'action
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("📈 Analyser", key=f"analyze_{symbol}"):
+                        self.alert_system.add_notification(
+                            f"Analyse de {symbol} terminée",
+                            "success",
+                            {
+                                "Signal": analysis['signal'],
+                                "RSI": f"{analysis['rsi']:.1f}"
+                            }
+                        )
+
+                # Affichage des notifications
+                st.markdown("### 🔔 Notifications")
+                self.alert_system.render()
+
         except Exception as e:
             logger.error(f"Erreur affichage analyse: {e}")
-            st.error("Erreur lors de l'analyse")        
+            st.error("Erreur lors de l'analyse")
 
     def _analyze_candles(self, df) -> Dict:
         """Analyse des patterns de bougies"""
         try:
-            last_candles = df.tail(5)  # Analyse des 5 dernières bougies
-            
+            last_candles = df.tail(5)
             patterns = {
                 'bullish_patterns': [],
                 'bearish_patterns': [],
                 'trend': 'Neutre'
             }
             
-            # Analyse tendance
             closing_prices = last_candles['close'].values
             opening_prices = last_candles['open'].values
             highs = last_candles['high'].values
             lows = last_candles['low'].values
             
-            # Détection Marteau
             for i in range(len(last_candles)):
                 body = abs(closing_prices[i] - opening_prices[i])
                 lower_shadow = min(opening_prices[i], closing_prices[i]) - lows[i]
@@ -210,11 +228,9 @@ class LiveAnalysisPage:
                 
                 if lower_shadow > 2 * body and upper_shadow < body:
                     patterns['bullish_patterns'].append("Marteau")
-                
                 if upper_shadow > 2 * body and lower_shadow < body:
                     patterns['bearish_patterns'].append("Étoile Filante")
             
-            # Analyse tendance globale
             if closing_prices[-1] > opening_prices[-1] and closing_prices[-1] > closing_prices[-2]:
                 patterns['trend'] = 'Haussière'
             elif closing_prices[-1] < opening_prices[-1] and closing_prices[-1] < closing_prices[-2]:
@@ -229,4 +245,3 @@ class LiveAnalysisPage:
                 'bearish_patterns': [],
                 'trend': 'Indéterminé'
             }
-    
