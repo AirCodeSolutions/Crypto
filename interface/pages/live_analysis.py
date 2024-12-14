@@ -6,6 +6,7 @@ from ..components.widgets import TimeSelector
 from ..components.guide_helper import GuideHelper
 from ..components.chart_components import TradingChart, ChartConfig
 from ..components.alerts import AlertSystem
+from core.signal_tracking import SignalHistory  
 import logging
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,7 @@ class LiveAnalysisPage:
         self.exchange = exchange_service
         self.analyzer = analyzer_service
         self.alert_system = alert_system
+        self.signal_history = SignalHistory() 
 
     def render(self):
         st.title("📈 Analyse en Direct", anchor=False)
