@@ -1,7 +1,7 @@
 from datetime import datetime
 
 class SignalHistory:
-    def __init__(self, AirtableService, user_id):
+    def __init__(self, airtable_service, user_id):
         self.signals = []
         self.signal_stats = {
             'total': 0,
@@ -10,7 +10,7 @@ class SignalHistory:
             'pending': 0
         }
         """Initialise l'historique des signaux avec persistance Airtable"""
-        self.airtable = AirtableService()
+        self.airtable = airtable_service
        
         self.user_id = user_id
         self.signal_stats = self._load_user_performance()
