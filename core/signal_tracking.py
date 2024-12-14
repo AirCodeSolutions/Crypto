@@ -1,6 +1,4 @@
 from datetime import datetime
-from services.exchange import ExchangeService
-from services.storage import AirtableService
 
 class SignalHistory:
     def __init__(self, AirtableService, user_id):
