@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class LiveAnalysisPage:
-    def __init__(self, exchange_service, analyzer_service, alert_system, airtable_service,SignalHistory):
+    def __init__(self, exchange_service, analyzer_service, alert_system, airtable_service):
         self.exchange = exchange_service
         self.analyzer = analyzer_service
         self.alert_system = alert_system
