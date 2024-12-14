@@ -7,7 +7,7 @@ from ..components.guide_helper import GuideHelper
 from ..components.chart_components import TradingChart, ChartConfig
 from ..components.alerts import AlertSystem
 from core.signal_tracking import SignalHistory  
-#from ...services.storage import AirtableService
+from ...services.storage import AirtableService
 import logging
 
 logger = logging.getLogger(__name__)
