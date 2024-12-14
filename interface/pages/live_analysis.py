@@ -17,8 +17,8 @@ class LiveAnalysisPage:
         self.exchange = exchange_service
         self.analyzer = analyzer_service
         self.alert_system = alert_system
-        self.signal_history = SignalHistory() 
-        self.airtable = AirtableService()
+        self.signal_history = SignalHistory
+        self.airtable = AirtableService
            
           # Vérifier si l'utilisateur est connecté et récupérer son ID
         if 'user_info' in st.session_state and st.session_state.user_info:
