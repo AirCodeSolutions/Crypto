@@ -1,6 +1,9 @@
 from datetime import datetime
+from services.exchange import ExchangeService
+from services.storage import AirtableService
+
 class SignalHistory:
-    def __init__(self):
+    def __init__(self, AirtableService, user_id):
         self.signals = []
         self.signal_stats = {
             'total': 0,
@@ -8,6 +11,11 @@ class SignalHistory:
             'failed': 0,
             'pending': 0
         }
+        """Initialise l'historique des signaux avec persistance Airtable"""
+        self.airtable = AirtableService()
+       
+        self.user_id = user_id
+        self.signal_stats = self._load_user_performance()
         
     def add_signal(self, symbol, signal_type, entry_price, target_price, stop_loss):
         signal = {

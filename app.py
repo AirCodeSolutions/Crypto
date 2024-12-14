@@ -77,7 +77,8 @@ class CryptoAnalyzerApp:
             LiveAnalysisPage(
                 exchange_service=self.exchange,
                 analyzer_service=self.analyzer,
-                alert_system=self.alert_system
+                alert_system=self.alert_system,
+                airtable_service=self.airtable
             ).render()
 
         elif page == "Top Performances":
