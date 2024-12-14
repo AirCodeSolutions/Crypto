@@ -205,6 +205,25 @@ class LiveAnalysisPage:
                         f"Signal: {analysis['signal']}</div>",
                         unsafe_allow_html=True
                     )
+                
+                # Mise à jour des signaux existants avec le prix actuel
+                current_price = analysis['price']
+                self.signal_history.update_signal_status(symbol, current_price)
+
+                 # Vérifier si un nouveau signal doit être généré
+                if analysis['signal'] in ['STRONG_BUY', 'BUY', 'STRONG_SELL', 'SELL']:
+                    # Calculer les niveaux de prix
+                    stop_loss = current_price * 0.985 if analysis['signal'] in ['STRONG_BUY', 'BUY'] else current_price * 1.015
+                    target_price = current_price * 1.03 if analysis['signal'] in ['STRONG_BUY', 'BUY'] else current_price * 0.97
+
+                    # Ajouter le nouveau signal
+                    self.signal_history.add_signal(
+                        symbol=symbol,
+                        signal_type='BUY' if analysis['signal'] in ['STRONG_BUY', 'BUY'] else 'SELL',
+                        entry_price=current_price,
+                        target_price=target_price,
+                        stop_loss=stop_loss
+                )
 
                 # Détails de l'analyse
                 with st.expander("📊 Détails techniques"):
