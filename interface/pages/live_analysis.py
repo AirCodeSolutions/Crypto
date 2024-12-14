@@ -1,6 +1,7 @@
 # interface/pages/live_analysis.py
 from typing import Optional, Dict
 import streamlit as st
+from datetime import datetime
 from ..components.widgets import TimeSelector
 from ..components.guide_helper import GuideHelper
 from ..components.chart_components import TradingChart, ChartConfig
@@ -89,6 +90,30 @@ class LiveAnalysisPage:
         except Exception as e:
             logger.error(f"Erreur affichage graphique: {e}")
             st.error("Impossible d'afficher le graphique")
+    
+    def _display_performance_dashboard(self):
+        st.subheader("📊 Performance des Signaux")
+        
+        # Statistiques générales
+        stats_col1, stats_col2, stats_col3 = st.columns(3)
+        with stats_col1:
+            st.metric(
+                "Taux de réussite",
+                f"{self.signal_history.success_rate:.1f}%",
+                help="Pourcentage de signaux réussis"
+            )
+        with stats_col2:
+            st.metric(
+                "Signaux actifs",
+                self.signal_history.signal_stats['pending'],
+                help="Nombre de signaux en cours"
+            )
+        with stats_col3:
+            st.metric(
+                "Profit/Perte moyen",
+                f"{self.signal_history.average_profit:.2f}%",
+                help="Performance moyenne par signal"
+            )
 
     def _display_analysis(self, symbol: str):
         try:
@@ -201,6 +226,10 @@ class LiveAnalysisPage:
                 # Affichage des notifications
                 st.markdown("### 🔔 Notifications")
                 self.alert_system.render()
+
+                 # Ajouter le tableau de bord des performances ici
+                st.markdown("---")  # Séparateur visuel
+                self._display_performance_dashboard()  # Appel de la nouvelle méthode
 
         except Exception as e:
             logger.error(f"Erreur affichage analyse: {e}")
