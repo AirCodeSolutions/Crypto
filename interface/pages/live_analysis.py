@@ -94,27 +94,79 @@ class LiveAnalysisPage:
             st.error("Impossible d'afficher le graphique")
     
     def _display_performance_dashboard(self):
+        """Affiche le tableau de bord des performances des signaux"""
         st.subheader("📊 Performance des Signaux")
-        
-        # Statistiques générales
-        stats_col1, stats_col2, stats_col3 = st.columns(3)
-        with stats_col1:
+
+        # Statistiques principales
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
             st.metric(
-                "Taux de réussite",
-                f"{self.signal_history.success_rate:.1f}%",
+                "Signaux Total",
+                self.signal_history.signal_stats['total'],
+                help="Nombre total de signaux générés"
+            )
+        with col2:
+            success_rate = (self.signal_history.signal_stats['successful'] / 
+                        self.signal_history.signal_stats['total'] * 100) if self.signal_history.signal_stats['total'] > 0 else 0
+            st.metric(
+                "Taux de Réussite",
+                f"{success_rate:.1f}%",
                 help="Pourcentage de signaux réussis"
             )
-        with stats_col2:
+        with col3:
             st.metric(
-                "Signaux actifs",
+                "Signaux Actifs",
                 self.signal_history.signal_stats['pending'],
-                help="Nombre de signaux en cours"
+                help="Signaux en cours"
             )
-        with stats_col3:
+        with col4:
+            # Calcul du ratio gain/perte moyen des signaux terminés
+            avg_profit = self.signal_history.average_profit if hasattr(self.signal_history, 'average_profit') else 0
             st.metric(
-                "Profit/Perte moyen",
-                f"{self.signal_history.average_profit:.2f}%",
+                "Profit Moyen",
+                f"{avg_profit:.2f}%",
                 help="Performance moyenne par signal"
+            )
+
+        # Historique des signaux récents
+        with st.expander("📜 Historique des Signaux"):
+            if self.signal_history.signals:
+                for signal in reversed(self.signal_history.signals[-10:]):  # 10 derniers signaux
+                    signal_color = {
+                        'successful': '🟢',
+                        'failed': '🔴',
+                        'pending': '⚪'
+                    }.get(signal['status'], '⚪')
+                    
+                    st.write(
+                        f"{signal_color} {signal['symbol']} - {signal['type']} - "
+                        f"Prix: ${signal['entry_price']:.4f} - "
+                        f"Status: {signal['status'].title()} - "
+                        f"Date: {signal['timestamp'].strftime('%d/%m/%Y %H:%M')}"
+                    )
+            else:
+                st.info("Aucun signal dans l'historique")
+
+        # Statistiques par type de signal
+        st.subheader("📈 Performance par Type de Signal")
+        signal_types_col1, signal_types_col2 = st.columns(2)
+        
+        with signal_types_col1:
+            st.markdown("### Signaux d'Achat")
+            buy_success = self.signal_history.get_success_rate('BUY')
+            st.metric(
+                "Taux de Réussite Achats",
+                f"{buy_success:.1f}%",
+                help="Pourcentage de signaux d'achat réussis"
+            )
+            
+        with signal_types_col2:
+            st.markdown("### Signaux de Vente")
+            sell_success = self.signal_history.get_success_rate('SELL')
+            st.metric(
+                "Taux de Réussite Ventes",
+                f"{sell_success:.1f}%",
+                help="Pourcentage de signaux de vente réussis"
             )
 
     def _display_analysis(self, symbol: str):
