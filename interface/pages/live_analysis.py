@@ -13,12 +13,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 class LiveAnalysisPage:
-    def __init__(self, exchange_service, analyzer_service, alert_system, AirtableService,SignalHistory):
+    def __init__(self, exchange_service, analyzer_service, alert_system, Airtable_Service,SignalHistory):
         self.exchange = exchange_service
         self.analyzer = analyzer_service
         self.alert_system = alert_system
         self.signal_history = SignalHistory() 
-        self.airtable = AirtableService()
+        self.airtable = Airtable_Service()
           # Vérifier si l'utilisateur est connecté et récupérer son ID
         if 'user_info' in st.session_state and st.session_state.user_info:
             user_id = st.session_state.user_info['id']
