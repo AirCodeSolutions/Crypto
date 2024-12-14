@@ -5,15 +5,16 @@ from datetime import datetime, timedelta
 import plotly.graph_objects as go
 import pandas as pd
 import ta
-from utils import (
+import os
+from core.utils import (
     get_valid_symbol, 
     calculate_timeframe_data, 
     format_number,
     get_exchange  # Ajout de cet import
 )
 from technical_analysis import SignalGenerator, TechnicalAnalysis  # Ajout de TechnicalAnalysis
-from portfolio_management import PortfolioManager  # Ajout de cet import
-from ai_predictor import AIPredictor, AITester  # Ajout de ces imports
+from core.portfolio_management import PortfolioManager  # Ajout de cet import
+from core.ai_predictor import AIPredictor, AITester  # Ajout de ces imports
 
 
 class LiveAnalysisPage:
@@ -23,7 +24,10 @@ class LiveAnalysisPage:
         self.portfolio = portfolio_manager
         
     def render(self):
-        st.title("📈 Analyse en Direct")
+        st.title(f"📈 Analyse en Direct - DEV")
+       
+        # Ajout d'un marqueur visible
+        st.markdown("*Environnement de développement*" if os.environ.get('BRANCH') == 'dev' else "*Production*")
         
         # Input pour ajouter une crypto
         col1, col2 = st.columns([3, 1])

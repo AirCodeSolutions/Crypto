@@ -1,86 +1,141 @@
 # app.py
 import streamlit as st
-import ccxt
+# Configuration de la page - DOIT ÊTRE EN PREMIER
+st.set_page_config(
+    page_title="Crypto Analyzer Pro",
+    page_icon="📊",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+import time
+import pandas as pd
 from datetime import datetime
-from utils import SessionState, format_number, get_exchange
-from technical_analysis import TechnicalAnalysis
-from portfolio_management import PortfolioManager
-from interface import (LiveAnalysisPage, PortfolioPage, OpportunitiesPage, 
-                      HistoricalAnalysisPage, TopPerformancePage, MicroTradingPage, GuidePage)
-from ai_predictor import AIPredictor
+import logging
+from typing import List, Dict
+from interface import TimeSelector, TradingChart, ChartConfig, GuideHelper
+from services.exchange import ExchangeService
+from services.storage import AirtableService
+from core.analysis import MarketAnalyzer
+from interface.components.alerts import AlertSystem
+from interface.components.auth_manager import AuthManager
+from interface.pages.live_analysis import LiveAnalysisPage
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class CryptoAnalyzerApp:
     def __init__(self):
-        self.exchange = get_exchange()
-        self.ta = TechnicalAnalysis()
-        self.portfolio = PortfolioManager(self.exchange)
-        self.ai = AIPredictor()
-        
-        self.pages = {
-            "Analyse en Direct": LiveAnalysisPage(self.exchange, self.ta, self.portfolio),
-            "Trading Micro-Budget": MicroTradingPage(self.exchange, self.portfolio, self.ai),
-            "Portefeuille": PortfolioPage(self.portfolio),
-            "Top Performances": TopPerformancePage(self.exchange, self.ta),
-            "Opportunités Court Terme": OpportunitiesPage(self.exchange, self.ta),
-            "Analyse Historique": HistoricalAnalysisPage(self.exchange, self.ta),
-            "Guide & Explications": GuidePage()
-        }
+        try:
+            self.exchange = ExchangeService()
+            self.analyzer = MarketAnalyzer(self.exchange)
+            self.alert_system = AlertSystem()
+            self.airtable = AirtableService()
+            self.auth_manager = AuthManager(self.airtable)
+            
+            if 'analyzed_symbols' not in st.session_state:
+                st.session_state.analyzed_symbols = set()
+            
+            if 'last_price_check' not in st.session_state:
+                st.session_state.last_price_check = time.time()
+            
+            logger.info("Application initialisée avec succès")
+            
+        except Exception as e:
+            logger.error(f"Erreur d'initialisation: {e}")
+            raise
 
-    def run(self):
-        st.sidebar.title("Navigation")
-        page_name = st.sidebar.selectbox("Choisir une page", list(self.pages.keys()))
+    def main(self):
+        if not st.session_state.logged_in:
+            self._show_auth_page()
+            return
+        self._show_main_interface()
+
+    def _show_auth_page(self):
+        st.title("Crypto Analyzer Pro - AirCodeSolutions ❤️")
         
-        if st.session_state.portfolio['capital'] > 0:
-            st.sidebar.markdown("---")
-            st.sidebar.markdown("### 💰 Portfolio")
-            st.sidebar.metric(
-                "Capital actuel",
-                f"{format_number(st.session_state.portfolio['current_capital'])} USDT",
-                f"{((st.session_state.portfolio['current_capital'] / st.session_state.portfolio['capital']) - 1) * 100:.2f}%"
+        tab1, tab2 = st.tabs(["Connexion", "Inscription"])
+        with tab1:
+            self.auth_manager.render_login_form()
+        with tab2:
+            self.auth_manager.render_register_form()
+
+    def _show_main_interface(self):
+        st.sidebar.title(f"👤 {st.session_state.user_info['username']}")
+        
+        if st.sidebar.button("📤 Déconnexion"):
+            self.auth_manager.logout()
+            st.rerun()
+
+        page = st.sidebar.selectbox(
+            "Navigation",
+            ["Analyse en Direct", "Top Performances", "Portfolio", "Paramètres", "Guide"]
+        )
+            
+        if page == "Analyse en Direct":
+            LiveAnalysisPage(
+                exchange_service=self.exchange,
+                analyzer_service=self.analyzer,
+                alert_system=self.alert_system
+            ).render()
+
+        elif page == "Top Performances":
+            from interface.pages.top_performance import TopPerformancePage
+            top_page = TopPerformancePage(
+                exchange_service=self.exchange,
+                analyzer_service=self.analyzer
+            )
+            top_page.render()
+
+        elif page == "Portfolio":
+            self._show_portfolio_page()
+                        
+        elif page == "Paramètres":
+            self._show_settings_page()
+
+    def _show_portfolio_page(self):
+        st.title("💼 Portfolio")
+        # À implémenter
+
+    def _show_settings_page(self):
+        st.title("⚙️ Paramètres")
+        settings = st.session_state.user_info.get('settings', {})
+        
+        with st.form("settings_form"):
+            new_capital = st.number_input(
+                "Capital initial (USDT)",
+                min_value=0.0,
+                value=float(settings.get('initial_capital', 1000))
             )
             
-        try:
-            self.pages[page_name].render()
-        except Exception as e:
-            st.error(f"Erreur lors du chargement de la page: {str(e)}")
-
-def main():
-    try:
-        # Configuration des styles CSS
-        st.set_page_config(
-            page_title="Analyseur Crypto par AirCodeSolutions",
-            page_icon="📊",
-            layout="wide"
-        )
-        
-        st.markdown("""
-            <style>
-            .stButton>button {
-                width: 100%;
-            }
-            .trade-card {
-                border: 1px solid #ddd;
-                padding: 10px;
-                border-radius: 5px;
-                margin: 10px 0;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-
-        # Initialisation de l'état de session
-        session_state = SessionState()
-        
-        # Initialisation et lancement de l'application
-        app = CryptoAnalyzerApp()
-        app.run()
-
-    except Exception as e:
-        st.error(f"""
-        ⚠️ Une erreur s'est produite lors du démarrage de l'application:
-        {str(e)}
-        
-        Veuillez rafraîchir la page ou contacter le support si l'erreur persiste.
-        """)
+            new_risk = st.slider(
+                "Risque par trade (%)",
+                min_value=0.5,
+                max_value=5.0,
+                value=float(settings.get('risk_per_trade', 1.5)),
+                step=0.5
+            )
+            
+            if st.form_submit_button("Sauvegarder"):
+                try:
+                    self.airtable.utilisateurs.update(
+                        st.session_state.user_info['id'],
+                        {
+                            "settings": {
+                                "initial_capital": new_capital,
+                                "risk_per_trade": new_risk
+                            }
+                        }
+                    )
+                    st.success("Paramètres sauvegardés !")
+                    st.session_state.user_info['settings'] = {
+                        "initial_capital": new_capital,
+                        "risk_per_trade": new_risk
+                    }
+                except Exception as e:
+                    st.error(f"Erreur lors de la sauvegarde: {str(e)}")
 
 if __name__ == "__main__":
-    main()
+    app = CryptoAnalyzerApp()
+    app.main()

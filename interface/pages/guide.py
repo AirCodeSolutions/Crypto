@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 @dataclass
 class TradingGuide:
@@ -18,7 +18,7 @@ class TradingGuide:
         """Initialise les sections du guide avec leur contenu"""
         self.sections = {
             "quick_start": self.Section(
-                title="Guide de Démarrage Rapide",
+                title="Guide de Démarrage Rapide TEST",
                 content=self._get_quick_start_content(),
                 subsections={
                     "setup": "Configuration Initiale",
@@ -51,7 +51,7 @@ class TradingGuide:
 
     def _get_quick_start_content(self) -> str:
         return """
-        # Guide de Démarrage Rapide 
+        # Guide de Démarrage Rapide
         
         ## Configuration Initiale
         - Capital initial: 100€ maximum pour débuter
@@ -127,6 +127,14 @@ class TradingGuide:
             4. Prise de profits systématique
         """
 
+    def get_section(self, section_name: str) -> Optional[Section]:
+        """Récupère une section du guide par son nom"""
+        return self.sections.get(section_name)
+
+    def get_all_sections(self) -> Dict[str, Section]:
+        """Récupère toutes les sections du guide"""
+        return self.sections
+
 @dataclass
 class Documentation:
     """Documentation technique de l'application"""
@@ -178,7 +186,6 @@ class Documentation:
         """Retourne les codes d'erreur"""
         return self.error_codes
 
-# Fonction principale pour initialiser la documentation
 def initialize_documentation() -> Tuple[TradingGuide, Documentation]:
     """
     Initialise et retourne les instances du guide et de la documentation
@@ -189,3 +196,10 @@ def initialize_documentation() -> Tuple[TradingGuide, Documentation]:
     guide = TradingGuide()
     docs = Documentation()
     return guide, docs
+
+# Exemple d'utilisation
+if __name__ == "__main__":
+    guide, docs = initialize_documentation()
+    # Accès au contenu
+    quick_start = guide.get_section("quick_start")
+    api_docs = docs.get_api_documentation()
