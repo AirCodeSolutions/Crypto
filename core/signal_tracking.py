@@ -27,18 +27,20 @@ class SignalHistory:
         self.signal_stats['total'] += 1
         self.signal_stats['pending'] += 1
     
-    def update_signal(self, symbol, current_price):
-        """Met à jour le statut d'un signal basé sur le prix actuel"""
+    def update_signal_status(self, symbol: str, current_price: float):
+        """Met à jour le statut des signaux en fonction du prix actuel"""
         for signal in self.signals:
             if signal['symbol'] == symbol and signal['status'] == 'pending':
-                # Vérification du stop loss
-                if current_price <= signal['stop_loss']:
-                    self._close_signal(signal, current_price, 'failed')
-                    continue
-                
-                # Vérification de la cible
-                if current_price >= signal['target_price']:
-                    self._close_signal(signal, current_price, 'successful')
+                if signal['type'] == 'BUY':
+                    if current_price <= signal['stop_loss']:
+                        self._mark_signal_failed(signal, current_price)
+                    elif current_price >= signal['target_price']:
+                        self._mark_signal_successful(signal, current_price)
+                else:  # SELL signal
+                    if current_price >= signal['stop_loss']:
+                        self._mark_signal_failed(signal, current_price)
+                    elif current_price <= signal['target_price']:
+                        self._mark_signal_successful(signal, current_price)
     
     def _close_signal(self, signal, exit_price, result):
         """Ferme un signal avec le résultat donné"""
@@ -58,6 +60,41 @@ class SignalHistory:
             self.signal_stats['successful'] += 1
         else:
             self.signal_stats['failed'] += 1
+
+    def get_success_rate(self, signal_type: str) -> float:
+        """Calcule le taux de réussite pour un type de signal donné"""
+        signals = [s for s in self.signals if s['type'] == signal_type]
+        if not signals:
+            return 0.0
+        
+        successful = len([s for s in signals if s['status'] == 'successful'])
+        return (successful / len(signals)) * 100
+    
+
+    def _mark_signal_successful(self, signal: dict, exit_price: float):
+        """Marque un signal comme réussi et calcule le résultat"""
+        signal['status'] = 'successful'
+        signal['exit_price'] = exit_price
+        signal['result'] = self._calculate_profit(signal)
+        self.signal_stats['successful'] += 1
+        self.signal_stats['pending'] -= 1
+
+    def _mark_signal_failed(self, signal: dict, exit_price: float):
+        """Marque un signal comme échoué et calcule la perte"""
+        signal['status'] = 'failed'
+        signal['exit_price'] = exit_price
+        signal['result'] = self._calculate_profit(signal)
+        self.signal_stats['failed'] += 1
+        self.signal_stats['pending'] -= 1
+
+    def _calculate_profit(self, signal: dict) -> float:
+        """Calcule le profit/perte en pourcentage pour un signal"""
+        if signal['type'] == 'BUY':
+            return ((signal['exit_price'] - signal['entry_price']) / signal['entry_price']) * 100
+        else:  # SELL signal
+            return ((signal['entry_price'] - signal['exit_price']) / signal['entry_price']) * 100
+
+
     
     @property
     def success_rate(self) -> float:
