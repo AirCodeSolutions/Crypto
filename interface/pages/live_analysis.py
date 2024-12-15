@@ -111,12 +111,12 @@ class LiveAnalysisPage:
         with col1:
             st.metric(
                 "Signaux Total",
-                self.signal_history.signal_stats['total'],
+                self.signal_history.signal_stats['total_signals'],
                 help="Nombre total de signaux générés"
             )
         with col2:
             success_rate = (self.signal_history.signal_stats['successful'] / 
-                        self.signal_history.signal_stats['total'] * 100) if self.signal_history.signal_stats['total'] > 0 else 0
+                        self.signal_history.signal_stats['total_signals'] * 100) if self.signal_history.signal_stats['total_signals'] > 0 else 0
             st.metric(
                 "Taux de Réussite",
                 f"{success_rate:.1f}%",
