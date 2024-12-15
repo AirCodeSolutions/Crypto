@@ -124,28 +124,24 @@ class SignalHistory:
     
     def _load_user_performance(self):
         """Charge ou crée les statistiques de l'utilisateur"""
-        performance = self.airtable.trading_performance.first(formula=f"user_id = '{self.user_id}'")
-        
-        if not performance:
-            # Si pas de données existantes, créer une nouvelle entrée
-            #performance_data = {
-            #    "user_id": self.user_id,
-            #    "total_signals": 0,
-            #    "successful_signals": 0,
-            #    "failed_signals": 0,
-            #    "total_profit": 0,
-            #    "last_updated": datetime.now().isoformat()
-            #}
-            performance_data = {
-            'user_id': self.user_id,               # en simple quotes
-            'total_signals': '0',                  # en string
-            'successful_signals': '0',
-            'failed_signals': '0',
-            'total_profit': '0',
-            'last_updated': datetime.now().isoformat()
-            }
+        try:
+            logger.info(f"Tentative de chargement des performances...")
+            performance = self.airtable.trading_performance.first(formula=f"{{User}} = '{self.user_id}'")
             
-            self.airtable.trading_performance.create(performance_data)
-            return performance_data
-        
-        return performance['fields']
+            if not performance:
+                new_record = {
+                    "User": self.user_id,  # Assurez-vous que le champ s'appelle "User" dans Airtable
+                    "total_signals": 0,
+                    "successful_signals": 0,
+                    "failed_signals": 0,
+                    "total_profit": 0
+                }
+                created = self.airtable.trading_performance.create(new_record)
+                logger.info(f"Nouvel enregistrement créé: {created}")
+                return new_record
+                
+            return performance['fields']
+            
+        except Exception as e:
+            logger.error(f"Erreur: {str(e)}")
+            return {"total_signals": 0, "successful_signals": 0, "failed_signals": 0, "total_profit": 0}
