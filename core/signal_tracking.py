@@ -149,7 +149,7 @@ class SignalHistory:
                 "successful_signals": performance['fields'].get("successful_signals", 0),
                 "failed_signals": performance['fields'].get("failed_signals", 0),
                 "total_profit": performance['fields'].get("total_profit", 0),
-                "last_updated": performance['fields'].get("last_updated", datetime.now().isoformat())
+                "last_updated": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")  # Format ISO 8601
             }
             
         except Exception as e:
