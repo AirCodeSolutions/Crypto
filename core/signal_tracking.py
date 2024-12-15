@@ -142,7 +142,15 @@ class SignalHistory:
                 logger.info(f"Nouvel enregistrement créé: {created}")
                 return new_record # Retourner les données du nouvel enregistrement
                 
-            return performance['fields']
+            #return performance['fields']
+            # Retourner uniquement les champs existants
+            return {
+                "total_signals": performance['fields'].get("total_signals", 0),
+                "successful_signals": performance['fields'].get("successful_signals", 0),
+                "failed_signals": performance['fields'].get("failed_signals", 0),
+                "total_profit": performance['fields'].get("total_profit", 0),
+                "last_updated": performance['fields'].get("last_updated", datetime.now().isoformat())
+            }
             
         except Exception as e:
             logger.error(f"Erreur lors du chargement des performances utilisateur : {str(e)}")
