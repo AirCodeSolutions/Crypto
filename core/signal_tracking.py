@@ -140,14 +140,23 @@ class SignalHistory:
                 }
                 created = self.airtable.trading_performance.create(new_record)
                 logger.info(f"Nouvel enregistrement créé: {created}")
+                new_record["pending"] = 0  # Ajouter la clé 'pending'
                 return new_record # Retourner les données du nouvel enregistrement
-                
+
+            # Calculer les signaux en attente
+            fields = performance['fields']
+            total_signals = fields.get("total_signals", 0)
+            successful_signals = fields.get("successful_signals", 0)
+            failed_signals = fields.get("failed_signals", 0)
+            pending_signals = total_signals - (successful_signals + failed_signals)
+
             #return performance['fields']
             # Retourner uniquement les champs existants
             return {
                 "total_signals": performance['fields'].get("total_signals", 0),
                 "successful_signals": performance['fields'].get("successful_signals", 0),
                 "failed_signals": performance['fields'].get("failed_signals", 0),
+                "pending": max(pending_signals, 0),  # Assurez que 'pending' n'est pas négatif
                 "total_profit": performance['fields'].get("total_profit", 0),
                 "last_updated": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")  # Format ISO 8601
             }
