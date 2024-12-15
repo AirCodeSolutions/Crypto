@@ -1,4 +1,6 @@
 from datetime import datetime
+import logging
+logger = logging.getLogger(__name__)
 
 class SignalHistory:
     def __init__(self, airtable_service, user_id):
@@ -136,15 +138,35 @@ class SignalHistory:
             #}
         #log erreur
             try:
-                print(f"Table de performance: {self.airtable.trading_performance}")  # Voir la table
-                print(f"User ID: {self.user_id}")  # Voir l'ID utilisateur
+                    logger.info(f"Tentative de chargement des performances...")
+                    logger.info(f"User ID: {self.user_id}")
+                    logger.info(f"Table de performance ID: {self.airtable.trading_performance}")
+                    
+                    # Version simplifiée sans formule pour tester
+                    all_records = self.airtable.trading_performance.all()
+                    logger.info(f"Records trouvés: {all_records}")
 
-                performance = self.airtable.trading_performance.first(formula=f"user_id = '{self.user_id}'")
-                print(f"Performance trouvée: {performance}")  # Voir si on trouve quelque chose
-
+                    return {
+                        "total_signals": 0,
+                        "successful_signals": 0,
+                        "failed_signals": 0,
+                        "total_profit": 0,
+                        "last_updated": datetime.now().isoformat()
+                    }
+                    
             except Exception as e:
-                print(f"Erreur exacte: {str(e)}")  # Voir l'erreur complète
-                raise
+                    logger.error(f"Erreur dans _load_user_performance: {str(e)}")
+                    # Retourner des valeurs par défaut en cas d'erreur
+                    return {
+                        "total_signals": 0,
+                        "successful_signals": 0,
+                        "failed_signals": 0,
+                        "total_profit": 0,
+                        "last_updated": datetime.now().isoformat()
+                    }
+
+
+
 
 
 
