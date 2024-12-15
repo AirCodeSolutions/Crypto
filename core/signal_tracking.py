@@ -136,40 +136,6 @@ class SignalHistory:
             #    "total_profit": 0,
             #    "last_updated": datetime.now().isoformat()
             #}
-        #log erreur
-            try:
-                    logger.info(f"Tentative de chargement des performances...")
-                    logger.info(f"User ID: {self.user_id}")
-                    logger.info(f"Table de performance ID: {self.airtable.trading_performance}")
-                    
-                    # Version simplifiée sans formule pour tester
-                    all_records = self.airtable.trading_performance.all()
-                    logger.info(f"Records trouvés: {all_records}")
-
-                    return {
-                        "total_signals": 0,
-                        "successful_signals": 0,
-                        "failed_signals": 0,
-                        "total_profit": 0,
-                        "last_updated": datetime.now().isoformat()
-                    }
-                    
-            except Exception as e:
-                    logger.error(f"Erreur dans _load_user_performance: {str(e)}")
-                    # Retourner des valeurs par défaut en cas d'erreur
-                    return {
-                        "total_signals": 0,
-                        "successful_signals": 0,
-                        "failed_signals": 0,
-                        "total_profit": 0,
-                        "last_updated": datetime.now().isoformat()
-                    }
-
-
-
-
-
-
             performance_data = {
             'user_id': self.user_id,               # en simple quotes
             'total_signals': '0',                  # en string
