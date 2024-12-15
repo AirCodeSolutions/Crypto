@@ -17,20 +17,16 @@ class LiveAnalysisPage:
         self.exchange = exchange_service
         self.analyzer = analyzer_service
         self.alert_system = alert_system
-        #self.signal_history = SignalHistory()
         self.airtable = airtable_service
            
           # Vérifier si l'utilisateur est connecté et récupérer son ID
         if 'user_info' in st.session_state and st.session_state.user_info:
             user_id = st.session_state.user_info['id']
-            #self.signal_history = SignalHistory(self.airtable, user_id)
             self.signal_history = SignalHistory(airtable_service=self.airtable, user_id=user_id)
         else:
             logger.warning("Aucun utilisateur connecté")
             self.signal_history = None  # ou gérer autrement le cas où l'utilisateur n'est pas connecté
-        # Initialiser SignalHistory avec le service Airtable et l'ID utilisateur
-        self.signal_history = SignalHistory(self.airtable, user_id)
-
+      
     def render(self):
         st.title("📈 Analyse en Direct", anchor=False)
 
