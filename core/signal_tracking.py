@@ -126,3 +126,22 @@ class SignalHistory:
     def get_active_signals(self) -> list:
         """Renvoie les signaux actifs/en attente"""
         return [s for s in self.signals if s['status'] == 'pending']
+    
+    def _load_user_performance(self):
+        """Charge ou crée les statistiques de l'utilisateur"""
+        performance = self.airtable.trading_performance.first(f"user_id = '{self.user_id}'")
+        
+        if not performance:
+            # Si pas de données existantes, créer une nouvelle entrée
+            performance_data = {
+                "user_id": self.user_id,
+                "total_signals": 0,
+                "successful_signals": 0,
+                "failed_signals": 0,
+                "total_profit": 0,
+                "last_updated": datetime.now().isoformat()
+            }
+            self.airtable.trading_performance.create(performance_data)
+            return performance_data
+        
+        return performance['fields']
