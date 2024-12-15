@@ -70,6 +70,11 @@ class LiveAnalysisPage:
             )
             
             if selected_symbol:
+                # Réinitialiser les données si le symbole change
+                if st.session_state.get('current_symbol') != selected_symbol:
+                    st.session_state['current_symbol'] = selected_symbol
+                    st.session_state['analysis_data'] = None
+                    st.session_state['notifications'] = [] 
                 timeframe = TimeSelector.render("timeframe_selector")
                 self._display_chart(selected_symbol, timeframe)
 
@@ -186,7 +191,14 @@ class LiveAnalysisPage:
 
     def _display_analysis(self, symbol: str):
         try:
+            # Réinitialiser les données
+            st.session_state['current_symbol'] = symbol
+            st.session_state['analysis_data'] = None
+
+            # Analyse du symbole
             analysis = self.analyzer.analyze_symbol(symbol)
+            st.session_state['analysis_data'] = analysis
+            
             if analysis:
                 cols = st.columns([2, 2, 2, 3])
                 with cols[0]:
