@@ -135,14 +135,23 @@ class SignalHistory:
                     "successful_signals": 0,
                     "failed_signals": 0,
                     "pending_signals": 0,
-                    "total_profit": 0
+                    "total_profit": 0,
+                    "last_updated": datetime.now().isoformat()  # Ajout de la date de mise à jour
                 }
                 created = self.airtable.trading_performance.create(new_record)
                 logger.info(f"Nouvel enregistrement créé: {created}")
-                return new_record
+                return new_record # Retourner les données du nouvel enregistrement
                 
             return performance['fields']
             
         except Exception as e:
-            logger.error(f"Erreur: {str(e)}")
-            return {"total_signals": 0, "successful_signals": 0, "failed_signals": 0, "total_profit": 0}
+            logger.error(f"Erreur lors du chargement des performances utilisateur : {str(e)}")
+        # Retourner des valeurs par défaut en cas d'erreur
+        return {
+            "total_signals": 0,
+            "successful_signals": 0,
+            "failed_signals": 0,
+            "pending_signals": 0,
+            "total_profit": 0,
+            "last_updated": datetime.now().isoformat()
+        }
