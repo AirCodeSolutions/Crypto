@@ -126,14 +126,24 @@ class SignalHistory:
         
         if not performance:
             # Si pas de données existantes, créer une nouvelle entrée
+            #performance_data = {
+            #    "user_id": self.user_id,
+            #    "total_signals": 0,
+            #    "successful_signals": 0,
+            #    "failed_signals": 0,
+            #    "total_profit": 0,
+            #    "last_updated": datetime.now().isoformat()
+            #}
+
             performance_data = {
-                "user_id": self.user_id,
-                "total_signals": 0,
-                "successful_signals": 0,
-                "failed_signals": 0,
-                "total_profit": 0,
-                "last_updated": datetime.now().isoformat()
+            'user_id': self.user_id,               # en simple quotes
+            'total_signals': '0',                  # en string
+            'successful_signals': '0',
+            'failed_signals': '0',
+            'total_profit': '0',
+            'last_updated': datetime.now().isoformat()
             }
+            
             self.airtable.trading_performance.create(performance_data)
             return performance_data
         
