@@ -134,6 +134,19 @@ class SignalHistory:
             #    "total_profit": 0,
             #    "last_updated": datetime.now().isoformat()
             #}
+        #log erreur
+            try:
+                print(f"Table de performance: {self.airtable.trading_performance}")  # Voir la table
+                print(f"User ID: {self.user_id}")  # Voir l'ID utilisateur
+
+                performance = self.airtable.trading_performance.first(formula=f"user_id = '{self.user_id}'")
+                print(f"Performance trouvée: {performance}")  # Voir si on trouve quelque chose
+
+            except Exception as e:
+                print(f"Erreur exacte: {str(e)}")  # Voir l'erreur complète
+                raise
+
+
 
             performance_data = {
             'user_id': self.user_id,               # en simple quotes
