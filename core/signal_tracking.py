@@ -122,7 +122,7 @@ class SignalHistory:
     
     def _load_user_performance(self):
         """Charge ou crée les statistiques de l'utilisateur"""
-        performance = self.airtable.trading_performance.first(f"user_id = '{self.user_id}'")
+        performance = self.airtable.trading_performance.first(formula=f"user_id = '{self.user_id}'")
         
         if not performance:
             # Si pas de données existantes, créer une nouvelle entrée
