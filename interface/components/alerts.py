@@ -195,19 +195,23 @@ class AlertSystem:
                 notification.is_read = True
 
     def check_rsi_alert(self, symbol: str, rsi_value: float):
+        """Vérifie les seuils RSI et ajoute une notification si nécessaire."""
         if rsi_value < 30:
             self.add_notification(
                 f"RSI de {symbol} est inférieur à 30 (survendu)",
                 "warning",
                 {"RSI": rsi_value}
             )
+            print(f"Notification RSI ajoutée : {symbol} - RSI {rsi_value} (survendu)")
         elif rsi_value > 70:
             self.add_notification(
                 f"RSI de {symbol} est supérieur à 70 (suracheté)",
                 "warning",
                 {"RSI": rsi_value}
             )
-
+            print(f"Notification RSI ajoutée : {symbol} - RSI {rsi_value} (suracheté)")
+        else:
+            print(f"Aucune notification RSI : {symbol} - RSI {rsi_value}")
     def check_ema_crossover(self, symbol: str, short_ema: float, long_ema: float):
         if short_ema > long_ema:
             self.add_notification(
