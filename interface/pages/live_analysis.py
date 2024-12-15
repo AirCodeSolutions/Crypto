@@ -106,6 +106,12 @@ class LiveAnalysisPage:
         """Affiche le tableau de bord des performances des signaux"""
         st.subheader("📊 Performance des Signaux")
 
+        # Vérification des données disponibles
+        if not self.signal_history or not hasattr(self.signal_history, 'signal_stats'):
+            st.warning("Aucune donnée de performance disponible.")
+            return
+
+        signal_stats = self.signal_history.signal_stats
         # Statistiques principales
         col1, col2, col3, col4 = st.columns(4)
         with col1:
