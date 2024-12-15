@@ -134,6 +134,7 @@ class SignalHistory:
                     "total_signals": 0,
                     "successful_signals": 0,
                     "failed_signals": 0,
+                    "pending_signals": 0,
                     "total_profit": 0
                 }
                 created = self.airtable.trading_performance.create(new_record)
