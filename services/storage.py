@@ -29,15 +29,14 @@ class AirtableService:
         """Initialise la connexion à Airtable"""
         try:
             # Récupération des secrets de manière sécurisée
-            #self.api_key = st.secrets["AIRTABLE_API_KEY"]
-            #self.base_id = st.secrets["AIRTABLE_BASE_ID"]
+            
             self.api = Api(st.secrets["AIRTABLE_API_KEY"])
             self.base = Base(self.api, "appwYozXBGggzUjCW")
 
-           
+            #Initialisation des tables
             self._utilisateurs = self.base.table("tblEthZxlqwvYqK3R")
-          
-            #self.utilisateurs = self.base.table("tblEthZxlqwvYqK3R")
+            self.trading_performance = self.base.table("tblxx8CEAnR2I87Ge")
+        
             logger.info("Service Airtable initialisé avec succès")
         except Exception as e:
             logger.error(f"Erreur d'initialisation du service Airtable: {e}")
