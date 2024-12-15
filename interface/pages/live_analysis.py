@@ -195,6 +195,9 @@ class LiveAnalysisPage:
                         f"{analysis['rsi']:.1f}",
                         help="RSI > 70: Surachat, RSI < 30: Survente"
                     )
+                    # Appel de la méthode pour vérifier les alertes RSI
+                    self.alert_system.check_rsi_alert(symbol, analysis['rsi'])
+
                 with cols[2]:
                     st.metric(
                         "Score",
@@ -214,6 +217,8 @@ class LiveAnalysisPage:
                         f"Signal: {analysis['signal']}</div>",
                         unsafe_allow_html=True
                     )
+
+
                 
                 # Mise à jour des signaux existants avec le prix actuel
                 current_price = analysis['price']
@@ -233,6 +238,24 @@ class LiveAnalysisPage:
                         target_price=target_price,
                         stop_loss=stop_loss
                 )
+
+                # Calcul des EMA et vérification des croisements
+                df = self.exchange.get_ohlcv(symbol, "1h")  # Exemple : timeframe 1h
+                if df is not None:
+                    df['EMA_short'] = df['close'].ewm(span=12).mean()  # EMA court (12 périodes)
+                    df['EMA_long'] = df['close'].ewm(span=26).mean()  # EMA long (26 périodes)
+
+                    # Vérification du croisement EMA
+                    if len(df) > 1:  # Vérifier qu'il y a suffisamment de données
+                        short_ema = df['EMA_short'].iloc[-1]
+                        long_ema = df['EMA_long'].iloc[-1]
+                        self.alert_system.check_ema_crossover(symbol, short_ema, long_ema)
+
+                    # Affichage des EMA dans l'interface
+                    st.write(f"**EMA Court (12 périodes)**: {df['EMA_short'].iloc[-1]:.2f}")
+                    st.write(f"**EMA Long (26 périodes)**: {df['EMA_long'].iloc[-1]:.2f}")
+
+
 
                 # Détails de l'analyse
                 with st.expander("📊 Détails techniques"):

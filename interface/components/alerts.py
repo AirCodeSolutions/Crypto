@@ -193,3 +193,38 @@ class AlertSystem:
             
             if not notification.is_read:
                 notification.is_read = True
+
+    def check_rsi_alert(self, symbol: str, rsi_value: float):
+        if rsi_value < 30:
+            self.add_notification(
+                f"RSI de {symbol} est inférieur à 30 (survendu)",
+                "warning",
+                {"RSI": rsi_value}
+            )
+        elif rsi_value > 70:
+            self.add_notification(
+                f"RSI de {symbol} est supérieur à 70 (suracheté)",
+                "warning",
+                {"RSI": rsi_value}
+            )
+
+    def check_ema_crossover(self, symbol: str, short_ema: float, long_ema: float):
+        if short_ema > long_ema:
+            self.add_notification(
+                f"Croisement haussier EMA détecté pour {symbol}",
+                "success",
+                {"EMA court": short_ema, "EMA long": long_ema}
+            )
+        elif short_ema < long_ema:
+            self.add_notification(
+                f"Croisement baissier EMA détecté pour {symbol}",
+                "warning",
+                {"EMA court": short_ema, "EMA long": long_ema}
+            )
+
+    def notify_pattern(self, symbol: str, pattern_name: str, details: Optional[Dict] = None):
+        self.add_notification(
+            f"Pattern détecté pour {symbol}: {pattern_name}",
+            "info",
+            details
+        )
