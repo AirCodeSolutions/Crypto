@@ -130,7 +130,7 @@ class SignalHistory:
             
             if not performance:
                 new_record = {
-                    "User": self.user_id,  # Assurez-vous que le champ s'appelle "User" dans Airtable
+                    "user_id": self.user_id,  # Assurez-vous que le champ s'appelle "User" dans Airtable
                     "total_signals": 0,
                     "successful_signals": 0,
                     "failed_signals": 0,
