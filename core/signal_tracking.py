@@ -126,7 +126,7 @@ class SignalHistory:
         """Charge ou crée les statistiques de l'utilisateur"""
         try:
             logger.info(f"Tentative de chargement des performances...")
-            performance = self.airtable.trading_performance.first(formula=f"{{User}} = '{self.user_id}'")
+            performance = self.airtable.trading_performance.first(formula=f"{{user_id}} = '{self.user_id}'")
             
             if not performance:
                 new_record = {
