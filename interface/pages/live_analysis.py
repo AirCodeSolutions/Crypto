@@ -69,12 +69,13 @@ class LiveAnalysisPage:
                 format_func=self._format_symbol_display
             )
             
+            # Réinitialiser les données si le symbole change
+            if st.session_state.get('current_symbol') != selected_symbol:
+                st.session_state['current_symbol'] = selected_symbol
+                st.session_state['analysis_data'] = None
+                st.session_state['notifications'] = []
+
             if selected_symbol:
-                # Réinitialiser les données si le symbole change
-                if st.session_state.get('current_symbol') != selected_symbol:
-                    st.session_state['current_symbol'] = selected_symbol
-                    st.session_state['analysis_data'] = None
-                    st.session_state['notifications'] = [] 
                 timeframe = TimeSelector.render("timeframe_selector")
                 self._display_chart(selected_symbol, timeframe)
 
@@ -257,11 +258,28 @@ class LiveAnalysisPage:
                         stop_loss=stop_loss
                 )
 
-                # Calcul des EMA et vérification des croisements
+                # Calcul des EMA et vérification des croisements et aide
                 df = self.exchange.get_ohlcv(symbol, "1h")  # Exemple : timeframe 1h
                 if df is not None:
-                    df['EMA_short'] = df['close'].ewm(span=12).mean()  # EMA court (12 périodes)
-                    df['EMA_long'] = df['close'].ewm(span=26).mean()  # EMA long (26 périodes)
+                    df['EMA_short'] = df['close'].ewm(span=9).mean()
+                    df['EMA_long'] = df['close'].ewm(span=20).mean()
+                    df['EMA_50'] = df['close'].ewm(span=50).mean()
+
+                    st.metric(
+                        "EMA 9",
+                        f"{df['EMA_short'].iloc[-1]:.2f}",
+                        help="Moyenne mobile exponentielle sur 9 périodes"
+                    )
+                    st.metric(
+                        "EMA 20",
+                        f"{df['EMA_long'].iloc[-1]:.2f}",
+                        help="Moyenne mobile exponentielle sur 20 périodes"
+                    )
+                    st.metric(
+                        "EMA 50",
+                        f"{df['EMA_50'].iloc[-1]:.2f}",
+                        help="Moyenne mobile exponentielle sur 50 périodes"
+                    )
 
                     # Vérification du croisement EMA
                     if len(df) > 1:  # Vérifier qu'il y a suffisamment de données
