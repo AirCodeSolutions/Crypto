@@ -258,28 +258,23 @@ class LiveAnalysisPage:
                         stop_loss=stop_loss
                 )
 
-                # Calcul des EMA et vérification des croisements et aide
-                df = self.exchange.get_ohlcv(symbol, "1h")  # Exemple : timeframe 1h
+                # Calcul des EMA et affichage avec aide
+                df = self.exchange.get_ohlcv(symbol, "1h")
                 if df is not None:
-                    df['EMA_short'] = df['close'].ewm(span=9).mean()
-                    df['EMA_long'] = df['close'].ewm(span=20).mean()
-                    df['EMA_50'] = df['close'].ewm(span=50).mean()
+                    df['EMA_short'] = df['close'].ewm(span=9).mean()  # EMA court (9 périodes)
+                    df['EMA_long'] = df['close'].ewm(span=20).mean()  # EMA long (20 périodes)
 
+                    # Affichage des EMA avec aide
                     st.metric(
                         "EMA 9",
                         f"{df['EMA_short'].iloc[-1]:.2f}",
-                        help="Moyenne mobile exponentielle sur 9 périodes"
+                        help="EMA 9 : Moyenne mobile exponentielle sur 9 périodes. Utilisée pour détecter les tendances à court terme."
                     )
                     st.metric(
                         "EMA 20",
                         f"{df['EMA_long'].iloc[-1]:.2f}",
-                        help="Moyenne mobile exponentielle sur 20 périodes"
-                    )
-                    st.metric(
-                        "EMA 50",
-                        f"{df['EMA_50'].iloc[-1]:.2f}",
-                        help="Moyenne mobile exponentielle sur 50 périodes"
-                    )
+                        help="EMA 20 : Moyenne mobile exponentielle sur 20 périodes. Utilisée pour détecter les tendances à moyen terme."
+    )
 
                     # Vérification du croisement EMA
                     if len(df) > 1:  # Vérifier qu'il y a suffisamment de données

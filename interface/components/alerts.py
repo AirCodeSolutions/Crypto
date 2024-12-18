@@ -212,19 +212,27 @@ class AlertSystem:
             print(f"Notification RSI ajoutée : {symbol} - RSI {rsi_value} (suracheté)")
         else:
             print(f"Aucune notification RSI : {symbol} - RSI {rsi_value}")
+    
     def check_ema_crossover(self, symbol: str, short_ema: float, long_ema: float):
-        if short_ema > long_ema:
-            self.add_notification(
-                f"Croisement haussier EMA détecté pour {symbol}",
-                "success",
-                {"EMA court": short_ema, "EMA long": long_ema}
-            )
-        elif short_ema < long_ema:
-            self.add_notification(
-                f"Croisement baissier EMA détecté pour {symbol}",
-                "warning",
-                {"EMA court": short_ema, "EMA long": long_ema}
-            )
+    """Vérifie les croisements EMA et ajoute une notification si nécessaire."""
+    # Vérifie si une notification similaire existe déjà
+    existing_notifications = [
+        notif for notif in st.session_state.get('notifications', [])
+        if f"Croisement EMA détecté pour {symbol}" in notif['message']
+    ]
+
+    if short_ema > long_ema and not any("Croisement haussier" in notif['message'] for notif in existing_notifications):
+        self.add_notification(
+            f"Croisement haussier EMA détecté pour {symbol}",
+            "success",
+            {"EMA Court": short_ema, "EMA Long": long_ema}
+        )
+    elif short_ema < long_ema and not any("Croisement baissier" in notif['message'] for notif in existing_notifications):
+        self.add_notification(
+            f"Croisement baissier EMA détecté pour {symbol}",
+            "warning",
+            {"EMA Court": short_ema, "EMA Long": long_ema}
+        )
 
     def notify_pattern(self, symbol: str, pattern_name: str, details: Optional[Dict] = None):
         self.add_notification(
