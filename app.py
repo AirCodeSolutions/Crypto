@@ -4,7 +4,7 @@ import streamlit as st
 
 
 # Configuration de la page (doit être la première commande Streamlit)
-st.set_page_config(page_title="Crypto suivi by airCodeSolutions", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Crypto suivi by AirCodeSolutions", page_icon="📈", layout="wide")
 
 # Fonction pour récupérer la clé API
 def get_airtable_key():
@@ -29,13 +29,6 @@ def get_airtable_key():
 # Récupération de la clé
 airtable_key = get_airtable_key()
 
-# Vérification
-if airtable_key:
-    st.write("Clé API détectée avec succès.")
-    # Pour debug uniquement, à retirer en production
-    st.write("Premiers caractères de la clé :", airtable_key[:10] + "...")
-else:
-    st.error("Impossible de charger la clé API.")
 
 import time
 import pandas as pd
