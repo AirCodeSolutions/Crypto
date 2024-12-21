@@ -1,12 +1,41 @@
 # app.py
+import os
 import streamlit as st
-# Configuration de la page - DOIT ÊTRE EN PREMIER
-st.set_page_config(
-    page_title="Crypto Analyzer Pro",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+
+
+# Configuration de la page (doit être la première commande Streamlit)
+st.set_page_config(page_title="Crypto suivi by airCodeSolutions", page_icon="📈", layout="wide")
+
+# Fonction pour récupérer la clé API
+def get_airtable_key():
+    try:
+        # Vérifier si la clé est dans st.secrets (Streamlit Cloud)
+        if "AIRTABLE_API_KEY" in st.secrets:
+            return st.secrets["AIRTABLE_API_KEY"]
+        else:
+            # Sinon, lire le fichier secrets.toml en local
+            import toml
+            secrets_file = ".streamlit/secrets.toml"
+            if os.path.exists(secrets_file):
+                secrets = toml.load(secrets_file)
+                return secrets["AIRTABLE_API_KEY"]
+            else:
+                st.error("Le fichier secrets.toml est manquant en local.")
+                return None
+    except Exception as e:
+        st.error(f"Erreur lors du chargement de la clé : {str(e)}")
+        return None
+
+# Récupération de la clé
+airtable_key = get_airtable_key()
+
+# Vérification
+if airtable_key:
+    st.write("Clé API détectée avec succès.")
+    # Pour debug uniquement, à retirer en production
+    st.write("Premiers caractères de la clé :", airtable_key[:10] + "...")
+else:
+    st.error("Impossible de charger la clé API.")
 
 import time
 import pandas as pd

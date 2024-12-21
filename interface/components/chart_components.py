@@ -5,7 +5,6 @@ import plotly.graph_objects as go
 import ta  # Ajout de l'import ta
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict
-
 @dataclass
 class ChartConfig:
     """Configuration pour personnaliser les graphiques"""
